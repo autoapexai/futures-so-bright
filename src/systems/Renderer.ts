@@ -1132,36 +1132,66 @@ export class Renderer {
     const W = this.W;
     const cx = W / 2;
     const rows = 10;
+    // Shared (online) boards carry a difficulty per entry: show a LVL column.
+    const showLvl = board.some((e) => e && e.difficulty);
     const avail = Math.max(this.u(80), bottom - top);
-    const rowH = Math.min(this.u(22), avail / (rows + 1.2));
-    const fontSize = Math.max(10, Math.min(this.u(16), rowH * 0.85));
     const boardW = Math.min(maxTw, this.u(320));
+    const rowFont = (fs: number, bold: boolean) => `${bold ? '700' : '600'} ${fs}px 'Rajdhani', monospace`;
+    const titleFont = (fs: number) => `700 ${Math.max(11, fs * 0.95)}px 'Orbitron', sans-serif`;
+
+    // Column layout at a given row height, measured in the row font so it fits any width:
+    //   rank (right) | initials (left) | score (right) | LVL (right; gold shades mark for 11)
+    const layout = (headerRow: boolean) => {
+      const rowH = Math.min(this.u(22), avail / (rows + (headerRow ? 2.2 : 1.2)));
+      const fs = Math.max(10, Math.min(this.u(16), rowH * 0.85));
+      ctx.font = rowFont(fs, true);
+      const wRank = ctx.measureText('10').width;
+      const wIni = ctx.measureText('WWW').width;
+      const wScore = ctx.measureText('0000000').width;
+      const wLvl = showLvl ? Math.max(ctx.measureText('LVL').width, ctx.measureText('11').width + fs * 1.15) : 0;
+      const n = showLvl ? 3 : 2;
+      const fixed = wRank + wIni + wScore + wLvl;
+      const gap = Math.max(fs * 0.45, Math.min(fs * 1.1, (boardW - 8 - fixed) / n));
+      const total = fixed + gap * n;
+      const xRank = cx - total / 2 + wRank;
+      const xIni = xRank + gap;
+      const xScore = xIni + wIni + gap + wScore;
+      const xLvl = xScore + gap + wLvl;
+      ctx.font = titleFont(fs);
+      const titleRight = cx + ctx.measureText(title).width / 2;
+      ctx.font = rowFont(fs, false);
+      const hdrLeft = xLvl - ctx.measureText('LVL').width;
+      return { rowH, fs, xRank, xIni, xScore, xLvl, headerFitsTitleLine: hdrLeft > titleRight + fs * 0.8 };
+    };
+    // Prefer the LVL header on the title line (rows stay as large as before); else its own header row.
+    let L = layout(false);
+    const headerRow = showLvl && !L.headerFitsTitleLine;
+    if (headerRow) L = layout(true);
+    const { rowH, fs: fontSize, xRank: cRank, xIni: cIni, xScore: cScore, xLvl } = L;
 
     ctx.textAlign = 'center';
     ctx.fillStyle = COL.pink;
-    ctx.font = `700 ${Math.max(11, fontSize * 0.95)}px 'Orbitron', sans-serif`;
+    ctx.font = titleFont(fontSize);
     ctx.fillText(title, cx, top);
 
-    // Small per-entry difficulty column at the right edge (only if the board carries it).
-    const showDiff = board.some((e) => e && e.difficulty);
-    const diffX = cx + boardW / 2 - 6;
-    const diffFont = Math.max(9, fontSize * 0.68);
-    if (showDiff) {
+    let startY = top + rowH * 1.35;
+    if (showLvl) {
+      // LVL header in the same size / weight as the rows.
+      ctx.font = rowFont(fontSize, false);
+      ctx.fillStyle = 'rgba(255, 157, 232, 0.9)';
       ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(255, 157, 232, 0.6)';
-      ctx.font = `600 ${Math.max(8, diffFont * 0.85)}px 'Rajdhani', sans-serif`;
-      ctx.fillText('DIFF', diffX, top);
+      if (headerRow) {
+        ctx.fillText('LVL', xLvl, startY);
+        startY += rowH;
+      } else {
+        ctx.fillText('LVL', xLvl, top);
+      }
     }
 
-    const startY = top + rowH * 1.35;
     for (let i = 0; i < rows; i++) {
       const y = startY + i * rowH;
       if (y > bottom - 2) break;
       const entry = board[i];
-      const rank = String(i + 1).padStart(2, ' ');
-      const initials = entry ? entry.initials.padEnd(3, ' ') : '---';
-      const scoreStr = entry ? String(Math.floor(entry.score)).padStart(6, ' ') : '------';
-      const line = `${rank}   ${initials}   ${scoreStr}`;
       const hi = i === highlightIndex;
       if (hi) {
         const pulse = 0.55 + Math.sin(this.time * 5) * 0.35;
@@ -1175,33 +1205,37 @@ export class Renderer {
         ctx.shadowBlur = 0;
         ctx.fillStyle = entry ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.28)';
       }
-      ctx.font = `${hi ? '700' : '600'} ${fontSize}px 'Rajdhani', monospace`;
-      ctx.textAlign = 'center';
-      ctx.fillText(line, cx, y);
-      ctx.shadowBlur = 0;
-      if (showDiff && entry?.difficulty) {
-        const d = entry.difficulty;
-        ctx.textAlign = 'right';
-        ctx.font = `700 ${diffFont}px 'Rajdhani', sans-serif`;
+      const rowColor = ctx.fillStyle;
+      ctx.font = rowFont(fontSize, hi);
+      ctx.textAlign = 'right';
+      ctx.fillText(String(i + 1), cRank, y);
+      ctx.textAlign = 'left';
+      ctx.fillText(entry ? entry.initials : '---', cIni, y);
+      ctx.textAlign = 'right';
+      ctx.fillText(entry ? String(Math.floor(entry.score)) : '------', cScore, y);
+      if (showLvl) {
+        const d = entry?.difficulty;
         if (d === 11) {
-          // Tiny shades mark + gold 11
+          // Gold 11 with a small shades mark
+          ctx.shadowBlur = 0;
           ctx.fillStyle = COL.sunCore;
-          ctx.fillText('11', diffX, y);
+          ctx.fillText('11', xLvl, y);
           const tw = ctx.measureText('11').width;
-          const gx = diffX - tw - diffFont * 1.25;
-          const gy = y - diffFont * 0.62;
-          const lw = diffFont * 0.5;
-          const lh = diffFont * 0.34;
+          const lw = fontSize * 0.46;
+          const lh = fontSize * 0.34;
+          const gx = xLvl - tw - fontSize * 0.2 - (lw * 2 + fontSize * 0.12);
+          const gy = y - fontSize * 0.62;
           roundRect(ctx, gx, gy, lw, lh, lh * 0.45);
           ctx.fill();
-          roundRect(ctx, gx + lw + diffFont * 0.14, gy, lw, lh, lh * 0.45);
+          roundRect(ctx, gx + lw + fontSize * 0.12, gy, lw, lh, lh * 0.45);
           ctx.fill();
-          ctx.fillRect(gx + lw - 1, gy + lh * 0.2, diffFont * 0.14 + 2, Math.max(1, lh * 0.18));
+          ctx.fillRect(gx - fontSize * 0.08, gy, lw * 2 + fontSize * 0.28, Math.max(1, lh * 0.22));
         } else {
-          ctx.fillStyle = hi ? COL.cyan : 'rgba(255, 157, 232, 0.72)';
-          ctx.fillText(String(d), diffX, y);
+          ctx.fillStyle = hi ? rowColor : entry ? 'rgba(255, 190, 240, 0.92)' : 'rgba(255,255,255,0.28)';
+          ctx.fillText(d ? String(d) : entry ? '' : '--', xLvl, y);
         }
       }
+      ctx.shadowBlur = 0;
     }
   }
 
