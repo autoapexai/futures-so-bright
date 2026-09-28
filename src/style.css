@@ -1015,7 +1015,7 @@ body.touch-device.hand-left #diff-ctl {
 #eleven-fx .fx-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(8, 0, 20, 0.96);
+  background: rgb(8, 0, 20);
   opacity: 0;
   animation: fx-backdrop 1.6s ease-out forwards;
 }
@@ -1128,7 +1128,7 @@ body.touch-device.hand-left #diff-ctl {
   justify-content: center;
   padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
     max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  background: rgba(8, 0, 20, 0.97);
+  background: rgba(8, 0, 20, 0.985);
   pointer-events: auto;
   touch-action: none;
   cursor: pointer;
