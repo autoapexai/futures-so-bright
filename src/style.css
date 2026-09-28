@@ -996,8 +996,9 @@ body.touch-device.hand-left #diff-ctl {
   }
 }
 
-/* —— Difficulty 11 reveal: one soft sun-flare + shades + line, ~1.4 s ——
-   Single pulse, peak opacity ~0.55 (no strobe); pointer-events none so input is never blocked. */
+/* —— Difficulty 11 reveal (first 10 -> 11 of a reign), ~1.6 s ——
+   Centered overlay on a dim backdrop so nothing overlaps the canvas copy.
+   Single soft flare (peak ~0.5 opacity, no strobe); pointer-events none so input is never blocked. */
 #eleven-fx {
   display: none;
   position: absolute;
@@ -1011,29 +1012,43 @@ body.touch-device.hand-left #diff-ctl {
   display: block;
 }
 
+#eleven-fx .fx-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 0, 20, 0.96);
+  opacity: 0;
+  animation: fx-backdrop 1.6s ease-out forwards;
+}
+
 #eleven-fx .fx-flare {
   position: absolute;
   inset: -20%;
-  background: radial-gradient(circle at 60% 40%, rgba(255, 252, 230, 0.95) 0%, rgba(255, 220, 120, 0.6) 18%, rgba(255, 150, 60, 0.18) 42%, transparent 62%);
+  background: radial-gradient(circle at 50% 44%, rgba(255, 250, 225, 0.9) 0%, rgba(255, 215, 110, 0.5) 14%, rgba(255, 150, 60, 0.14) 34%, transparent 55%);
   opacity: 0;
-  animation: fx-flare 1.4s ease-out forwards;
+  animation: fx-flare 1.6s ease-out forwards;
+}
+
+#eleven-fx .fx-center {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: min(92%, 560px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 
 #eleven-fx .fx-shades {
-  position: absolute;
-  left: 50%;
-  top: 36%;
-  transform: translate(-50%, -160%);
+  display: block;
   opacity: 0;
+  transform: translateY(-120px);
   filter: drop-shadow(0 0 12px rgba(255, 210, 90, 0.7));
-  animation: fx-shades 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
+  animation: fx-shades 1.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
 }
 
 #eleven-fx .fx-msg {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(36% + 44px);
   text-align: center;
   font-family: 'Orbitron', sans-serif;
   font-weight: 700;
@@ -1042,30 +1057,38 @@ body.touch-device.hand-left #diff-ctl {
   color: #ffe66d;
   text-shadow: 0 0 14px rgba(255, 150, 60, 0.85);
   opacity: 0;
-  animation: fx-msg 1.4s ease-out forwards;
+  animation: fx-msg 1.6s ease-out forwards;
 }
 
+/* The picker stays above the dim backdrop so the new "11" label is visible. */
 #diff-ctl.reveal {
-  animation: diff-glow 1.4s ease-out;
+  z-index: 19;
+  animation: diff-glow 1.6s ease-out;
+}
+
+@keyframes fx-backdrop {
+  0% { opacity: 0; }
+  10%, 86% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @keyframes fx-flare {
-  0% { opacity: 0; }
-  22% { opacity: 0.55; }
-  100% { opacity: 0; }
+  0%, 8% { opacity: 0; }
+  26% { opacity: 0.5; }
+  70%, 100% { opacity: 0; }
 }
 
 @keyframes fx-shades {
-  0% { opacity: 0; transform: translate(-50%, -160%); }
-  30% { opacity: 1; transform: translate(-50%, -50%); }
-  80% { opacity: 1; transform: translate(-50%, -50%); }
-  100% { opacity: 0; transform: translate(-50%, -50%); }
+  0%, 10% { opacity: 0; transform: translateY(-120px); }
+  34% { opacity: 1; transform: translateY(0); }
+  78% { opacity: 1; transform: translateY(0); }
+  88%, 100% { opacity: 0; transform: translateY(0); }
 }
 
 @keyframes fx-msg {
-  0%, 18% { opacity: 0; }
-  35%, 82% { opacity: 1; }
-  100% { opacity: 0; }
+  0%, 22% { opacity: 0; }
+  38%, 78% { opacity: 1; }
+  88%, 100% { opacity: 0; }
 }
 
 @keyframes diff-glow {
@@ -1076,18 +1099,123 @@ body.touch-device.hand-left #diff-ctl {
 
 @media (prefers-reduced-motion: reduce) {
   #eleven-fx .fx-flare { animation-name: fx-flare-soft; }
-  #eleven-fx .fx-shades { animation-name: fx-fade; transform: translate(-50%, -50%); }
+  #eleven-fx .fx-shades { animation-name: fx-fade; transform: none; }
   #diff-ctl.reveal { animation: none; }
 }
 
 @keyframes fx-flare-soft {
-  0% { opacity: 0; }
-  30% { opacity: 0.3; }
-  100% { opacity: 0; }
+  0%, 8% { opacity: 0; }
+  30% { opacity: 0.25; }
+  70%, 100% { opacity: 0; }
 }
 
 @keyframes fx-fade {
-  0% { opacity: 0; }
-  25%, 80% { opacity: 1; }
-  100% { opacity: 0; }
+  0%, 10% { opacity: 0; }
+  30%, 78% { opacity: 1; }
+  88%, 100% { opacity: 0; }
+}
+
+/* —— Congratulations (server-confirmed new #1, once per reign) ——
+   Full-screen dim backdrop hides the canvas copy and menu controls; tap / any key dismisses. */
+#congrats {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(8, 0, 20, 0.97);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+  animation: cg-in 0.45s ease-out;
+}
+
+#congrats.open {
+  display: flex;
+}
+
+body.congrats-open #diff-ctl,
+body.congrats-open .hand-btn,
+body.congrats-open .touch-action,
+body.congrats-open #touch-hint {
+  visibility: hidden;
+}
+
+#congrats .cg-card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: clamp(20px, 5vmin, 36px) clamp(18px, 5vmin, 40px);
+  border: 2px solid rgba(255, 220, 110, 0.75);
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 200, 80, 0.16), rgba(20, 5, 35, 0.92) 70%);
+  box-shadow: 0 0 34px rgba(255, 200, 80, 0.35), inset 0 0 22px rgba(255, 200, 80, 0.12);
+  text-align: center;
+}
+
+#congrats-text {
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  color: #ffe66d;
+  text-shadow: 0 0 12px rgba(255, 180, 60, 0.75);
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+}
+
+#congrats .cg-l1 {
+  display: block;
+  font-size: clamp(17px, 3.6vmin, 26px);
+  margin-bottom: 0.6em;
+}
+
+#congrats .cg-l2 {
+  display: block;
+  font-size: clamp(13px, 2.6vmin, 18px);
+  color: #fff3c2;
+}
+
+#congrats .cg-hint {
+  margin-top: 1.2em;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 220, 160, 0.6);
+}
+
+/* Subtle sparkle: six small gold stars twinkling slowly along the card edge. */
+#congrats .cg-sparkles i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff6d0;
+  box-shadow: 0 0 8px 2px rgba(255, 215, 110, 0.8);
+  opacity: 0;
+  animation: cg-twinkle 2.4s ease-in-out infinite;
+}
+#congrats .cg-sparkles i:nth-child(1) { top: -3px; left: 14%; animation-delay: 0s; }
+#congrats .cg-sparkles i:nth-child(2) { top: 22%; right: -3px; animation-delay: 0.4s; }
+#congrats .cg-sparkles i:nth-child(3) { bottom: -3px; right: 20%; animation-delay: 0.8s; }
+#congrats .cg-sparkles i:nth-child(4) { bottom: 30%; left: -3px; animation-delay: 1.2s; }
+#congrats .cg-sparkles i:nth-child(5) { top: -3px; right: 34%; animation-delay: 1.6s; }
+#congrats .cg-sparkles i:nth-child(6) { bottom: -3px; left: 38%; animation-delay: 2s; }
+
+@keyframes cg-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+
+@keyframes cg-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #congrats { animation: none; }
+  #congrats .cg-sparkles i { animation: none; opacity: 0.6; }
 }

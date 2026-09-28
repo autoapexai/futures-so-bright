@@ -4,6 +4,7 @@ const HAND_KEY = 'futures-so-bright-hand';
 const DIFFICULTY_KEY = 'fsb-difficulty-v1';
 const CLAIMS_KEY = 'fsb-claims-v1';
 const ELEVEN_KEY = 'fsb-eleven-v1';
+const ELEVEN_REVEAL_KEY = 'fsb-eleven-reveal-v1';
 const MAX_CLAIMS = 40;
 
 export type HandPreference = 'left' | 'right';
@@ -239,12 +240,30 @@ export function addClaimToken(token: string): void {
   }
 }
 
-/** Last known "I hold #1" state; '1' also means the 11 reveal was already shown for this reign. */
+/** Last known "this device holds #1" state (11 selectable). */
 export function loadElevenUnlocked(): boolean {
   try {
     return localStorage.getItem(ELEVEN_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+/** The 10 -> 11 reveal has been shown during the current #1 reign on this device. */
+export function loadElevenRevealSeen(): boolean {
+  try {
+    return localStorage.getItem(ELEVEN_REVEAL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveElevenRevealSeen(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(ELEVEN_REVEAL_KEY, '1');
+    else localStorage.removeItem(ELEVEN_REVEAL_KEY);
+  } catch {
+    /* ignore */
   }
 }
 

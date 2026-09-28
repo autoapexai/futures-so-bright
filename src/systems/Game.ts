@@ -22,6 +22,8 @@ import {
   addClaimToken,
   loadElevenUnlocked,
   saveElevenUnlocked,
+  loadElevenRevealSeen,
+  saveElevenRevealSeen,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
@@ -93,6 +95,11 @@ export class Game {
   private runTicket: Promise<string | 'denied' | null> | null = null;
   private topCheckSeq = 0;
   private revealTimer = 0;
+  /** Congratulations overlay is up (after a server-confirmed new #1). */
+  private congratsOpen = false;
+  private congratsAt = 0;
+  /** An accepted submit is waiting for its #1 check (survives superseded checks). */
+  private awaitingTopAfterSubmit = false;
   private dpr = 1;
   private viewW = LANDSCAPE_W;
   private viewH = LANDSCAPE_H;
@@ -324,35 +331,41 @@ export class Game {
     this.difficulty = next;
     saveDifficulty(next);
     this.syncDifficultyUi();
-    this.audio.playUi();
+    if (next === SECRET_DIFFICULTY && !loadElevenRevealSeen()) {
+      // First time past 10 this reign: sun flare + shades + "This one goes to eleven."
+      saveElevenRevealSeen(true);
+      this.playElevenReveal();
+    } else {
+      this.audio.playUi();
+    }
   }
 
   /** Ask the server whether this device's claim tokens own #1; show / hide 11 accordingly. */
-  private checkTop(): void {
+  private checkTop(afterSubmit = false): void {
     if (!remoteEnabled) return;
     if (this.state !== 'title' && this.state !== 'gameover') return;
     const seq = ++this.topCheckSeq;
     void amITop(loadClaimTokens()).then((top) => {
       if (top === null || seq !== this.topCheckSeq) return; // offline / superseded: keep last state
-      this.setEleven(top);
+      this.setEleven(top, afterSubmit);
     });
   }
 
-  private setEleven(top: boolean): void {
+  private setEleven(top: boolean, afterSubmit = false): void {
+    afterSubmit = afterSubmit || this.awaitingTopAfterSubmit;
+    this.awaitingTopAfterSubmit = false;
     if (top) {
-      const firstTime = !loadElevenUnlocked();
+      const newTop = !loadElevenUnlocked();
       this.elevenUnlocked = true;
       saveElevenUnlocked(true);
-      if (firstTime && (this.state === 'title' || this.state === 'gameover')) {
-        // First time this reign is confirmed on this device: select 11 with the reveal.
-        this.difficulty = SECRET_DIFFICULTY;
-        saveDifficulty(SECRET_DIFFICULTY);
-        this.playElevenReveal();
-      }
+      // Server just confirmed a new #1 right after this device's accepted submit:
+      // congratulate once. The difficulty setting is left as it is (11 is opt-in via +).
+      if (newTop && afterSubmit && this.state === 'gameover') this.showCongrats();
     } else {
       // Lost #1 (or never had it): remove 11 silently.
       this.elevenUnlocked = false;
       saveElevenUnlocked(false);
+      saveElevenRevealSeen(false);
       if (this.difficulty === SECRET_DIFFICULTY) {
         this.difficulty = MAX_PUBLIC_DIFFICULTY;
         saveDifficulty(MAX_PUBLIC_DIFFICULTY);
@@ -361,7 +374,35 @@ export class Game {
     this.syncDifficultyUi();
   }
 
-  /** ~1.4 s sun-flare + shades + "This one goes to eleven." Never blocks input. */
+  private showCongrats(): void {
+    const el = document.getElementById('congrats');
+    if (!el) return;
+    this.congratsOpen = true;
+    this.congratsAt = performance.now();
+    el.classList.add('open');
+    el.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('congrats-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playCollect();
+  }
+
+  /** Dismiss the congratulations overlay (ignored for the first 450 ms to avoid stray taps). */
+  private dismissCongrats(): boolean {
+    if (!this.congratsOpen) return false;
+    if (performance.now() - this.congratsAt < 450) return true;
+    this.congratsOpen = false;
+    const el = document.getElementById('congrats');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('congrats-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+    return true;
+  }
+
+  /** ~1.6 s dimmed overlay: sun-flare + shades + "This one goes to eleven." Never blocks input. */
   private playElevenReveal(): void {
     const fx = document.getElementById('eleven-fx');
     const ctl = document.getElementById('diff-ctl');
@@ -377,7 +418,7 @@ export class Game {
     this.revealTimer = window.setTimeout(() => {
       fx.classList.remove('play');
       ctl?.classList.remove('reveal');
-    }, 1600);
+    }, 1700);
   }
 
   start(): void {
@@ -640,6 +681,11 @@ export class Game {
 
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
+    if (this.congratsOpen) {
+      if (e.cancelable) e.preventDefault();
+      this.dismissCongrats();
+      return;
+    }
     if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #diff-ctl')) return;
     // Stick / BOOST handle themselves while a run is live or entering initials
     if (
@@ -717,6 +763,11 @@ export class Game {
   }
 
   private beginRun(): void {
+    if (this.congratsOpen) {
+      this.dismissCongrats();
+      return;
+    }
+    this.awaitingTopAfterSubmit = false;
     this.audio.playStart();
     this.state = 'playing';
     this.setBodyFlags();
@@ -865,7 +916,8 @@ export class Game {
         this.highlightIndex = local.index;
         this.boardIsRemote = false;
       }
-      this.checkTop();
+      if (res) this.awaitingTopAfterSubmit = true;
+      this.checkTop(!!res);
     });
   }
 
@@ -974,6 +1026,10 @@ export class Game {
     if (this.state === 'gameover') {
       this.renderer.update(dt, 40);
       this.particles.update(dt);
+      if (this.congratsOpen) {
+        if (this.input.consumeAny()) this.dismissCongrats();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
       if (this.input.consumeAny()) this.beginRun();
       return;
