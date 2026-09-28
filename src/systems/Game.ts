@@ -14,10 +14,12 @@ import {
   loadLeaderboard,
   qualifiesForBoard,
   addEntry,
+  insertEntry,
   nextLetter,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
+import { remoteEnabled, fetchRemoteBoard, submitRemoteScore } from '../utils/remoteBoard';
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
 
@@ -55,6 +57,16 @@ export class Game {
   private initialsSlot = 0;
   private initialsCooldown = 0;
   private pendingScore = 0;
+  /** Simulated play time of the current run (sum of dt while playing; pauses excluded). */
+  private runTime = 0;
+  private pendingRunMs = 0;
+  /** Increments every run so late network replies can't touch a newer run. */
+  private runId = 0;
+  /** Last successfully fetched shared board (null = never fetched / unavailable). */
+  private remoteBoard: LeaderboardEntry[] | null = null;
+  private remoteFetch: Promise<LeaderboardEntry[] | null> | null = null;
+  /** Which board is on screen: shared online board or this device's board. */
+  private boardIsRemote = false;
   private dpr = 1;
   private viewW = LANDSCAPE_W;
   private viewH = LANDSCAPE_H;
@@ -102,6 +114,8 @@ export class Game {
 
     this.leaderboard = loadLeaderboard();
     this.high = loadHighScore();
+    // Warm the shared board on the title screen so game over can use it instantly.
+    void this.refreshRemoteBoard();
     this.fitCanvas();
     // iOS often reports 0 safe-area until after first layout / font load
     requestAnimationFrame(() => {
@@ -585,6 +599,10 @@ export class Game {
     this.scrollSpeed = 240;
     this.newBest = false;
     this.highlightIndex = -1;
+    this.runTime = 0;
+    this.runId++;
+    // Refresh the shared board in the background while this run plays.
+    void this.refreshRemoteBoard();
     this.player.reset(this.viewH);
     this.world.reset();
     this.particles.clear();
@@ -598,11 +616,38 @@ export class Game {
     this.input.clearJustPressed();
   }
 
+  /** Fetch the shared board (deduped, short timeout). Resolves null on failure. */
+  private refreshRemoteBoard(): Promise<LeaderboardEntry[] | null> {
+    if (!remoteEnabled) return Promise.resolve(null);
+    if (this.remoteFetch) return this.remoteFetch;
+    const p = fetchRemoteBoard().then((board) => {
+      if (board) this.remoteBoard = board;
+      return board;
+    });
+    this.remoteFetch = p;
+    void p.finally(() => {
+      if (this.remoteFetch === p) this.remoteFetch = null;
+    });
+    return p;
+  }
+
+  private enterInitials(): void {
+    this.initialsChars = ['A', 'A', 'A'];
+    this.initialsSlot = 0;
+    this.initialsCooldown = 0.25;
+    this.highlightIndex = -1;
+    this.state = 'initials';
+    this.setBodyFlags();
+    this.input.clearJustPressed();
+  }
+
   private endRun(): void {
     this.input.clearTouch();
     this.audio.playGameOver();
     this.pendingScore = Math.floor(this.score);
-    this.leaderboard = loadLeaderboard();
+    this.pendingRunMs = Math.round(this.runTime * 1000);
+    // Load (and, for legacy saves, migrate) the local board before touching the high-score key.
+    const localBoard = loadLeaderboard();
     if (this.pendingScore > this.high) {
       this.high = this.pendingScore;
       this.newBest = true;
@@ -613,33 +658,71 @@ export class Game {
     saveHighScore(this.pendingScore);
     this.high = Math.max(this.high, loadHighScore());
 
-    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) {
-      this.initialsChars = ['A', 'A', 'A'];
-      this.initialsSlot = 0;
-      this.initialsCooldown = 0.25;
-      this.highlightIndex = -1;
-      this.state = 'initials';
-      this.setBodyFlags();
-      this.input.clearJustPressed();
-      return;
-    }
+    // Qualify against the shared board when we have it (fetched at run start),
+    // else the local board. Never wait on the network here.
+    this.boardIsRemote = this.remoteBoard !== null;
+    this.leaderboard = this.remoteBoard ? [...this.remoteBoard] : localBoard;
     this.highlightIndex = -1;
-    this.state = 'gameover';
-    this.setBodyFlags();
+    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) {
+      this.enterInitials();
+    } else {
+      this.state = 'gameover';
+      this.setBodyFlags();
+    }
+
+    // Re-fetch now for the freshest display; late replies only apply to this run.
+    const id = this.runId;
+    const hadRemote = this.boardIsRemote;
+    void this.refreshRemoteBoard().then((board) => {
+      if (!board || id !== this.runId || this.state !== 'gameover' || this.highlightIndex !== -1) return;
+      this.leaderboard = [...board];
+      this.boardIsRemote = true;
+      // Shared board was unavailable at game over but is now: offer initials if it qualifies.
+      if (!hadRemote && qualifiesForBoard(this.pendingScore, board)) this.enterInitials();
+    });
   }
 
   private confirmInitials(): void {
     if (this.state !== 'initials') return;
     const initials = this.initialsChars.join('');
-    const result = addEntry(this.pendingScore, initials);
-    this.leaderboard = result.board;
-    this.highlightIndex = result.index;
+    const score = this.pendingScore;
+    const runMs = this.pendingRunMs;
+    const id = this.runId;
+    // Always keep this device's board (offline fallback + personal best).
+    const local = addEntry(score, initials);
+    if (remoteEnabled && this.remoteBoard) {
+      // Optimistic: show the entry on the shared board until the server replies.
+      const optimistic = insertEntry(score, initials, this.remoteBoard);
+      this.leaderboard = optimistic.board;
+      this.highlightIndex = optimistic.index;
+      this.boardIsRemote = true;
+    } else {
+      this.leaderboard = local.board;
+      this.highlightIndex = local.index;
+      this.boardIsRemote = false;
+    }
     this.high = loadHighScore();
     this.audio.playUi();
     this.state = 'gameover';
     this.setBodyFlags();
     this.input.clearTouch();
     this.input.clearJustPressed();
+
+    if (!remoteEnabled) return;
+    void submitRemoteScore(initials, score, runMs).then((res) => {
+      if (res) this.remoteBoard = res.board;
+      if (id !== this.runId || this.state !== 'gameover') return;
+      if (res) {
+        this.leaderboard = res.board;
+        this.highlightIndex = res.index;
+        this.boardIsRemote = true;
+      } else {
+        // Network down / rejected: fall back to this device's board.
+        this.leaderboard = local.board;
+        this.highlightIndex = local.index;
+        this.boardIsRemote = false;
+      }
+    });
   }
 
   private tickInitials(dt: number): void {
@@ -747,6 +830,8 @@ export class Game {
       this.input.clearJustPressed();
       return;
     }
+
+    this.runTime += dt;
 
     const boosting = this.input.boosting && this.charge > 0.05;
     const speedMul = boosting ? 1.35 : 1;
@@ -899,6 +984,7 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
+        this.boardIsRemote ? 'GLOBAL TOP 10' : 'TOP 10',
       );
     }
   }

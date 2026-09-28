@@ -20,12 +20,13 @@ export function sanitizeInitials(raw: string): string {
   return up.length > 0 ? up : 'AAA';
 }
 
+/** Personal best on this device: max of the local board top and the stored best. */
 export function loadHighScore(): number {
   try {
     const board = loadLeaderboard();
-    if (board.length > 0) return board[0].score;
     const v = localStorage.getItem(HIGH_KEY);
-    return v ? Math.max(0, parseInt(v, 10) || 0) : 0;
+    const stored = v ? Math.max(0, parseInt(v, 10) || 0) : 0;
+    return Math.max(stored, board.length > 0 ? board[0].score : 0);
   } catch {
     return 0;
   }
@@ -74,11 +75,14 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
 
 export function loadLeaderboard(): LeaderboardEntry[] {
   try {
-    const parsed = parseBoard(localStorage.getItem(BOARD_KEY));
+    const raw = localStorage.getItem(BOARD_KEY);
+    const parsed = parseBoard(raw);
     if (parsed && parsed.length > 0) return parsed;
-    // Migrate legacy single high score so old records aren't lost.
-    const migrated = migrateOldHighScore();
-    if (migrated.length > 0) {
+    if (raw === null) {
+      // First load on this device: migrate a legacy single high score so old
+      // records aren't lost, and write the board key (even if empty) so a
+      // later personal best that skipped the board isn't re-migrated as "AAA".
+      const migrated = migrateOldHighScore();
       saveLeaderboard(migrated);
       return migrated;
     }
@@ -99,7 +103,9 @@ export function saveLeaderboard(entries: LeaderboardEntry[]): void {
       .slice(0, MAX_BOARD);
     localStorage.setItem(BOARD_KEY, JSON.stringify(cleaned));
     if (cleaned.length > 0) {
-      localStorage.setItem(HIGH_KEY, String(cleaned[0].score));
+      // Only ever raise the personal best (a run can be a PB without making the shared board).
+      const prev = Math.max(0, parseInt(localStorage.getItem(HIGH_KEY) ?? '0', 10) || 0);
+      if (cleaned[0].score > prev) localStorage.setItem(HIGH_KEY, String(cleaned[0].score));
     }
   } catch {
     /* ignore */
@@ -120,7 +126,18 @@ export function addEntry(
   initials: string,
   board?: LeaderboardEntry[],
 ): { board: LeaderboardEntry[]; index: number } {
-  const list = [...(board ?? loadLeaderboard())];
+  const result = insertEntry(score, initials, board ?? loadLeaderboard());
+  saveLeaderboard(result.board);
+  return result;
+}
+
+/** Pure version of addEntry: insert into a copy of `board` without saving anything. */
+export function insertEntry(
+  score: number,
+  initials: string,
+  board: LeaderboardEntry[],
+): { board: LeaderboardEntry[]; index: number } {
+  const list = [...board];
   const entry: LeaderboardEntry = {
     score: Math.floor(Math.max(0, score)),
     initials: sanitizeInitials(initials),
@@ -128,7 +145,6 @@ export function addEntry(
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   const trimmed = list.slice(0, MAX_BOARD);
-  saveLeaderboard(trimmed);
   // Prefer the first matching score+initials (newly inserted if tied).
   let index = -1;
   for (let i = 0; i < trimmed.length; i++) {

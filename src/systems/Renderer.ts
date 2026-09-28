@@ -1044,6 +1044,7 @@ export class Renderer {
     isNew: boolean,
     board: LeaderboardEntry[] = [],
     highlightIndex = -1,
+    boardTitle = 'TOP 10',
   ): void {
     const big = this.touchUi;
     const portrait = this.H > this.W * 1.1;
@@ -1102,7 +1103,7 @@ export class Renderer {
 
     const boardTop = overY + this.u(big ? (portrait ? 72 : 60) : 68);
     const boardBottom = floor - this.u(big ? (portrait ? 36 : 32) : 40);
-    this.drawLeaderboard(ctx, board, highlightIndex, boardTop, boardBottom, maxTw);
+    this.drawLeaderboard(ctx, board, highlightIndex, boardTop, boardBottom, maxTw, boardTitle);
 
     const alpha = 0.55 + Math.sin(this.time * 4) * 0.35;
     ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
@@ -1126,6 +1127,7 @@ export class Renderer {
     top: number,
     bottom: number,
     maxTw: number,
+    title = 'TOP 10',
   ): void {
     const W = this.W;
     const cx = W / 2;
@@ -1138,7 +1140,7 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.fillStyle = COL.pink;
     ctx.font = `700 ${Math.max(11, fontSize * 0.95)}px 'Orbitron', sans-serif`;
-    ctx.fillText('TOP 10', cx, top);
+    ctx.fillText(title, cx, top);
 
     const startY = top + rowH * 1.35;
     for (let i = 0; i < rows; i++) {
