@@ -1142,6 +1142,17 @@ export class Renderer {
     ctx.font = `700 ${Math.max(11, fontSize * 0.95)}px 'Orbitron', sans-serif`;
     ctx.fillText(title, cx, top);
 
+    // Small per-entry difficulty column at the right edge (only if the board carries it).
+    const showDiff = board.some((e) => e && e.difficulty);
+    const diffX = cx + boardW / 2 - 6;
+    const diffFont = Math.max(9, fontSize * 0.68);
+    if (showDiff) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(255, 157, 232, 0.6)';
+      ctx.font = `600 ${Math.max(8, diffFont * 0.85)}px 'Rajdhani', sans-serif`;
+      ctx.fillText('DIFF', diffX, top);
+    }
+
     const startY = top + rowH * 1.35;
     for (let i = 0; i < rows; i++) {
       const y = startY + i * rowH;
@@ -1168,6 +1179,29 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.fillText(line, cx, y);
       ctx.shadowBlur = 0;
+      if (showDiff && entry?.difficulty) {
+        const d = entry.difficulty;
+        ctx.textAlign = 'right';
+        ctx.font = `700 ${diffFont}px 'Rajdhani', sans-serif`;
+        if (d === 11) {
+          // Tiny shades mark + gold 11
+          ctx.fillStyle = COL.sunCore;
+          ctx.fillText('11', diffX, y);
+          const tw = ctx.measureText('11').width;
+          const gx = diffX - tw - diffFont * 1.25;
+          const gy = y - diffFont * 0.62;
+          const lw = diffFont * 0.5;
+          const lh = diffFont * 0.34;
+          roundRect(ctx, gx, gy, lw, lh, lh * 0.45);
+          ctx.fill();
+          roundRect(ctx, gx + lw + diffFont * 0.14, gy, lw, lh, lh * 0.45);
+          ctx.fill();
+          ctx.fillRect(gx + lw - 1, gy + lh * 0.2, diffFont * 0.14 + 2, Math.max(1, lh * 0.18));
+        } else {
+          ctx.fillStyle = hi ? COL.cyan : 'rgba(255, 157, 232, 0.72)';
+          ctx.fillText(String(d), diffX, y);
+        }
+      }
     }
   }
 

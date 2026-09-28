@@ -16,10 +16,25 @@ import {
   addEntry,
   insertEntry,
   nextLetter,
+  loadDifficulty,
+  saveDifficulty,
+  loadClaimTokens,
+  addClaimToken,
+  loadElevenUnlocked,
+  saveElevenUnlocked,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
-import { remoteEnabled, fetchRemoteBoard, submitRemoteScore } from '../utils/remoteBoard';
+import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
+import {
+  MIN_DIFFICULTY,
+  MAX_PUBLIC_DIFFICULTY,
+  SECRET_DIFFICULTY,
+  speedFactor,
+  densityFactor,
+  pointMultiplier,
+  difficultyLabel,
+} from '../utils/difficulty';
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
 
@@ -67,6 +82,17 @@ export class Game {
   private remoteFetch: Promise<LeaderboardEntry[] | null> | null = null;
   /** Which board is on screen: shared online board or this device's board. */
   private boardIsRemote = false;
+  /** Selected difficulty (1-10, or 11 while this device holds #1). */
+  private difficulty = 5;
+  /** Difficulty locked in for the current / last run. */
+  private runDifficulty = 5;
+  private pendingDifficulty = 5;
+  /** This device currently holds #1 on the shared board (11 selectable). */
+  private elevenUnlocked = false;
+  /** Difficulty-11 run ticket request for the current run. */
+  private runTicket: Promise<string | 'denied' | null> | null = null;
+  private topCheckSeq = 0;
+  private revealTimer = 0;
   private dpr = 1;
   private viewW = LANDSCAPE_W;
   private viewH = LANDSCAPE_H;
@@ -114,8 +140,15 @@ export class Game {
 
     this.leaderboard = loadLeaderboard();
     this.high = loadHighScore();
+    // 11 is shown right away only if this device was #1 last time; re-checked below.
+    this.elevenUnlocked = remoteEnabled && loadElevenUnlocked();
+    const savedDifficulty = loadDifficulty();
+    this.difficulty =
+      savedDifficulty === SECRET_DIFFICULTY && !this.elevenUnlocked
+        ? MAX_PUBLIC_DIFFICULTY
+        : savedDifficulty;
     // Warm the shared board on the title screen so game over can use it instantly.
-    void this.refreshRemoteBoard();
+    void this.refreshRemoteBoard().then(() => this.checkTop());
     this.fitCanvas();
     // iOS often reports 0 safe-area until after first layout / font load
     requestAnimationFrame(() => {
@@ -251,6 +284,100 @@ export class Game {
       this.input.clearTouch();
       this.audio.playUi();
     });
+
+    // Difficulty − / + (title & game-over menus, all devices)
+    bindTap(document.getElementById('diff-minus'), () => {
+      void this.audio.unlock();
+      this.changeDifficulty(-1);
+    });
+    bindTap(document.getElementById('diff-plus'), () => {
+      void this.audio.unlock();
+      this.changeDifficulty(1);
+    });
+    this.syncDifficultyUi();
+  }
+
+  private syncDifficultyUi(): void {
+    const d = this.difficulty;
+    const main = document.getElementById('diff-main');
+    const mult = document.getElementById('diff-mult');
+    const ctl = document.getElementById('diff-ctl');
+    const label = difficultyLabel(d);
+    const cut = label.lastIndexOf(' · ');
+    if (main) main.textContent = label.slice(0, cut);
+    if (mult) mult.textContent = label.slice(cut + 3);
+    ctl?.classList.toggle('eleven', d === SECRET_DIFFICULTY);
+    ctl?.setAttribute('aria-label', `Difficulty ${d}, points ${pointMultiplier(d).toFixed(1)}x`);
+    const minus = document.getElementById('diff-minus') as HTMLButtonElement | null;
+    const plus = document.getElementById('diff-plus') as HTMLButtonElement | null;
+    const max = this.elevenUnlocked ? SECRET_DIFFICULTY : MAX_PUBLIC_DIFFICULTY;
+    if (minus) minus.disabled = d <= MIN_DIFFICULTY;
+    if (plus) plus.disabled = d >= max;
+    document.body.dataset.difficulty = String(d);
+  }
+
+  private changeDifficulty(delta: number): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    const max = this.elevenUnlocked ? SECRET_DIFFICULTY : MAX_PUBLIC_DIFFICULTY;
+    const next = Math.min(max, Math.max(MIN_DIFFICULTY, this.difficulty + delta));
+    if (next === this.difficulty) return;
+    this.difficulty = next;
+    saveDifficulty(next);
+    this.syncDifficultyUi();
+    this.audio.playUi();
+  }
+
+  /** Ask the server whether this device's claim tokens own #1; show / hide 11 accordingly. */
+  private checkTop(): void {
+    if (!remoteEnabled) return;
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    const seq = ++this.topCheckSeq;
+    void amITop(loadClaimTokens()).then((top) => {
+      if (top === null || seq !== this.topCheckSeq) return; // offline / superseded: keep last state
+      this.setEleven(top);
+    });
+  }
+
+  private setEleven(top: boolean): void {
+    if (top) {
+      const firstTime = !loadElevenUnlocked();
+      this.elevenUnlocked = true;
+      saveElevenUnlocked(true);
+      if (firstTime && (this.state === 'title' || this.state === 'gameover')) {
+        // First time this reign is confirmed on this device: select 11 with the reveal.
+        this.difficulty = SECRET_DIFFICULTY;
+        saveDifficulty(SECRET_DIFFICULTY);
+        this.playElevenReveal();
+      }
+    } else {
+      // Lost #1 (or never had it): remove 11 silently.
+      this.elevenUnlocked = false;
+      saveElevenUnlocked(false);
+      if (this.difficulty === SECRET_DIFFICULTY) {
+        this.difficulty = MAX_PUBLIC_DIFFICULTY;
+        saveDifficulty(MAX_PUBLIC_DIFFICULTY);
+      }
+    }
+    this.syncDifficultyUi();
+  }
+
+  /** ~1.4 s sun-flare + shades + "This one goes to eleven." Never blocks input. */
+  private playElevenReveal(): void {
+    const fx = document.getElementById('eleven-fx');
+    const ctl = document.getElementById('diff-ctl');
+    if (!fx) return;
+    fx.classList.remove('play');
+    ctl?.classList.remove('reveal');
+    void fx.offsetWidth; // restart the CSS animation
+    fx.classList.add('play');
+    ctl?.classList.add('reveal');
+    this.audio.playCollect();
+    window.setTimeout(() => this.audio.playUi(), 180);
+    window.clearTimeout(this.revealTimer);
+    this.revealTimer = window.setTimeout(() => {
+      fx.classList.remove('play');
+      ctl?.classList.remove('reveal');
+    }, 1600);
   }
 
   start(): void {
@@ -513,7 +640,7 @@ export class Game {
 
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #diff-ctl')) return;
     // Stick / BOOST handle themselves while a run is live or entering initials
     if (
       (this.state === 'playing' || this.state === 'initials') &&
@@ -601,6 +728,16 @@ export class Game {
     this.highlightIndex = -1;
     this.runTime = 0;
     this.runId++;
+    this.runDifficulty = this.difficulty;
+    this.runTicket = null;
+    if (this.runDifficulty === SECRET_DIFFICULTY && remoteEnabled) {
+      // Difficulty 11 needs a server ticket, issued only to the current #1.
+      const ticket = startRemoteRun(loadClaimTokens());
+      this.runTicket = ticket;
+      void ticket.then((t) => {
+        if (t === 'denied') this.setEleven(false); // lost #1 before starting: next run drops to 10
+      });
+    }
     // Refresh the shared board in the background while this run plays.
     void this.refreshRemoteBoard();
     this.player.reset(this.viewH);
@@ -646,6 +783,7 @@ export class Game {
     this.audio.playGameOver();
     this.pendingScore = Math.floor(this.score);
     this.pendingRunMs = Math.round(this.runTime * 1000);
+    this.pendingDifficulty = this.runDifficulty;
     // Load (and, for legacy saves, migrate) the local board before touching the high-score key.
     const localBoard = loadLeaderboard();
     if (this.pendingScore > this.high) {
@@ -679,7 +817,7 @@ export class Game {
       this.boardIsRemote = true;
       // Shared board was unavailable at game over but is now: offer initials if it qualifies.
       if (!hadRemote && qualifiesForBoard(this.pendingScore, board)) this.enterInitials();
-    });
+    }).then(() => this.checkTop());
   }
 
   private confirmInitials(): void {
@@ -687,12 +825,14 @@ export class Game {
     const initials = this.initialsChars.join('');
     const score = this.pendingScore;
     const runMs = this.pendingRunMs;
+    const difficulty = this.pendingDifficulty;
+    const ticketReq = difficulty === SECRET_DIFFICULTY ? this.runTicket : null;
     const id = this.runId;
     // Always keep this device's board (offline fallback + personal best).
-    const local = addEntry(score, initials);
+    const local = addEntry(score, initials, undefined, difficulty);
     if (remoteEnabled && this.remoteBoard) {
       // Optimistic: show the entry on the shared board until the server replies.
-      const optimistic = insertEntry(score, initials, this.remoteBoard);
+      const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty);
       this.leaderboard = optimistic.board;
       this.highlightIndex = optimistic.index;
       this.boardIsRemote = true;
@@ -709,7 +849,10 @@ export class Game {
     this.input.clearJustPressed();
 
     if (!remoteEnabled) return;
-    void submitRemoteScore(initials, score, runMs).then((res) => {
+    void (ticketReq ?? Promise.resolve(null))
+      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null))
+      .then((res) => {
+      if (res?.claimToken) addClaimToken(res.claimToken);
       if (res) this.remoteBoard = res.board;
       if (id !== this.runId || this.state !== 'gameover') return;
       if (res) {
@@ -722,6 +865,7 @@ export class Game {
         this.highlightIndex = local.index;
         this.boardIsRemote = false;
       }
+      this.checkTop();
     });
   }
 
@@ -780,6 +924,17 @@ export class Game {
     this.input.clearJustPressed();
   }
 
+  /** Title / game-over only: [ or - = easier, ] or = (+) = harder. Returns true if handled. */
+  private handleDifficultyKeys(): boolean {
+    let delta = 0;
+    if (this.input.consume('[') || this.input.consume('-') || this.input.consume('_')) delta = -1;
+    else if (this.input.consume(']') || this.input.consume('=') || this.input.consume('+')) delta = 1;
+    if (delta === 0) return false;
+    this.changeDifficulty(delta);
+    this.input.clearJustPressed();
+    return true;
+  }
+
   private tick(dt: number): void {
     this.pulse += dt;
 
@@ -802,6 +957,7 @@ export class Game {
       }
       if (Math.random() < (this.touchPrimary ? 0.08 : 0.3)) this.particles.spark(this.player.x + 8, this.player.y - 6, '#ffe66d');
       this.particles.update(dt);
+      if (this.handleDifficultyKeys()) return;
       // Any key (after mute handled above) or prior Space/Enter starts the run.
       if (this.input.consumeAny()) {
         void this.audio.unlock();
@@ -818,6 +974,7 @@ export class Game {
     if (this.state === 'gameover') {
       this.renderer.update(dt, 40);
       this.particles.update(dt);
+      if (this.handleDifficultyKeys()) return;
       if (this.input.consumeAny()) this.beginRun();
       return;
     }
@@ -837,10 +994,22 @@ export class Game {
     const speedMul = boosting ? 1.35 : 1;
     if (boosting && this.input.consume(' ')) this.audio.playBoost();
 
-    this.scrollSpeed = 240 + this.distance * 0.035 + (boosting ? 90 : 0);
+    // Difficulty scales base speed + ramp (m) and points (pts); 5 is exactly 1 / 1.
+    const m = speedFactor(this.runDifficulty);
+    const pts = pointMultiplier(this.runDifficulty);
+    this.scrollSpeed = 240 * m + this.distance * 0.035 * m + (boosting ? 90 : 0);
     const pr = this.touchReserves();
     this.player.update(dt, this.input.axis, boosting, this.viewW, this.viewH, speedMul, pr.top, pr.bottom, pr.left);
-    this.world.update(dt, this.scrollSpeed, this.viewW, this.viewH, this.distance, pr.top, this.viewH - pr.bottom);
+    this.world.update(
+      dt,
+      this.scrollSpeed,
+      this.viewW,
+      this.viewH,
+      this.distance,
+      pr.top,
+      this.viewH - pr.bottom,
+      densityFactor(this.runDifficulty),
+    );
     this.particles.update(dt);
     this.renderer.update(dt, this.scrollSpeed);
     {
@@ -857,7 +1026,7 @@ export class Game {
     }
 
     this.distance += this.scrollSpeed * dt * 0.35;
-    this.score += this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0);
+    this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
 
     // shade drain
     const drain = (boosting ? 0.14 : 0.048) + this.distance * 0.000003;
@@ -890,7 +1059,7 @@ export class Game {
       if (circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) {
         c.alive = false;
         this.charge = clamp(this.charge + 0.22, 0, 1);
-        this.score += c.value;
+        this.score += c.value * pts;
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
         this.spawnFloater(c.x, c.y, '+SHADE', '#00f0ff');

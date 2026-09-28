@@ -859,3 +859,235 @@ body.hand-left .touch-action::before {
 body.touch-device #hand-btn {
   cursor: pointer;
 }
+
+/* —— Difficulty selector (title / game-over, all devices) ——
+   Desktop: bottom-centre under the canvas copy. Touch: stacked just above the
+   hand toggle, i.e. always on the opposite side from START; the stick is hidden
+   on menus. Fixed label width so changing the value never shifts layout. */
+#diff-ctl {
+  display: none;
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 2px solid rgba(255, 80, 200, 0.55);
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.82);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+body.title-screen #diff-ctl,
+body.gameover #diff-ctl {
+  display: flex;
+}
+
+#diff-label {
+  display: inline-block;
+  width: 190px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.diff-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid rgba(255, 80, 200, 0.45);
+  border-radius: 10px;
+  background: rgba(40, 0, 45, 0.7);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.diff-btn::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.diff-btn:active:not(:disabled) {
+  transform: scale(0.94);
+  box-shadow: 0 0 16px rgba(255, 80, 200, 0.55);
+  background: rgba(60, 0, 50, 0.9);
+}
+
+.diff-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+#diff-ctl.eleven {
+  border-color: rgba(255, 230, 109, 0.85);
+  color: #ffe66d;
+  box-shadow: 0 0 18px rgba(255, 210, 90, 0.35);
+}
+
+#diff-ctl.eleven .diff-btn {
+  border-color: rgba(255, 230, 109, 0.5);
+  color: #ffe66d;
+}
+
+/* Touch: stack above the hand toggle (same side, opposite START) */
+body.touch-device #diff-ctl {
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: auto;
+  transform: none;
+  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px);
+}
+
+body.touch-device.hand-left #diff-ctl {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right, 0px));
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  /* Narrow portrait has no room beside START: sit just above START's top edge. */
+  body.touch-device #diff-ctl {
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px);
+    font-size: 9px;
+  }
+  body.touch-device #diff-label {
+    width: 112px;
+    white-space: normal;
+  }
+  body.touch-device .diff-sep {
+    display: none;
+  }
+  body.touch-device #diff-mult {
+    display: block;
+    margin-top: 2px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch-device #diff-ctl {
+    bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 50px);
+    font-size: 10px;
+  }
+  body.touch-device #diff-label {
+    width: 170px;
+  }
+  body.touch-device .diff-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* —— Difficulty 11 reveal: one soft sun-flare + shades + line, ~1.4 s ——
+   Single pulse, peak opacity ~0.55 (no strobe); pointer-events none so input is never blocked. */
+#eleven-fx {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#eleven-fx.play {
+  display: block;
+}
+
+#eleven-fx .fx-flare {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 60% 40%, rgba(255, 252, 230, 0.95) 0%, rgba(255, 220, 120, 0.6) 18%, rgba(255, 150, 60, 0.18) 42%, transparent 62%);
+  opacity: 0;
+  animation: fx-flare 1.4s ease-out forwards;
+}
+
+#eleven-fx .fx-shades {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  transform: translate(-50%, -160%);
+  opacity: 0;
+  filter: drop-shadow(0 0 12px rgba(255, 210, 90, 0.7));
+  animation: fx-shades 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
+}
+
+#eleven-fx .fx-msg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(36% + 44px);
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: clamp(14px, 2.6vw, 22px);
+  letter-spacing: 0.08em;
+  color: #ffe66d;
+  text-shadow: 0 0 14px rgba(255, 150, 60, 0.85);
+  opacity: 0;
+  animation: fx-msg 1.4s ease-out forwards;
+}
+
+#diff-ctl.reveal {
+  animation: diff-glow 1.4s ease-out;
+}
+
+@keyframes fx-flare {
+  0% { opacity: 0; }
+  22% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+@keyframes fx-shades {
+  0% { opacity: 0; transform: translate(-50%, -160%); }
+  30% { opacity: 1; transform: translate(-50%, -50%); }
+  80% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(-50%, -50%); }
+}
+
+@keyframes fx-msg {
+  0%, 18% { opacity: 0; }
+  35%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes diff-glow {
+  0% { box-shadow: 0 0 0 rgba(255, 210, 90, 0); }
+  30% { box-shadow: 0 0 30px rgba(255, 210, 90, 0.8); }
+  100% { box-shadow: 0 0 18px rgba(255, 210, 90, 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #eleven-fx .fx-flare { animation-name: fx-flare-soft; }
+  #eleven-fx .fx-shades { animation-name: fx-fade; transform: translate(-50%, -50%); }
+  #diff-ctl.reveal { animation: none; }
+}
+
+@keyframes fx-flare-soft {
+  0% { opacity: 0; }
+  30% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
+@keyframes fx-fade {
+  0% { opacity: 0; }
+  25%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}

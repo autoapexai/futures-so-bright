@@ -1,12 +1,18 @@
 const HIGH_KEY = 'fsb-highscore-v1';
 const BOARD_KEY = 'fsb-leaderboard-v1';
 const HAND_KEY = 'futures-so-bright-hand';
+const DIFFICULTY_KEY = 'fsb-difficulty-v1';
+const CLAIMS_KEY = 'fsb-claims-v1';
+const ELEVEN_KEY = 'fsb-eleven-v1';
+const MAX_CLAIMS = 40;
 
 export type HandPreference = 'left' | 'right';
 
 export interface LeaderboardEntry {
   score: number;
   initials: string;
+  /** 1-11; missing on old local entries (treated as 5). */
+  difficulty?: number;
 }
 
 const MAX_BOARD = 10;
@@ -64,7 +70,8 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
       const score = Math.floor(Number((item as LeaderboardEntry).score));
       if (!Number.isFinite(score) || score < 0) continue;
       const initials = sanitizeInitials(String((item as LeaderboardEntry).initials ?? 'AAA'));
-      out.push({ score, initials });
+      const d = Math.round(Number((item as LeaderboardEntry).difficulty));
+      out.push(d >= 1 && d <= 11 ? { score, initials, difficulty: d } : { score, initials });
     }
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, MAX_BOARD);
@@ -98,6 +105,7 @@ export function saveLeaderboard(entries: LeaderboardEntry[]): void {
       .map((e) => ({
         score: Math.floor(Math.max(0, e.score)),
         initials: sanitizeInitials(e.initials),
+        ...(e.difficulty ? { difficulty: e.difficulty } : {}),
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_BOARD);
@@ -125,8 +133,9 @@ export function addEntry(
   score: number,
   initials: string,
   board?: LeaderboardEntry[],
+  difficulty?: number,
 ): { board: LeaderboardEntry[]; index: number } {
-  const result = insertEntry(score, initials, board ?? loadLeaderboard());
+  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty);
   saveLeaderboard(result.board);
   return result;
 }
@@ -136,11 +145,13 @@ export function insertEntry(
   score: number,
   initials: string,
   board: LeaderboardEntry[],
+  difficulty?: number,
 ): { board: LeaderboardEntry[]; index: number } {
   const list = [...board];
   const entry: LeaderboardEntry = {
     score: Math.floor(Math.max(0, score)),
     initials: sanitizeInitials(initials),
+    ...(difficulty ? { difficulty } : {}),
   };
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
@@ -187,4 +198,61 @@ export function applyHandPreference(hand: HandPreference = loadHandPreference())
   document.body.classList.toggle('hand-left', hand === 'left');
   document.body.classList.toggle('hand-right', hand === 'right');
   return hand;
+}
+
+/** Saved difficulty 1-11 (default 5). 11 is only honoured by the game while unlocked. */
+export function loadDifficulty(): number {
+  try {
+    const n = parseInt(localStorage.getItem(DIFFICULTY_KEY) ?? '', 10);
+    if (n >= 1 && n <= 11) return n;
+  } catch {
+    /* ignore */
+  }
+  return 5;
+}
+
+export function saveDifficulty(d: number): void {
+  try {
+    localStorage.setItem(DIFFICULTY_KEY, String(Math.min(11, Math.max(1, Math.round(d)))));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Claim tokens returned by the server for this device's accepted scores (proof of #1). */
+export function loadClaimTokens(): string[] {
+  try {
+    const data = JSON.parse(localStorage.getItem(CLAIMS_KEY) ?? '[]');
+    return Array.isArray(data) ? data.filter((t) => typeof t === 'string' && /^[0-9a-f]{64}$/.test(t)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addClaimToken(token: string): void {
+  if (!/^[0-9a-f]{64}$/.test(token)) return;
+  try {
+    const list = [token, ...loadClaimTokens().filter((t) => t !== token)].slice(0, MAX_CLAIMS);
+    localStorage.setItem(CLAIMS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Last known "I hold #1" state; '1' also means the 11 reveal was already shown for this reign. */
+export function loadElevenUnlocked(): boolean {
+  try {
+    return localStorage.getItem(ELEVEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveElevenUnlocked(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(ELEVEN_KEY, '1');
+    else localStorage.removeItem(ELEVEN_KEY);
+  } catch {
+    /* ignore */
+  }
 }

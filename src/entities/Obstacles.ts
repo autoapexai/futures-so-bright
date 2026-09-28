@@ -103,6 +103,7 @@ export class WorldSpawner {
     distance: number,
     yMin?: number,
     yMax?: number,
+    density = 1,
   ): void {
     if (yMin !== undefined) this.laneTop = yMin;
     else this.laneTop = Math.max(80, H * 0.12);
@@ -112,7 +113,8 @@ export class WorldSpawner {
     this.spawnTimer -= dt;
     this.collectTimer -= dt;
 
-    const interval = lerp(1.1, 0.45, this.difficulty);
+    // density > 1 spawns obstacles more often (difficulty setting; 1 = original).
+    const interval = lerp(1.1, 0.45, this.difficulty) / density;
     if (this.spawnTimer <= 0) {
       this.spawnObstacle(W);
       this.spawnTimer = interval * rand(0.7, 1.15);
