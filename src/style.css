@@ -1,0 +1,861 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --joy-size: 152px;
+  --boost-size: 124px;
+  --vvh: 100dvh;
+  color-scheme: dark;
+}
+
+
+#safe-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  /* Individual sides: Safari can drop shorthand padding when env() is mixed.
+     Keep a 1px box (0×0 + visibility:hidden has returned 0 insets on some iOS). */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
+}
+
+html {
+  width: 100%;
+  height: 100%;
+  height: -webkit-fill-available;
+  height: 100svh;
+  height: var(--vvh, 100svh);
+  min-height: 0;
+  max-height: 100%;
+  max-height: var(--vvh, 100svh);
+  background: #0a0015;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  overflow: clip;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  height: var(--vvh, 100svh);
+  min-height: 0;
+  max-height: 100%;
+  max-height: var(--vvh, 100svh);
+  overflow: hidden;
+  overflow: clip;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+  background: #0a0015;
+  font-family: 'Rajdhani', system-ui, sans-serif;
+  font-size: 16px;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none;
+  position: fixed;
+  inset: 0;
+}
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  margin: 0;
+  touch-action: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid #0ff;
+  outline-offset: 3px;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  height: var(--vvh, 100svh);
+  min-height: 0;
+  max-height: 100%;
+  max-height: var(--vvh, 100svh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0015;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Touch: JS pins #app to visualViewport; canvas fills it — no safe-area letterbox. */
+body.touch-device #app {
+  position: fixed;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  min-height: 0;
+  inset: 0;
+}
+
+#game {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+  image-rendering: auto;
+  border-radius: 0;
+  box-shadow: none;
+  background: #0a0015;
+  flex-shrink: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+body.touch-device #game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+  touch-action: none;
+}
+
+/* First paint: fill before JS adds .touch-device (avoids 16:9 letterbox flash). */
+/* any-pointer: coarse covers iPad + Magic Keyboard (primary pointer is fine). */
+@media (hover: none), (pointer: coarse), (any-pointer: coarse) {
+  #app {
+    align-items: stretch;
+    justify-content: stretch;
+    min-height: 0;
+  }
+  #game {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: fill;
+  }
+  #touch-controls {
+    display: block;
+  }
+}
+
+/* Top-right chrome: pause + mute, clear of Dynamic Island / notch */
+#hud-chrome {
+  position: absolute;
+  top: max(10px, calc(env(safe-area-inset-top, 0px) + 4px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  z-index: 30;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  pointer-events: none;
+  touch-action: none;
+}
+
+#hud-chrome > button {
+  pointer-events: auto;
+}
+
+#mute-btn,
+#pause-btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  border: 2px solid rgba(0, 255, 255, 0.5);
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.85);
+  color: #0ff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#mute-btn::before,
+#pause-btn::before {
+  content: '';
+  position: absolute;
+  inset: -18px;
+}
+
+#pause-btn {
+  display: none;
+  border-color: rgba(255, 80, 200, 0.55);
+  color: #ff9de8;
+}
+
+body.touch-device.playing #pause-btn,
+body.touch-device.paused #pause-btn {
+  display: block;
+}
+
+#mute-btn:active,
+#pause-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 18px rgba(0, 255, 255, 0.55);
+  background: rgba(0, 40, 60, 0.9);
+}
+
+#touch-controls {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  touch-action: none;
+}
+
+#touch-controls.visible,
+body.touch-device #touch-controls {
+  display: block;
+}
+
+/* Dim + disable sticks/boost while paused (pause lives in hud-chrome) */
+body.touch-device.paused #touch-controls {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Soft control tip on title (phones) — portrait primary, no landscape nag */
+#touch-hint {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: max(56px, calc(env(safe-area-inset-top, 0px) + 48px));
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(10, 0, 25, 0.78);
+  border: 1px solid rgba(255, 80, 200, 0.4);
+  color: rgba(255, 180, 230, 0.95);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* Hint pill overlaps the canvas title on phones; copy lives in-game + START. */
+body.touch-device:not(.playing):not(.paused) #touch-hint {
+  display: none;
+}
+
+/* Virtual joystick: large spawn zone; stick recenters under thumb */
+.joy-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  /* % of #app (visualViewport-pinned) — vh/vw include Safari URL-bar chrome. */
+  width: max(calc(var(--joy-size) + 108px), min(54%, 300px));
+  height: max(calc(var(--joy-size) + 108px), min(46%, 300px));
+  /* Extra left pad: iOS edge-swipe back steals the first ~20px. */
+  padding-left: max(24px, calc(env(safe-area-inset-left, 0px) + 12px));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+/* Hide stick on menus so START/RIDE is the one-handed focus */
+body.touch-device:not(.playing):not(.initials) .joy-zone {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Initials entry: stick navigates letters / slots */
+body.touch-device.initials .joy-zone {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.joy-base {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--joy-size);
+  height: var(--joy-size);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(20, 0, 40, 0.58);
+  border: 2px solid rgba(255, 80, 200, 0.5);
+  box-shadow: 0 0 28px rgba(255, 40, 160, 0.2), inset 0 0 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.joy-ring {
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 255, 0.22);
+  pointer-events: none;
+}
+
+.joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 46%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 30%, #ff9de8, #c020a0 55%, #6a1080);
+  border: 2px solid rgba(255, 200, 255, 0.55);
+  box-shadow: 0 0 18px rgba(255, 80, 200, 0.55);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.joy-zone.active .joy-base {
+  border-color: rgba(0, 255, 255, 0.7);
+  box-shadow: 0 0 32px rgba(0, 255, 255, 0.3), inset 0 0 24px rgba(0, 0, 0, 0.35);
+}
+
+.joy-zone.active .joy-knob {
+  background: radial-gradient(circle at 35% 30%, #a8ffff, #00c8e8 55%, #0060a0);
+  border-color: rgba(180, 255, 255, 0.7);
+  box-shadow: 0 0 22px rgba(0, 255, 255, 0.65);
+}
+
+.touch-btn {
+  cursor: pointer;
+  border: 2px solid rgba(255, 80, 200, 0.6);
+  border-radius: 18px;
+  background: rgba(20, 0, 40, 0.8);
+  color: #ff9de8;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.touch-btn:active,
+.touch-btn.active {
+  background: rgba(255, 60, 180, 0.55);
+  box-shadow: 0 0 22px rgba(255, 80, 200, 0.65);
+  transform: scale(0.96);
+}
+
+.touch-action {
+  position: absolute;
+  z-index: 2;
+  right: max(10px, env(safe-area-inset-right, 0px));
+  bottom: max(22px, env(safe-area-inset-bottom, 0px));
+  width: var(--boost-size);
+  height: var(--boost-size);
+  min-width: var(--boost-size);
+  min-height: var(--boost-size);
+  border-radius: 50%;
+  font-size: 16px;
+  letter-spacing: 1px;
+  border-color: rgba(0, 255, 255, 0.65);
+  color: #0ff;
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.28);
+  touch-action: none;
+  -webkit-user-drag: none;
+}
+
+/* Expand hit area well beyond the visible circle (thumb forgiveness) */
+.touch-action::before {
+  content: '';
+  position: absolute;
+  /* Large thumb slop, biased away from the stick. */
+  inset: -28px -32px -32px -20px;
+  border-radius: 50%;
+}
+
+.touch-action.active,
+.touch-action:active {
+  background: rgba(0, 200, 255, 0.48);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.75);
+  color: #fff;
+  border-color: rgba(180, 255, 255, 0.95);
+}
+
+/* iPhone-ish portrait (14 Pro Max ~430×932 CSS)
+   Keep stick + BOOST from overlapping expanded hit slop. */
+@media (max-width: 500px) and (orientation: portrait) {
+  :root {
+    --joy-size: 160px;
+    --boost-size: 132px;
+  }
+
+  .joy-zone {
+    width: min(50%, 230px);
+    height: min(42%, 280px);
+    padding-left: max(24px, calc(env(safe-area-inset-left, 0px) + 12px));
+    padding-bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px));
+  }
+
+  .touch-action {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+    font-size: 15px;
+  }
+
+  .touch-action::before {
+    /* Extra slop down/out, not toward the stick */
+    inset: -24px -28px -32px -16px;
+  }
+
+  #mute-btn,
+  #pause-btn {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+  }
+
+  #hud-chrome {
+    top: max(12px, calc(env(safe-area-inset-top, 0px) + 8px));
+    right: max(10px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Phone landscape — compact thumbs in corners, still ≥44px chrome */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --joy-size: 124px;
+    --boost-size: 112px;
+  }
+
+  .joy-zone {
+    width: max(calc(var(--joy-size) + 72px), min(42%, 240px));
+    height: max(calc(var(--joy-size) + 64px), min(80%, 240px));
+    padding-left: max(24px, calc(env(safe-area-inset-left, 0px) + 8px));
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-action {
+    right: max(8px, env(safe-area-inset-right, 0px));
+    bottom: max(6px, env(safe-area-inset-bottom, 0px));
+    font-size: 16px;
+  }
+
+  .touch-action::before {
+    inset: -20px;
+  }
+
+  #hud-chrome {
+    top: max(6px, env(safe-area-inset-top, 0px));
+    right: max(6px, env(safe-area-inset-right, 0px));
+    gap: 8px;
+  }
+
+  #mute-btn,
+  #pause-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 18px;
+    border-radius: 10px;
+  }
+
+  #touch-hint {
+    top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+}
+
+/* iPad / large tablets (Mini portrait is 744 CSS px) */
+@media (min-width: 700px) and (pointer: coarse),
+  (min-width: 700px) and (hover: none),
+  (min-width: 700px) and (any-pointer: coarse) {
+  :root {
+    --joy-size: 172px;
+    --boost-size: 140px;
+  }
+
+  .joy-zone {
+    width: max(calc(var(--joy-size) + 110px), min(42%, 340px));
+    height: max(calc(var(--joy-size) + 110px), min(38%, 340px));
+    padding-left: max(24px, calc(env(safe-area-inset-left, 0px) + 8px));
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-action {
+    right: max(24px, env(safe-area-inset-right, 0px));
+    bottom: max(36px, env(safe-area-inset-bottom, 0px));
+    font-size: 17px;
+  }
+
+  .touch-action::before {
+    inset: -28px;
+  }
+
+  #mute-btn,
+  #pause-btn {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    font-size: 24px;
+  }
+}
+
+@media (pointer: fine) and (hover: hover) {
+  body:not(.touch-device) #touch-controls {
+    display: none !important;
+  }
+
+  body:not(.touch-device) #pause-btn {
+    display: none !important;
+  }
+
+  body:not(.touch-device) #touch-hint {
+    display: none !important;
+  }
+}
+
+
+@media (hover: hover) and (pointer: fine) {
+  #game {
+    cursor: pointer;
+  }
+}
+
+/* Menu START/RIDE — bigger thumb magnet + pulse */
+body.touch-device:not(.playing):not(.paused) .touch-action {
+  width: calc(var(--boost-size) + 12px);
+  height: calc(var(--boost-size) + 12px);
+  min-width: calc(var(--boost-size) + 12px);
+  min-height: calc(var(--boost-size) + 12px);
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  animation: start-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes start-pulse {
+  0%, 100% { box-shadow: 0 0 24px rgba(0, 255, 255, 0.28); }
+  50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mute-btn,
+  #pause-btn,
+  .touch-btn,
+  .joy-knob {
+    transition: none;
+  }
+  body.touch-device:not(.playing):not(.paused) .touch-action {
+    animation: none;
+  }
+}
+
+/* Menus: START / RIDE stays bright and fully tappable */
+body.touch-device.title-screen .touch-action {
+  opacity: 1;
+  pointer-events: auto;
+  border-color: rgba(0, 255, 255, 0.85);
+  color: #7fffff;
+  box-shadow: 0 0 28px rgba(0, 255, 255, 0.45);
+}
+
+body.touch-device.gameover .touch-action {
+  opacity: 1;
+  pointer-events: auto;
+  border-color: rgba(255, 80, 200, 0.75);
+  color: #ff9de8;
+  box-shadow: 0 0 28px rgba(255, 80, 200, 0.35);
+}
+
+body.touch-device.initials .touch-action {
+  opacity: 1;
+  pointer-events: auto;
+  border-color: rgba(0, 255, 255, 0.85);
+  color: #7fffff;
+  box-shadow: 0 0 28px rgba(0, 255, 255, 0.45);
+}
+
+
+/* one-hand START reach — keep clear of home indicator, thumb-natural */
+@media (max-width: 500px) and (orientation: portrait) {
+  body.touch-device.title-screen .touch-action,
+  body.touch-device.gameover .touch-action,
+  body.touch-device.initials .touch-action {
+    bottom: max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+
+
+/* Landscape phone menus: keep START/RIDE thumb-reachable without eating mid-copy */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch-device.title-screen .touch-action,
+  body.touch-device.gameover .touch-action,
+  body.touch-device.initials .touch-action {
+    width: calc(var(--boost-size) + 4px);
+    height: calc(var(--boost-size) + 4px);
+    min-width: calc(var(--boost-size) + 4px);
+    min-height: calc(var(--boost-size) + 4px);
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    font-size: 14px;
+  }
+
+  body.touch-device.title-screen .touch-action::before,
+  body.touch-device.gameover .touch-action::before,
+  body.touch-device.initials .touch-action::before {
+    inset: -16px;
+  }
+}
+
+/* Portrait phone: nudge mute/pause below Dynamic Island a touch more */
+@media (max-width: 500px) and (orientation: portrait) {
+  #hud-chrome {
+    top: max(14px, calc(env(safe-area-inset-top, 0px) + 8px));
+  }
+}
+
+/* iOS: cursor:pointer is required for some Safari versions to dispatch clicks */
+body.touch-device #game,
+body.touch-device .touch-btn,
+body.touch-device #mute-btn,
+body.touch-device #pause-btn {
+  cursor: pointer;
+}
+
+/* Standalone (Add to Home Screen): env() already covers the status bar;
+   keep chrome from sitting under the Dynamic Island. */
+body.standalone #hud-chrome {
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
+}
+
+/* Kill iOS image-save / callout on the canvas overlay stack */
+#app, #game, #touch-controls, #hud-chrome {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+button {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+
+/* —— Hand preference (right = default layout; left = mirrored) —— */
+.hand-btn {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  min-width: 108px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid rgba(255, 80, 200, 0.55);
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.82);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.hand-btn::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
+.hand-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 18px rgba(255, 80, 200, 0.55);
+  background: rgba(60, 0, 50, 0.9);
+}
+
+/* Only show hand toggle on title / game-over (menus), not mid-run / initials */
+body.touch-device.title-screen .hand-btn,
+body.touch-device.gameover .hand-btn {
+  display: block;
+}
+
+body.touch-device.playing .hand-btn,
+body.touch-device.paused .hand-btn,
+body.touch-device.initials .hand-btn {
+  display: none !important;
+}
+
+/* When hand-left, START is on the left — park the toggle on the right */
+body.hand-left .hand-btn {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right, 0px));
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  .hand-btn {
+    bottom: max(52px, calc(env(safe-area-inset-bottom, 0px) + 28px));
+    font-size: 10px;
+    min-width: 100px;
+    padding: 12px 12px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .hand-btn {
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    min-height: 40px;
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+}
+
+/* Mirror stick + boost for left-hand players */
+body.hand-left .joy-zone {
+  left: auto;
+  right: 0;
+  padding-left: 0;
+  padding-right: max(24px, calc(env(safe-area-inset-right, 0px) + 12px));
+}
+
+body.hand-left .touch-action {
+  right: auto;
+  left: max(10px, env(safe-area-inset-left, 0px));
+}
+
+/* Hit slop biased away from the stick (now on the right) */
+body.hand-left .touch-action::before {
+  inset: -28px -20px -32px -32px;
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  body.hand-left .joy-zone {
+    padding-left: 0;
+    padding-right: max(24px, calc(env(safe-area-inset-right, 0px) + 12px));
+  }
+
+  body.hand-left .touch-action {
+    right: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  body.hand-left .touch-action::before {
+    inset: -24px -16px -32px -28px;
+  }
+
+  body.hand-left.title-screen .touch-action,
+  body.hand-left.gameover .touch-action,
+  body.hand-left.initials .touch-action {
+    right: auto;
+    left: max(16px, env(safe-area-inset-left, 0px));
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  body.hand-left .joy-zone {
+    padding-left: 0;
+    padding-right: max(24px, calc(env(safe-area-inset-right, 0px) + 8px));
+  }
+
+  body.hand-left .touch-action {
+    right: auto;
+    left: max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  body.hand-left.title-screen .touch-action,
+  body.hand-left.gameover .touch-action,
+  body.hand-left.initials .touch-action {
+    right: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+}
+
+@media (min-width: 700px) and (pointer: coarse),
+  (min-width: 700px) and (hover: none),
+  (min-width: 700px) and (any-pointer: coarse) {
+  body.hand-left .joy-zone {
+    padding-left: 0;
+    padding-right: max(24px, calc(env(safe-area-inset-right, 0px) + 8px));
+  }
+
+  body.hand-left .touch-action {
+    right: auto;
+    left: max(24px, env(safe-area-inset-left, 0px));
+  }
+}
+
+body.touch-device #hand-btn {
+  cursor: pointer;
+}

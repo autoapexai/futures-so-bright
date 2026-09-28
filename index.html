@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no, interactive-widget=overlays-content"
+    />
+    <meta name="theme-color" content="#0a0015" />
+    <meta name="msapplication-TileColor" content="#0a0015" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Future's So Bright" />
+    <meta name="application-name" content="Future's So Bright" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="Synthwave endless runner — dodge the glare, keep your shades charged." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <title>Future's So Bright — Gotta Wear Shades!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="safe-probe" aria-hidden="true"></div>
+    <div id="app">
+      <canvas id="game" width="960" height="540" draggable="false" style="touch-action:none"></canvas>
+      <div id="touch-hint" aria-hidden="true">Stick · START</div>
+      <div id="touch-controls" aria-hidden="true">
+        <div id="joy-zone" class="joy-zone" aria-label="Move stick" role="application">
+          <div id="joy-base" class="joy-base">
+            <div class="joy-ring" aria-hidden="true"></div>
+            <div id="joy-knob" class="joy-knob" aria-hidden="true"></div>
+          </div>
+        </div>
+        <button type="button" class="touch-btn touch-action" data-action="boost" aria-label="Start" draggable="false" style="touch-action:none">START</button>
+        <button type="button" id="hand-btn" class="hand-btn" aria-label="Right-hand controls" draggable="false" style="touch-action:none" title="Toggle left / right hand controls">RIGHT HAND</button>
+      </div>
+      <div id="hud-chrome" aria-hidden="true">
+        <button type="button" id="pause-btn" aria-label="Pause" draggable="false" style="touch-action:none">⏸</button>
+        <button type="button" id="mute-btn" aria-label="Mute" draggable="false" style="touch-action:none">🔊</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
