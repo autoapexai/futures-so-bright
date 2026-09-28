@@ -171,7 +171,7 @@ export function loadHandPreference(): HandPreference {
   } catch {
     /* ignore */
   }
-  return 'right';
+  return 'left';
 }
 
 export function saveHandPreference(hand: HandPreference): void {
