@@ -1066,29 +1066,31 @@ body.touch-device.hand-left #diff-ctl {
   animation: diff-glow 1.6s ease-out;
 }
 
+/* Timeline guarantee: shades / line / flare are fully invisible before the
+   backdrop starts to fade in or out, so they never sit on top of visible copy. */
 @keyframes fx-backdrop {
   0% { opacity: 0; }
-  10%, 86% { opacity: 1; }
+  10%, 84% { opacity: 1; }
   100% { opacity: 0; }
 }
 
 @keyframes fx-flare {
-  0%, 8% { opacity: 0; }
-  26% { opacity: 0.5; }
+  0%, 11% { opacity: 0; }
+  28% { opacity: 0.5; }
   70%, 100% { opacity: 0; }
 }
 
 @keyframes fx-shades {
-  0%, 10% { opacity: 0; transform: translateY(-120px); }
+  0%, 11% { opacity: 0; transform: translateY(-120px); }
   34% { opacity: 1; transform: translateY(0); }
-  78% { opacity: 1; transform: translateY(0); }
-  88%, 100% { opacity: 0; transform: translateY(0); }
+  70% { opacity: 1; transform: translateY(0); }
+  80%, 100% { opacity: 0; transform: translateY(0); }
 }
 
 @keyframes fx-msg {
   0%, 22% { opacity: 0; }
-  38%, 78% { opacity: 1; }
-  88%, 100% { opacity: 0; }
+  38%, 70% { opacity: 1; }
+  80%, 100% { opacity: 0; }
 }
 
 @keyframes diff-glow {
@@ -1104,15 +1106,15 @@ body.touch-device.hand-left #diff-ctl {
 }
 
 @keyframes fx-flare-soft {
-  0%, 8% { opacity: 0; }
+  0%, 11% { opacity: 0; }
   30% { opacity: 0.25; }
   70%, 100% { opacity: 0; }
 }
 
 @keyframes fx-fade {
-  0%, 10% { opacity: 0; }
-  30%, 78% { opacity: 1; }
-  88%, 100% { opacity: 0; }
+  0%, 11% { opacity: 0; }
+  30%, 70% { opacity: 1; }
+  80%, 100% { opacity: 0; }
 }
 
 /* —— Congratulations (server-confirmed new #1, once per reign) ——
