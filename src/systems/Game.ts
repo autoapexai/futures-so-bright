@@ -1600,6 +1600,8 @@ export class Game {
     const obs = this.world.obstacles;
     for (const s of this.formation.slots) {
       if (!s.occupied || s.invuln > 0) continue;
+      hb.w = 52 * s.scale * 0.7;
+      hb.h = 28 * s.scale * 0.7;
       hb.x = s.x - hb.w / 2;
       hb.y = s.y - hb.h / 2;
       for (const o of obs) {

@@ -1,4 +1,5 @@
 import { MAX_DRAWN_SHIPS } from '../utils/cloneLevels';
+import { BREEDS, BREED_RMS, breedScale, randomBreed, type Breed } from '../render/shipSprite';
 
 /** Clone slot count (drawn ships minus the player's own ship). */
 export const CLONE_SLOTS = MAX_DRAWN_SHIPS - 1;
@@ -17,6 +18,9 @@ export interface CloneSlot {
   /** Brief grace after a clone (re)fills this slot, so one obstacle can't eat the whole reserve. */
   invuln: number;
   phase: number;
+  /** This clone's dog breed and its absolute scale vs a standard ship (sprite + hitbox). */
+  breed: Breed;
+  scale: number;
 }
 
 /**
@@ -56,6 +60,8 @@ export class Formation {
     occupied: false,
     invuln: 0,
     phase: i * 1.7,
+    breed: BREEDS[0],
+    scale: CLONE_SCALE,
   }));
   occupiedCount = 0;
   /** Extents of the occupied slots (for keeping the formation on screen). */
@@ -74,6 +80,9 @@ export class Formation {
         s.x = px + s.ox * 0.4;
         s.y = py + s.oy * 0.4;
         s.invuln = grace;
+        // A random breed from the mix, normalised so the swarm keeps its expected total area.
+        s.breed = randomBreed();
+        s.scale = CLONE_SCALE * (breedScale(s.breed) / BREED_RMS);
       }
       if (!want) s.invuln = 0;
       s.occupied = want;

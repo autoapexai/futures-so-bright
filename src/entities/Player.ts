@@ -1,12 +1,17 @@
 import { clamp } from '../utils/math';
+import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 
 export class Player {
   x = 160;
   y = 270;
   vx = 0;
   vy = 0;
-  w = 52;
-  h = 28;
+  /** The player's dog; its AKC-weight scale sizes the sprite and hitbox (w / h). */
+  breed: Breed = PLAYER_BREED;
+  /** Linear draw / hitbox scale vs a standard ship. */
+  scale = breedScale(PLAYER_BREED);
+  w = 52 * breedScale(PLAYER_BREED);
+  h = 28 * breedScale(PLAYER_BREED);
   invuln = 0;
   boostFlash = 0;
   trail: { x: number; y: number; a: number }[] = [];

@@ -2,8 +2,8 @@ import type { Player } from '../entities/Player';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
+import { paintShip, shipSprite, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
-import { CLONE_SCALE } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
 
 /** Clone level + ship count for the HUD (difficulty-11 runs only). */
@@ -405,64 +405,32 @@ export class Renderer {
     const tilt = clamp(p.vy / 400, -0.35, 0.35);
     ctx.rotate(tilt);
 
-    // hoverboard / jet body glow
-    ctx.shadowBlur = this.lite ? 0 : 20;
-    ctx.shadowColor = p.boostFlash > 0 ? COL.cyan : COL.magenta;
-
-    // body
-    if (this.lite) {
-      ctx.fillStyle = '#ff4ec8';
-    } else {
-      const bodyGrad = ctx.createLinearGradient(-20, 0, 24, 0);
-      bodyGrad.addColorStop(0, '#2a1050');
-      bodyGrad.addColorStop(0.5, '#ff4ec8');
-      bodyGrad.addColorStop(1, '#00e8ff');
-      ctx.fillStyle = bodyGrad;
-    }
-    roundRect(ctx, -22, -10, 48, 20, 8);
-    ctx.fill();
-
-    // cockpit
-    ctx.fillStyle = 'rgba(180, 240, 255, 0.85)';
+    // Jet flame (animated), then the dog itself via the shared ship sprite painter.
+    ctx.scale(p.scale, p.scale);
+    const flick = 0.7 + Math.sin(this.time * 40) * 0.3;
+    ctx.shadowBlur = this.lite ? 0 : 16;
+    ctx.shadowColor = COL.cyan;
+    const rear = -4 - p.breed.bodyL + 1;
+    ctx.fillStyle = `rgba(0, 255, 255, ${0.5 * flick})`;
     ctx.beginPath();
-    ctx.ellipse(4, -2, 10, 8, 0, 0, Math.PI * 2);
+    ctx.moveTo(rear, -2);
+    ctx.lineTo(rear - 16 * flick - (p.boostFlash > 0 ? 10 : 0), 2);
+    ctx.lineTo(rear, 6);
+    ctx.closePath();
     ctx.fill();
-
-    // shades — the star of the show
-    ctx.fillStyle = '#0a0018';
-    roundRect(ctx, -2, -8, 18, 8, 2);
+    ctx.fillStyle = `rgba(255, 255, 200, ${0.7 * flick})`;
+    ctx.beginPath();
+    ctx.moveTo(rear, 0);
+    ctx.lineTo(rear - 8 * flick, 2);
+    ctx.lineTo(rear, 4);
+    ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = charge > 0.3 ? 'rgba(0, 255, 220, 0.7)' : 'rgba(255, 200, 50, 0.85)';
-    ctx.shadowBlur = this.lite ? 0 : 12;
-    ctx.shadowColor = charge > 0.3 ? COL.cyan : COL.sun;
-    roundRect(ctx, 0, -7, 6, 6, 1);
-    ctx.fill();
-    roundRect(ctx, 8, -7, 6, 6, 1);
-    ctx.fill();
-    // bridge
-    ctx.fillStyle = '#222';
-    ctx.fillRect(6, -5, 2, 2);
-
-    // engine flame
-    if (p.boostFlash > 0 || true) {
-      const flick = 0.7 + Math.sin(this.time * 40) * 0.3;
-      ctx.shadowBlur = this.lite ? 0 : 16;
-      ctx.shadowColor = COL.cyan;
-      ctx.fillStyle = `rgba(0, 255, 255, ${0.5 * flick})`;
-      ctx.beginPath();
-      ctx.moveTo(-22, -6);
-      ctx.lineTo(-22 - 16 * flick - (p.boostFlash > 0 ? 10 : 0), 0);
-      ctx.lineTo(-22, 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = `rgba(255, 255, 200, ${0.7 * flick})`;
-      ctx.beginPath();
-      ctx.moveTo(-22, -3);
-      ctx.lineTo(-22 - 8 * flick, 0);
-      ctx.lineTo(-22, 3);
-      ctx.closePath();
-      ctx.fill();
-    }
+    ctx.shadowBlur = this.lite ? 0 : 14;
+    ctx.shadowColor = p.boostFlash > 0 ? COL.cyan : COL.magenta;
+    paintShip(ctx, p.breed, {
+      lens: charge > 0.3 ? 'rgba(0, 255, 220, 0.8)' : 'rgba(255, 200, 50, 0.9)',
+      glow: !this.lite,
+    });
 
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -768,66 +736,17 @@ export class Renderer {
     ctx.restore();
   }
 
-  private cloneSprite: HTMLCanvasElement | null = null;
-
-  /** Pre-rendered clone ship (one drawImage per clone; no per-clone gradients / blur). */
-  private getCloneSprite(): HTMLCanvasElement {
-    if (this.cloneSprite) return this.cloneSprite;
-    const k = 2; // supersample for crisp scaling
-    const c = document.createElement('canvas');
-    c.width = 76 * k;
-    c.height = 28 * k;
-    const g = c.getContext('2d');
-    if (g) {
-      g.scale(k, k);
-      g.translate(44, 14);
-      g.fillStyle = 'rgba(0, 255, 255, 0.45)';
-      g.beginPath();
-      g.moveTo(-22, -6);
-      g.lineTo(-40, 0);
-      g.lineTo(-22, 6);
-      g.closePath();
-      g.fill();
-      const body = g.createLinearGradient(-20, 0, 24, 0);
-      body.addColorStop(0, '#3a1560');
-      body.addColorStop(0.5, '#ff4ec8');
-      body.addColorStop(1, '#00e8ff');
-      g.fillStyle = body;
-      roundRect(g, -22, -10, 48, 20, 8);
-      g.fill();
-      g.strokeStyle = 'rgba(255, 230, 109, 0.85)';
-      g.lineWidth = 2;
-      g.stroke();
-      g.fillStyle = 'rgba(180, 240, 255, 0.85)';
-      g.beginPath();
-      g.ellipse(4, -2, 10, 8, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#0a0018';
-      roundRect(g, -2, -8, 18, 8, 2);
-      g.fill();
-      g.fillStyle = 'rgba(0, 255, 220, 0.8)';
-      roundRect(g, 0, -7, 6, 6, 1);
-      g.fill();
-      roundRect(g, 8, -7, 6, 6, 1);
-      g.fill();
-    }
-    this.cloneSprite = c;
-    return c;
-  }
-
   /** Drawn clones (at most MAX_DRAWN_SHIPS - 1) plus an "x N" counter when there are more ships. */
   drawClones(ctx: CanvasRenderingContext2D, f: Formation, ships: number, px: number, py: number): void {
     if (f.occupiedCount === 0 && ships <= MAX_DRAWN_SHIPS) return;
-    const img = this.getCloneSprite();
-    const w = 76 * CLONE_SCALE;
-    const h = 28 * CLONE_SCALE;
-    const ax = 44 * CLONE_SCALE;
-    const ay = 14 * CLONE_SCALE;
     const blinkOff = Math.floor(this.time * 20) % 2 === 0;
     for (const s of f.slots) {
       if (!s.occupied) continue;
       if (s.invuln > 0 && blinkOff) continue;
-      ctx.drawImage(img, s.x - ax, s.y - ay, w, h);
+      // Each clone is its own dog (shared ship sprite), at its breed-normalised scale.
+      const img = shipSprite(s.breed, { flame: true, accent: '#ffe66d' });
+      const k = s.scale;
+      ctx.drawImage(img, s.x - SPRITE_AX * k, s.y - SPRITE_AY * k, SPRITE_W * k, SPRITE_H * k);
     }
     if (ships > MAX_DRAWN_SHIPS) {
       const text = `x ${formatShips(ships)}`;

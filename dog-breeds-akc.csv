@@ -1,0 +1,13 @@
+breed,akc_weight_as_published,range_used_lb,midpoint_lb,linear_scale_cbrt_w_over_40lb,source_url,note
+Chihuahua,not exceeding 6 pounds,6 (maximum only),6,0.531,https://www.akc.org/dog-breeds/chihuahua/,AKC publishes only a maximum (no range); the published 6 lb figure is used as-is
+Toy Poodle,4-6 pounds,4-6,5,0.500,https://www.akc.org/dog-breeds/poodle-toy/,
+Pomeranian,3-7 pounds,3-7,5,0.500,https://www.akc.org/dog-breeds/pomeranian/,
+Yorkshire Terrier,7 pounds,7 (single figure),7,0.559,https://www.akc.org/dog-breeds/yorkshire-terrier/,AKC publishes a single figure; used as-is
+Miniature Poodle,10-15 pounds,10-15,12.5,0.679,https://www.akc.org/dog-breeds/poodle-miniature/,
+Dachshund,"16-32 pounds (standard), 11 pounds & under (miniature)",16-32 (standard),24,0.843,https://www.akc.org/dog-breeds/dachshund/,standard variety used; miniature has only an upper bound
+Beagle,"under 20 pounds (13 inches & under), 20-30 pounds (13-15 inches)",20-30 (13-15 in),25,0.855,https://www.akc.org/dog-breeds/beagle/,13-15 inch variety used; 13 inch variety has only an upper bound
+Border Collie,30-55 pounds,30-55,42.5,1.020,https://www.akc.org/dog-breeds/border-collie/,
+Labrador Retriever,"65-80 pounds (male), 55-70 pounds (female)",M 65-80 / F 55-70,67.5,1.191,https://www.akc.org/dog-breeds/labrador-retriever/,male midpoint 72.5 and female midpoint 62.5 averaged
+German Shepherd Dog,"65-90 pounds (male), 50-70 pounds (female)",M 65-90 / F 50-70,68.75,1.198,https://www.akc.org/dog-breeds/german-shepherd-dog/,male midpoint 77.5 and female midpoint 60 averaged
+Great Dane,"140-175 pounds (male), 110-140 pounds (female)",M 140-175 / F 110-140,141.25,1.523,https://www.akc.org/dog-breeds/great-dane/,male midpoint 157.5 and female midpoint 125 averaged
+Mastiff,"160-230 pounds (male), 120-170 pounds (female)",M 160-230 / F 120-170,170,1.620,https://www.akc.org/dog-breeds/mastiff/,male midpoint 195 and female midpoint 145 averaged
