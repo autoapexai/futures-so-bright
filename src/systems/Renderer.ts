@@ -2,7 +2,7 @@ import type { Player } from '../entities/Player';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
-import { paintShip, shipSprite, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY } from '../render/shipSprite';
+import { paintShip, shipSprite, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, type Breed } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
 
@@ -11,6 +11,10 @@ export interface LevelInfo {
   level: number;
   /** Ships left (clone levels); 0 for levels 1-10, which show just "LVL n". */
   ships: number;
+  /** Levels 1-10: the dog pack left (player's dog first), drawn as HUD icons after "LVL n". */
+  dogs?: Breed[];
+  /** Icon size multiplier: grows as the pack shrinks (1 = four dogs). */
+  dogIconScale?: number;
 }
 
 /** Gate-boost ring glow duration (s); Game sets Obstacle.boostT to this. */
@@ -685,6 +689,17 @@ export class Renderer {
     ctx.fillStyle = 'rgba(255, 230, 109, 0.95)';
     this.fitFont(ctx, text, '700', size, "'Orbitron', sans-serif", maxW, Math.min(size, 11));
     ctx.fillText(text, x, y);
+    if (info.dogs && info.dogs.length) {
+      // Dogs left: one icon per dog (sunglasses on, no flame), bigger as the pack shrinks.
+      const iw = this.u(22) * (info.dogIconScale ?? 1);
+      const ih = iw * (SPRITE_H / SPRITE_W);
+      let ix = x + ctx.measureText(text).width + this.u(12);
+      const cy = y - size * 0.38;
+      for (const b of info.dogs) {
+        ctx.drawImage(shipSprite(b, { flame: false, accent: '#ffe66d' }), ix, cy - ih / 2, iw, ih);
+        ix += iw + this.u(4);
+      }
+    }
   }
 
   /** Level-up banner, e.g. "LEVEL 12 · 2 SHIPS"; `t` counts down from `dur` seconds. */
@@ -1059,7 +1074,7 @@ export class Renderer {
     ctx.fillText(title, W / 2, cy);
     // Subtitle pops in a beat later and blinks like an arcade attract line.
     if (age > 0.35) {
-      const blink = Math.floor(age * 6) % 2 === 0 || age > 1.2;
+      const blink = Math.floor(age * 6) % 2 === 0 || age > 0.85;
       if (blink) {
         ctx.fillStyle = COL.cyan;
         ctx.shadowColor = COL.cyan;

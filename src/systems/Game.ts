@@ -7,6 +7,7 @@ import { Renderer, GATE_GLOW_SECONDS } from './Renderer';
 import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
+import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
 import {
   loadHighScore,
@@ -52,6 +53,27 @@ const BANNER_SECONDS = 2.4;
  * original game's ring-rim (gate) hit penalty (0.28 of the bar), with the sign flipped.
  */
 const GATE_BOOST = 0.28;
+/** Dog pack: a normal run (levels 1-10) starts with N0 dogs on screen. */
+const PACK_START = 4;
+/** Per-dog scale with the full pack (s0); each dog is this times its breed size. */
+const PACK_S0 = 0.5;
+/**
+ * Continues offered when the last dog is lost (10 s "CONTINUE?" countdown, pack refilled).
+ * The code path is kept but disabled: 0 = losing the last dog is game over.
+ */
+const LAST_DOG_CONTINUES: number = 0;
+/** Continue countdown (s). */
+const CONTINUE_SECONDS = 10;
+
+/**
+ * Per-dog scale with n dogs left: s(n) = s0^(ln n / ln N0). Four dogs 0.5x, three 0.58x,
+ * two 0.71x, the last dog 1.0x (the rest "eat the sunglasses" and grow).
+ */
+export function packScale(n: number): number {
+  if (n <= 1) return 1;
+  return Math.pow(PACK_S0, Math.log(n) / Math.log(PACK_START));
+}
+
 /** Promotion interstitial ("LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!") duration (s). */
 const PROMO_SECONDS = 2.0;
 /** Re-request the difficulty-11 ticket on dismiss if the card sat open this long (ticket lives 1 h). */
@@ -148,6 +170,11 @@ export class Game {
   private promoTitle = '';
   private promoSub = '';
   private promoNext: (() => void) | null = null;
+  /** Dog pack (levels 1-10): drawn per-dog scale, eased toward packScale(ships). */
+  private packK = 1;
+  private continuesLeft = 0;
+  /** "CONTINUE?" countdown while > 0 (play frozen). Only reachable if LAST_DOG_CONTINUES > 0. */
+  private continueT = 0;
   /** Distance flown on the current stage; drives the speed / spawn / drain ramp, reset each stage. */
   private stageDist = 0;
   private formation = new Formation();
@@ -1019,6 +1046,10 @@ export class Game {
     // Refresh the shared board in the background while this run plays.
     void this.refreshRemoteBoard();
     this.player.reset(this.viewH);
+    this.continueT = 0;
+    this.continuesLeft = LAST_DOG_CONTINUES;
+    if (this.level === 0) this.fillPack();
+    else this.setPackK(1);
     this.world.reset();
     this.particles.clear();
     while (this.floaters.length) {
@@ -1293,6 +1324,25 @@ export class Game {
       return;
     }
 
+    if (this.continueT > 0) {
+      // Last dog lost with a continue left: frozen until tapped or the countdown runs out.
+      this.continueT -= dt;
+      this.particles.update(dt);
+      if (this.input.consumeAny() || (this.touchPrimary && this.input.boosting)) {
+        this.continuesLeft--;
+        this.continueT = 0;
+        this.charge = 1;
+        this.fillPack();
+        this.player.invuln = 2;
+        this.audio.playStart();
+      } else if (this.continueT <= 0) {
+        this.continueT = 0;
+        this.endRun();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
+
     if (this.promoT > 0) {
       // Promotion interstitial: the world is frozen, the run clock and score stand still.
       this.promoT -= dt;
@@ -1343,6 +1393,14 @@ export class Game {
       pr.bottom + f.extDown,
       pr.left + f.extLeft,
     );
+    if (this.level === 0) {
+      // Pack growth eases in over ~0.3 s; sprites and hitboxes use the same scale.
+      const want = packScale(this.ships);
+      if (this.packK !== want) {
+        const k = this.packK + (want - this.packK) * (1 - Math.exp(-12 * dt));
+        this.setPackK(Math.abs(want - k) < 0.002 ? want : k);
+      }
+    }
     if (f.occupiedCount > 0) f.update(dt, this.player.x, this.player.y, this.pulse);
     this.world.update(
       dt,
@@ -1378,10 +1436,11 @@ export class Game {
     const drain = ((boosting ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
-      // Out of shade with clones left: this ship is lost, a clone takes the lead.
-      this.loseLeadShip();
+      // Out of shade with clones / pack dogs left: one is lost, the rest carry on.
+      this.loseLeadShip(this.level === 0 ? 0.85 * hz.hitGraceMul : 1.0);
       this.charge = 0.75;
     }
+    if (this.charge <= 0 && this.level === 0 && this.lastDogLost()) return;
     if (this.charge <= 0) {
       this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
       this.renderer.bumpShake(14);
@@ -1425,8 +1484,13 @@ export class Game {
         if (!o.alive) continue;
         if (this.hitsObstacle(o, hb)) {
           if (this.ships > 1) {
-            // With clones, a hit costs this ship (a clone takes the lead), not shade.
-            this.loseLeadShip();
+            // With clones / pack dogs, a hit costs one ship (dog), not shade. No pause.
+            this.loseLeadShip(this.level === 0 ? 0.85 * hz.hitGraceMul : 1.0);
+            break;
+          }
+          if (this.level === 0) {
+            // The last dog of the pack is hit: game over (or a continue, if enabled).
+            if (this.lastDogLost()) return;
             break;
           }
           this.charge = clamp(this.charge - 0.28 * hz.hitDamageMul, 0, 1);
@@ -1468,6 +1532,7 @@ export class Game {
     this.bannerT = 0;
     this.victory = false;
     this.formation.clear();
+    this.setPackK(1);
     this.player.reset(this.viewH);
     this.tutLastX = this.player.x;
     this.tutLastY = this.player.y;
@@ -1597,12 +1662,12 @@ export class Game {
       case 1:
         return {
           title: 'DODGE THE GLARE',
-          lines: ['Beams, flares, neon bars and ring rims hurt', "Fly through a ring's hole: GATE BOOST, +shade"],
+          lines: ['Beams, flares, neon bars and ring rims cost a dog', "Fly through a ring's hole: GATE BOOST, +shade"],
         };
       case 2:
         return {
           title: 'GRAB THE CIRCLES',
-          lines: ['Glowing circles recharge your shades', 'SHADE CHARGE empty = too bright, run over'],
+          lines: ['Glowing circles refill your shades', 'SHADE CHARGE runs out = you lose a dog'],
         };
       default:
         return {
@@ -1610,6 +1675,7 @@ export class Game {
           lines: [
             'Survive 30 seconds to pass a level',
             'Levels 1 to 10 get harder as you go',
+            'You start with 4 dogs: lose them all = game over',
             `Circles and ring gates refill shade; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
             touch ? 'Tap to ride' : 'ENTER or click to ride',
           ],
@@ -1642,6 +1708,7 @@ export class Game {
         this.level = FIRST_CLONE_LEVEL;
         this.ships = 1;
         this.formation.clear();
+        this.setPackK(1);
         this.freshStage();
         this.bannerText = `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
         this.bannerT = BANNER_SECONDS;
@@ -1689,17 +1756,76 @@ export class Game {
     this.audio.playCollect();
   }
 
+  /** HUD icons: the player's dog first, then the pack dogs still running. */
+  private packBreeds(): Breed[] {
+    const out: Breed[] = [this.player.breed];
+    for (const sl of this.formation.slots) if (sl.occupied) out.push(sl.breed);
+    return out;
+  }
+
   /** Reserve ships beyond the drawn formation. */
   private get reserve(): number {
     return Math.max(0, this.ships - 1 - this.formation.occupiedCount);
   }
 
   /** The player's ship is lost (hit or out of shade) while clones remain: a clone takes over. */
-  private loseLeadShip(): void {
+  private loseLeadShip(grace = 1.0): void {
     this.ships--;
     if (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
-    this.player.invuln = 1.0;
+    this.player.invuln = grace;
     this.hitFx(this.player.x, this.player.y, true);
+    if (this.level === 0) this.dogLost(grace);
+  }
+
+  /** Fresh pack: the player's Border Collie plus PACK_START - 1 dogs of a random breed mix. */
+  private fillPack(): void {
+    this.ships = PACK_START;
+    this.formation.clear();
+    this.formation.fill(PACK_START - 1, this.player.x, this.player.y);
+    this.setPackK(packScale(PACK_START));
+  }
+
+  /** Apply per-dog scale k (x breed size) to the player's dog, the pack and their hitboxes. */
+  private setPackK(k: number): void {
+    this.packK = k;
+    this.player.breed = PLAYER_BREED;
+    this.player.scale = breedScale(PLAYER_BREED) * k;
+    this.player.w = 52 * this.player.scale;
+    this.player.h = 28 * this.player.scale;
+    if (this.level === 0 && this.tutStep < 0) {
+      for (const sl of this.formation.slots) if (sl.occupied) sl.scale = breedScale(sl.breed) * k;
+      this.formation.setSpread(k / PACK_S0);
+    } else {
+      this.formation.setSpread(1);
+    }
+  }
+
+  /** A pack dog was lost (hit or out of shade): the rest eat its sunglasses and grow. */
+  private dogLost(grace: number): void {
+    // The whole pack gets the hit grace, so one hazard can't eat several dogs at once.
+    for (const sl of this.formation.slots) if (sl.occupied) sl.invuln = Math.max(sl.invuln, grace);
+    this.player.invuln = Math.max(this.player.invuln, grace);
+    this.spawnFloater(this.player.x, this.player.y - 30, 'SHADES EATEN! PACK GROWS', '#ffe66d');
+    this.particles.burst(this.player.x, this.player.y, '#ffe66d', this.touchPrimary ? 6 : 12, 140);
+  }
+
+  /**
+   * The last dog is gone. With a continue left (LAST_DOG_CONTINUES > 0), freeze on a 10 s
+   * "CONTINUE?" countdown; otherwise game over. Returns true (the frame should stop).
+   */
+  private lastDogLost(): boolean {
+    this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
+    this.renderer.bumpShake(14);
+    this.renderer.bumpFlash(0.7);
+    this.audio.playHit();
+    if (this.continuesLeft > 0) {
+      this.continueT = CONTINUE_SECONDS;
+      this.input.clearTouch();
+    } else {
+      this.endRun();
+    }
+    this.input.clearJustPressed();
+    return true;
   }
 
   private collideClones(): void {
@@ -1771,6 +1897,7 @@ export class Game {
       this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
       this.spawnFloater(cx, o.y - 6, 'GATE BOOST +SHADE', '#ffe66d');
     }
+    if (this.level === 0) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
   }
 
   private hitsObstacle(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
@@ -1804,7 +1931,7 @@ export class Game {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
       this.particles.draw(ctx);
-      if (this.level > 0 && (this.state === 'playing' || this.state === 'paused')) {
+      if ((this.level > 0 || this.formation.occupiedCount > 0) && (this.state === 'playing' || this.state === 'paused')) {
         this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
       }
       this.renderer.drawPlayer(ctx, this.player, this.charge);
@@ -1824,13 +1951,16 @@ export class Game {
         this.high,
         this.charge,
         this.distance,
-        this.tutStep >= 0 ? null : this.level > 0 ? { level: this.level, ships: this.ships } : { level: this.runDifficulty, ships: 0 },
+        this.tutStep >= 0 ? null : this.level > 0 ? { level: this.level, ships: this.ships } : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
       );
       if (this.tutStep >= 0) {
         const tt = this.tutorialText();
         this.renderer.drawTutorial(ctx, this.tutStep + 1, TUT_STEPS, tt.title, tt.lines);
       }
       if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
+      if (this.continueT > 0) {
+        this.renderer.drawPromotion(ctx, 'CONTINUE?', `${Math.ceil(this.continueT)}  ·  ${this.touchPrimary ? 'TAP BOOST' : 'PRESS ANY KEY'} TO KEEP GOING`, this.continueT, CONTINUE_SECONDS, this.score);
+      }
       if (this.promoT > 0) {
         this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, PROMO_SECONDS, this.score);
       }

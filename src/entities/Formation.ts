@@ -64,6 +64,8 @@ export class Formation {
     scale: CLONE_SCALE,
   }));
   occupiedCount = 0;
+  /** Offset multiplier (1 = clone formation; the dog pack spreads out as its dogs grow). */
+  spread = 1;
   /** Extents of the occupied slots (for keeping the formation on screen). */
   extLeft = 0;
   extRight = 0;
@@ -77,8 +79,8 @@ export class Formation {
       const s = this.slots[i];
       const want = i < n;
       if (want && !s.occupied) {
-        s.x = px + s.ox * 0.4;
-        s.y = py + s.oy * 0.4;
+        s.x = px + s.ox * this.spread * 0.4;
+        s.y = py + s.oy * this.spread * 0.4;
         s.invuln = grace;
         // A random breed from the mix, normalised so the swarm keeps its expected total area.
         s.breed = randomBreed();
@@ -116,6 +118,12 @@ export class Formation {
     this.recount();
   }
 
+  setSpread(k: number): void {
+    if (k === this.spread) return;
+    this.spread = k;
+    this.recount();
+  }
+
   private recount(): void {
     let n = 0;
     let l = 0;
@@ -130,11 +138,12 @@ export class Formation {
       u = Math.min(u, s.oy);
       d = Math.max(d, s.oy);
     }
+    const k = this.spread;
     this.occupiedCount = n;
-    this.extLeft = -l;
-    this.extRight = r;
-    this.extUp = -u;
-    this.extDown = d;
+    this.extLeft = -l * k;
+    this.extRight = r * k;
+    this.extUp = -u * k;
+    this.extDown = d * k;
   }
 
   /** Ease every clone toward player + offset (tight follow, tiny bob). */
@@ -142,8 +151,8 @@ export class Formation {
     const k = 1 - Math.exp(-22 * dt);
     for (const s of this.slots) {
       if (!s.occupied) continue;
-      const tx = px + s.ox + Math.sin(t * 2.6 + s.phase) * 1.6;
-      const ty = py + s.oy + Math.cos(t * 3.1 + s.phase) * 1.6;
+      const tx = px + s.ox * this.spread + Math.sin(t * 2.6 + s.phase) * 1.6;
+      const ty = py + s.oy * this.spread + Math.cos(t * 3.1 + s.phase) * 1.6;
       s.x += (tx - s.x) * k;
       s.y += (ty - s.y) * k;
       s.invuln = Math.max(0, s.invuln - dt);
