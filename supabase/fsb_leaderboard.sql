@@ -16,8 +16,9 @@
 --                                            validated + rate-limited insert; returns the new top 10
 --                                            (initials, score, difficulty, is_new, claim_token on the new row only)
 --   fsb_am_i_top(p_tokens text[])            true if one of the tokens owns the current #1 row
---   fsb_start_run(p_tokens text[], p_difficulty)
---                                            difficulty 11 only: issues a 1-hour single-use ticket to the current #1
+--   fsb_start_run(p_tokens text[], p_difficulty, p_elapsed_ms = 0)
+--                                            difficulty 11 only: issues a 1-hour single-use ticket to any player
+--                                            (p_elapsed_ms dates it back for a run that climbed from level 1)
 -- Internal (no grants): fsb_device_label(ua), fsb_top_id()
 --
 -- DIFFICULTY (must match src/utils/difficulty.ts):
@@ -133,7 +134,7 @@ create index if not exists fsb_run_tickets_client_idx
   on public.fsb_run_tickets (client_hash, created_at desc);
 
 comment on table public.fsb_run_tickets is
-  'Future''s So Bright: single-use difficulty-11 run tickets (sha256 only), valid 1 hour, issued by fsb_start_run() to the current #1.';
+  'Future''s So Bright: single-use difficulty-11 run tickets (sha256 only), valid 1 hour, issued by fsb_start_run() to any player.';
 
 create table if not exists public.fsb_events (
   id          bigint generated always as identity primary key,
@@ -179,6 +180,7 @@ drop function if exists public.fsb_submit_score(text, integer, integer, integer)
 drop function if exists public.fsb_submit_score(text, integer, integer, integer, text);
 drop function if exists public.fsb_am_i_top(text[]);
 drop function if exists public.fsb_start_run(text[], integer);
+drop function if exists public.fsb_start_run(text[], integer, integer);
 drop function if exists public.fsb_device_label(text);
 drop function if exists public.fsb_top_id();
 drop function if exists public.fsb_client_hash();
@@ -300,51 +302,65 @@ comment on function public.fsb_am_i_top(text[]) is
 
 -- --- Difficulty-11 run ticket ---------------------------------------------------
 
-create function public.fsb_start_run(p_tokens text[], p_difficulty integer)
-returns text
-language plpgsql
-volatile
-security definer
-set search_path = ''
+create function public.fsb_start_run(p_tokens text[], p_difficulty integer, p_elapsed_ms integer default 0)
+ returns text
+ language plpgsql
+ security definer
+ set search_path to ''
 as $$
 declare
   v_hash     text;
   v_recent   integer;
   v_ticket   text;
-  v_top      record;
+  v_me       record;
   v_headers  json;
+  v_elapsed  integer := coalesce(p_elapsed_ms, 0);
 begin
   if p_difficulty is distinct from 11 then
     raise exception using errcode = 'PT400', message = 'fsb: run tickets are only for difficulty 11';
   end if;
-  if not public.fsb_am_i_top(p_tokens) then
-    raise exception using errcode = 'PT403', message = 'fsb: difficulty 11 is reserved for the current #1';
+  -- A climb from level 1 to 11 is at most ~55 min of play (the ticket itself lives 1 h).
+  if v_elapsed < 0 or v_elapsed > 3300000 then
+    raise exception using errcode = 'PT400', message = 'fsb: elapsed run time out of range';
   end if;
 
   v_hash := public.fsb_client_hash();
   perform pg_advisory_xact_lock(hashtextextended('fsb_ticket:' || v_hash, 0));
+  -- Rate limit on issue time (expires_at is always issue time + 1 h, even for dated-back tickets).
   select count(*) into v_recent
   from public.fsb_run_tickets r
-  where r.client_hash = v_hash and r.created_at > now() - interval '10 minutes';
+  where r.client_hash = v_hash and r.expires_at > now() + interval '50 minutes';
   if v_recent >= 20 then
     raise exception using errcode = 'PT429', message = 'fsb: too many runs started, try again later';
   end if;
 
   v_ticket := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
-  insert into public.fsb_run_tickets (ticket_hash, difficulty, client_hash, expires_at)
-  values (encode(sha256(convert_to(v_ticket, 'UTF8')), 'hex'), 11, v_hash, now() + interval '1 hour');
+  insert into public.fsb_run_tickets (ticket_hash, difficulty, client_hash, created_at, expires_at)
+  values (encode(sha256(convert_to(v_ticket, 'UTF8')), 'hex'), 11, v_hash,
+          now() - make_interval(secs => v_elapsed / 1000.0), now() + interval '1 hour');
 
-  select s.initials, s.score into v_top from public.fsb_scores s where s.id = public.fsb_top_id();
+  -- 'start' alert row, same shape as before. initials / score = the player's own best claimed
+  -- score (for the #1 that is the #1 row, exactly as before); null for a player with no score yet.
+  select s.initials, s.score into v_me
+  from public.fsb_scores s
+  where s.claim_hash is not null
+    and s.claim_hash in (
+      select encode(sha256(convert_to(t, 'UTF8')), 'hex')
+      from unnest(p_tokens[1:50]) as t
+      where t ~ '^[0-9a-f]{64}$'
+    )
+  order by s.score desc, s.created_at asc, s.id asc
+  limit 1;
   v_headers := nullif(current_setting('request.headers', true), '')::json;
   insert into public.fsb_events (event, initials, score, difficulty, device)
-  values ('start', v_top.initials, v_top.score, 11, public.fsb_device_label(v_headers ->> 'user-agent'));
+  values ('start', v_me.initials, v_me.score, 11, public.fsb_device_label(v_headers ->> 'user-agent'));
 
   return v_ticket;
 end;
 $$;
 
-comment on function public.fsb_start_run(text[], integer) is
-  'Future''s So Bright: difficulty 11 only. Issues a single-use 1-hour run ticket if the caller holds #1 (proved by claim token).';
+comment on function public.fsb_start_run(text[], integer, integer) is
+  'Future''s So Bright: issue a single-use difficulty-11 run ticket (valid 1 h) to any player; p_elapsed_ms dates it back for a run that climbed from level 1. Logs one fsb_events ''start'' row.';
 
 -- --- Write: validated, plausibility-checked, rate-limited submit --------------
 
@@ -407,7 +423,7 @@ begin
   end if;
 
   -- 4. Difficulty 11 needs a valid, unused run ticket from fsb_start_run().
-  --    (A run started legitimately at 11 still counts if #1 was lost mid-run.)
+  --    (Any player can get one; a climb from level 1 gets a ticket dated back to its start.)
   if p_difficulty = 11 then
     if p_ticket is null or p_ticket !~ '^[0-9a-f]{64}$' then
       raise exception using errcode = 'PT403', message = 'fsb: difficulty 11 needs a run ticket';
@@ -484,11 +500,11 @@ revoke all on function public.fsb_client_hash() from public, anon, authenticated
 revoke all on function public.fsb_get_leaderboard() from public;
 revoke all on function public.fsb_submit_score(text, integer, integer, integer, text) from public;
 revoke all on function public.fsb_am_i_top(text[]) from public;
-revoke all on function public.fsb_start_run(text[], integer) from public;
+revoke all on function public.fsb_start_run(text[], integer, integer) from public;
 grant execute on function public.fsb_get_leaderboard() to anon, authenticated;
 grant execute on function public.fsb_submit_score(text, integer, integer, integer, text) to anon, authenticated;
 grant execute on function public.fsb_am_i_top(text[]) to anon, authenticated;
-grant execute on function public.fsb_start_run(text[], integer) to anon, authenticated;
+grant execute on function public.fsb_start_run(text[], integer, integer) to anon, authenticated;
 
 commit;
 

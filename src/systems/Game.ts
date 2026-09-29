@@ -157,9 +157,8 @@ export class Game {
   private levelTime = 0;
   /** Current run cleared level 10 and ended as a win (victory screen). */
   private victory = false;
-  /** Difficulty-11 ticket for a run started below 11 by the current #1 (so clearing 10 can enter 11). */
+  /** Difficulty-11 ticket for a run that climbed from below 11 (requested when level 10 is cleared). */
   private climbTicket: Promise<string | 'denied' | null> | null = null;
-  private climbDenied = false;
   /** This run's score stays on this device's board (level 11 without a server ticket). */
   private runLocalOnly = false;
   /** How to Play walkthrough: -1 = off, else the current step (0-based). Runs in 'playing' state. */
@@ -1144,7 +1143,7 @@ export class Game {
     }
     if (this.ticketPending) return;
     if (this.difficulty === SECRET_DIFFICULTY && remoteEnabled) {
-      // Difficulty 11 needs a server ticket, issued only to the current #1.
+      // Difficulty 11 needs a server ticket (the #1's selector perk; shows the clone card).
       this.requestElevenRun();
       return;
     }
@@ -1153,15 +1152,14 @@ export class Game {
 
   /** Actually start play. The run timer (runTime) starts from 0 here. */
   /**
-   * Gold clone button: level 11 for everyone. The server only issues level-11 run tickets (and
-   * logs the 'start' event) for the current #1, and rejects level-11 scores without one, so:
-   * the #1 gets a ticket (start event logged, score goes to the shared board as before); anyone
-   * else (or offline) plays the same level 11, scored on this device's board only.
+   * Gold clone button: level 11 for everyone, on the shared board. The server issues any player
+   * a level-11 run ticket (and logs the 'start' event); the score is submitted with it. Offline,
+   * or if no ticket comes back, the same level 11 is played and scored on this device's board.
    */
   private startCloneRun(): void {
     if (this.state !== 'title' && this.state !== 'gameover') return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
-    if (!remoteEnabled || !this.elevenUnlocked) {
+    if (!remoteEnabled) {
       this.startRun(SECRET_DIFFICULTY, null, true);
       return;
     }
@@ -1172,7 +1170,6 @@ export class Game {
       if (seq !== this.startSeq) return;
       this.ticketPending = false;
       if (this.state !== 'title' && this.state !== 'gameover') return;
-      if (t === 'denied') this.setEleven(false);
       if (t && t !== 'denied') this.startRun(SECRET_DIFFICULTY, Promise.resolve(t));
       else this.startRun(SECRET_DIFFICULTY, null, true);
     });
@@ -1195,19 +1192,9 @@ export class Game {
     this.runDifficulty = difficulty;
     this.victory = false;
     this.runTicket = difficulty === SECRET_DIFFICULTY ? ticket : null;
-    // Levels 1-10 are 30 s stages; clearing 10 enters 11 only for the current #1. The server
-    // only accepts an 11 score whose run is no longer than its ticket's age, so the ticket
-    // must be requested now, at run start, not when level 10 is cleared.
+    // Levels 1-10 are 30 s stages; clearing 10 carries on into 11 (any player). Its run ticket
+    // is requested when 10 is cleared, dated back by the play time so far (see clearStage).
     this.climbTicket = null;
-    this.climbDenied = false;
-    if (difficulty < SECRET_DIFFICULTY && remoteEnabled && this.elevenUnlocked) {
-      const id = this.runId;
-      const req = startRemoteRun(loadClaimTokens());
-      this.climbTicket = req;
-      void req.then((r) => {
-        if (r === 'denied' && id === this.runId) this.climbDenied = true;
-      });
-    }
     // Clone levels: a difficulty-11 run starts on level 11 with one ship.
     this.level = difficulty === SECRET_DIFFICULTY ? FIRST_CLONE_LEVEL : 0;
     this.ships = 1;
@@ -1887,12 +1874,12 @@ export class Game {
   }
 
   /**
-   * Pass a level 1-10. Returns true if the run ended (cleared 10 without access to 11: a win).
+   * Pass a level 1-10. Returns false (the run carries on).
    * 1-9: a ~2 s "LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!" interstitial, then the next level
    * starts fresh (hazards cleared, ramp reset, shades full) with the score carried over.
-   * 10: the current #1 gets a "YOU BEAT LEVEL 10" interstitial, then clone mode (level 11);
-   * everyone else ends the run as a win on the YOU BEAT LEVEL 10 screen, as before (the
-   * server only accepts a level-11 score with a run ticket, issued only to the current #1).
+   * 10: every player gets a "YOU BEAT LEVEL 10" interstitial, then clone mode (level 11). On the
+   * shared board the run's level-11 ticket is requested now (the server logs the 'start'),
+   * dated back by the play time so far so the whole run fits the ticket.
    */
   private clearStage(): boolean {
     const cleared = this.runDifficulty;
@@ -1910,30 +1897,23 @@ export class Game {
       });
       return false;
     }
-    if (this.elevenUnlocked && !this.climbDenied && this.climbTicket) {
-      // Straight into clone mode: submitted as 11 with the ticket requested at run start.
-      this.showPromotion('YOU BEAT LEVEL 10', "YOU'VE BEEN PROMOTED!", () => {
-        this.runDifficulty = SECRET_DIFFICULTY;
-        this.runTicket = this.climbTicket;
-        if (!this.mode) {
-          this.level = FIRST_CLONE_LEVEL;
-          this.ships = 1;
-          this.formation.clear();
-          this.setPackK(1);
-        }
-        this.freshStage();
-        this.bannerText = this.mode ? `${this.mode.name}  ·  LEVEL 11` : `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
-        this.bannerT = BANNER_SECONDS;
-      });
-      return false;
-    }
-    // Beat level 10: the run ends as a win and is submitted normally (difficulty 10).
-    this.victory = true;
-    this.bannerT = 0;
-    this.renderer.bumpFlash(0.5);
-    this.endRun();
-    this.input.clearJustPressed();
-    return true;
+    // Beat level 10: straight into clone mode (level 11) for everyone, submitted as 11.
+    this.climbTicket =
+      remoteEnabled && !this.runLocalOnly ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
+    this.showPromotion('YOU BEAT LEVEL 10', "YOU'VE BEEN PROMOTED!", () => {
+      this.runDifficulty = SECRET_DIFFICULTY;
+      this.runTicket = this.climbTicket;
+      if (!this.mode) {
+        this.level = FIRST_CLONE_LEVEL;
+        this.ships = 1;
+        this.formation.clear();
+        this.setPackK(1);
+      }
+      this.freshStage();
+      this.bannerText = this.mode ? `${this.mode.name}  ·  LEVEL 11` : `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
+      this.bannerT = BANNER_SECONDS;
+    });
+    return false;
   }
 
   private showPromotion(title: string, sub: string, next: () => void): void {

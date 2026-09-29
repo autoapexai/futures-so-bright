@@ -1,7 +1,8 @@
 /**
  * Difficulty 1-11. 5 is the original game (all factors exactly 1).
  * Must match the tables in supabase/fsb_leaderboard.sql (plausibility cap).
- * 11 is hidden: only the current #1 on the shared board can select it.
+ * 11 is not in the selector (except for the current #1, as a perk); everyone reaches it through
+ * the gold clone button or by beating level 10.
  */
 export const MIN_DIFFICULTY = 1;
 export const MAX_PUBLIC_DIFFICULTY = 10;

@@ -126,13 +126,17 @@ export async function amITop(tokens: string[], timeoutMs = FETCH_TIMEOUT_MS): Pr
 }
 
 /**
- * Ask for a difficulty-11 run ticket (only issued to the current #1).
+ * Ask for a difficulty-11 run ticket (issued to any player; the server logs a level-11 'start').
+ * elapsedMs: play time already in this run (a climb from level 1 reaching 11); the server dates
+ * the ticket back by that much so the whole run's duration fits the ticket.
  * Returns the ticket, 'denied' if the server refused, or null on network failure.
  */
-export async function startRemoteRun(tokens: string[], timeoutMs = SUBMIT_TIMEOUT_MS): Promise<string | 'denied' | null> {
+export async function startRemoteRun(tokens: string[], elapsedMs = 0, timeoutMs = SUBMIT_TIMEOUT_MS): Promise<string | 'denied' | null> {
   if (!remoteEnabled) return null;
   try {
-    const t = await rpc('fsb_start_run', { p_tokens: tokens, p_difficulty: 11 }, timeoutMs);
+    const body: Record<string, unknown> = { p_tokens: tokens, p_difficulty: 11 };
+    if (elapsedMs > 0) body.p_elapsed_ms = Math.min(3300000, Math.ceil(elapsedMs));
+    const t = await rpc('fsb_start_run', body, timeoutMs);
     return typeof t === 'string' && /^[0-9a-f]{64}$/.test(t) ? t : null;
   } catch (err) {
     console.warn('[leaderboard] difficulty 11 ticket refused:', err);
