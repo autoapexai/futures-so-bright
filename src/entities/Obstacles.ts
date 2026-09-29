@@ -12,6 +12,10 @@ export interface Obstacle {
   phase: number;
   alive: boolean;
   pulse: number;
+  /** Ring gates: the player's ship has crossed this ring's centre line (boost checked once). */
+  passed: boolean;
+  /** Ring gates: gate-boost glow countdown (s) after the player flew through the hole. */
+  boostT: number;
 }
 
 export interface Collectible {
@@ -59,6 +63,8 @@ export class WorldSpawner {
         phase: 0,
         alive: true,
         pulse: 0,
+        passed: false,
+        boostT: 0,
       }
     );
   }
@@ -95,6 +101,8 @@ export class WorldSpawner {
     o.phase = 0;
     o.alive = true;
     o.pulse = pulse;
+    o.passed = false;
+    o.boostT = 0;
     this.obstacles.push(o);
   }
 
@@ -135,6 +143,7 @@ export class WorldSpawner {
       o.y += o.vy * dt;
       o.phase += dt;
       o.pulse += dt * 4;
+      if (o.boostT > 0) o.boostT = Math.max(0, o.boostT - dt);
       if (o.kind === 'flare') {
         o.w = 40 + Math.sin(o.phase * 6) * 12;
         o.h = 40 + Math.cos(o.phase * 5) * 12;

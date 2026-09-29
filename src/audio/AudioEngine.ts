@@ -230,6 +230,16 @@ export class AudioEngine {
     });
   }
 
+  /** Gate boost: a bright upward sweep with a sparkle on top (distinct from the circle pickup). */
+  playGate(): void {
+    this.whenRunning(() => {
+      if (!this.master) return;
+      this.tone(440, 0.18, 'triangle', 0.2, this.master, 1320);
+      this.tone(1320, 0.1, 'sine', 0.14, this.master, undefined, 0.12);
+      this.tone(1760, 0.14, 'sine', 0.12, this.master, undefined, 0.2);
+    });
+  }
+
   /** Promotion interstitial: a short rising square-wave fanfare (arcade level-clear). */
   playPromote(): void {
     this.whenRunning(() => {

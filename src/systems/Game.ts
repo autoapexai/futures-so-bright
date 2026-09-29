@@ -3,7 +3,7 @@ import { Player } from '../entities/Player';
 import { WorldSpawner, aabb, circleRect, type Obstacle } from '../entities/Obstacles';
 import { Input } from './Input';
 import { ParticleSystem } from './Particles';
-import { Renderer } from './Renderer';
+import { Renderer, GATE_GLOW_SECONDS } from './Renderer';
 import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
@@ -47,6 +47,11 @@ export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover'
 const TUT_STEPS = 4;
 /** Level-up banner duration (s). */
 const BANNER_SECONDS = 2.4;
+/**
+ * Gate boost: flying through a ring gate's hole refills this much shade charge. It equals the
+ * original game's ring-rim (gate) hit penalty (0.28 of the bar), with the sign flipped.
+ */
+const GATE_BOOST = 0.28;
 /** Promotion interstitial ("LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!") duration (s). */
 const PROMO_SECONDS = 2.0;
 /** Re-request the difficulty-11 ticket on dismiss if the card sat open this long (ticket lives 1 h). */
@@ -1412,6 +1417,8 @@ export class Game {
       }
     }
 
+    this.checkGates();
+
     // obstacles
     if (this.player.invuln <= 0) {
       for (const o of this.world.obstacles) {
@@ -1541,6 +1548,7 @@ export class Game {
         if (this.tutStep === 2) this.tutProgress++;
       }
     }
+    this.checkGates();
     if (this.player.invuln <= 0) {
       for (const o of this.world.obstacles) {
         if (o.alive && this.hitsObstacle(o, hb)) {
@@ -1589,7 +1597,7 @@ export class Game {
       case 1:
         return {
           title: 'DODGE THE GLARE',
-          lines: ['Beams, flares and neon bars drain your shades', 'Rings: fly through the hole'],
+          lines: ['Beams, flares, neon bars and ring rims hurt', "Fly through a ring's hole: GATE BOOST, +shade"],
         };
       case 2:
         return {
@@ -1602,7 +1610,7 @@ export class Game {
           lines: [
             'Survive 30 seconds to pass a level',
             'Levels 1 to 10 get harder as you go',
-            `The circles are a boost: they fuel ${touch ? 'BOOST' : 'SPACE boost'}`,
+            `Circles and ring gates refill shade; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
             touch ? 'Tap to ride' : 'ENTER or click to ride',
           ],
         };
@@ -1739,6 +1747,29 @@ export class Game {
       this.renderer.bumpFlash(0.35);
     } else {
       this.renderer.bumpShake(3);
+    }
+  }
+
+  /**
+   * Ring gates: when a ring's centre line passes the player's ship, a ship inside the hole
+   * gets a GATE BOOST (+GATE_BOOST shade) with a gold ring flash, sparkle burst and chime.
+   */
+  private checkGates(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const o of this.world.obstacles) {
+      if (o.kind !== 'ring' || !o.alive || o.passed) continue;
+      const cx = o.x + o.w / 2;
+      if (px < cx) continue;
+      o.passed = true;
+      const cy = o.y + o.h / 2;
+      const ny = (py - cy) / (o.h / 2);
+      if (ny * ny > 0.42) continue; // not through the hole (the rim / outside)
+      this.charge = clamp(this.charge + GATE_BOOST, 0, 1);
+      o.boostT = GATE_GLOW_SECONDS;
+      this.audio.playGate();
+      this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
+      this.spawnFloater(cx, o.y - 6, 'GATE BOOST +SHADE', '#ffe66d');
     }
   }
 

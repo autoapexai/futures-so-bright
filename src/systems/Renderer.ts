@@ -13,6 +13,9 @@ export interface LevelInfo {
   ships: number;
 }
 
+/** Gate-boost ring glow duration (s); Game sets Obstacle.boostT to this. */
+export const GATE_GLOW_SECONDS = 0.5;
+
 const COL = {
   bgTop: '#120028',
   bgBot: '#2a0845',
@@ -512,6 +515,22 @@ export class Renderer {
         ctx.strokeStyle = 'rgba(255,255,255,0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
+        if (o.boostT > 0) {
+          // Gate boost cue: the ring flashes gold and a gold echo expands out of it.
+          const k = o.boostT / GATE_GLOW_SECONDS;
+          const grow = 1 + (1 - k) * 0.7;
+          ctx.save();
+          ctx.globalAlpha = k;
+          ctx.shadowColor = '#ffe66d';
+          ctx.strokeStyle = '#ffe66d';
+          ctx.lineWidth = 7;
+          ctx.stroke();
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, (o.w / 2) * grow, (o.h / 2) * grow, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
         // danger zones top/bottom of ring (outer rim already stroke; hit is outer)
       }
       ctx.shadowBlur = 0;
