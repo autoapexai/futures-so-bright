@@ -7,6 +7,7 @@ import { Renderer } from './Renderer';
 import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
+import { DONATE_URL, VENMO_HANDLE } from '../config';
 import {
   loadHighScore,
   saveHighScore,
@@ -344,6 +345,19 @@ export class Game {
       if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
       this.startTutorial();
     });
+
+    // Donate (game-over / victory only; hidden entirely while VENMO_HANDLE is empty).
+    const donate = document.getElementById('donate-btn') as HTMLAnchorElement | null;
+    if (donate && DONATE_URL) {
+      donate.href = DONATE_URL;
+      const note = document.getElementById('donate-note');
+      if (note) note.textContent = `Goes to @${VENMO_HANDLE}, the game's creator.`;
+      document.body.classList.add('has-donate');
+      document.getElementById('donate')?.setAttribute('aria-hidden', 'false');
+      donate.addEventListener('pointerdown', (e) => e.stopPropagation());
+    } else {
+      document.getElementById('donate')?.remove();
+    }
 
     // Difficulty − / + (title & game-over menus, all devices)
     bindTap(document.getElementById('diff-minus'), () => {
@@ -807,7 +821,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #diff-ctl')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #diff-ctl, #donate')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();

@@ -1272,3 +1272,100 @@ body.congrats-open #howto-btn,
 body.clone-open #howto-btn {
   display: none !important;
 }
+
+/* —— Donate (value for value): game-over / victory only, quieter than RIDE AGAIN —— */
+#donate {
+  display: none;
+  position: absolute;
+  z-index: 16;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  width: 190px;
+  text-align: center;
+  pointer-events: auto;
+}
+
+body.has-donate.gameover #donate {
+  display: block;
+}
+
+body.congrats-open #donate,
+body.clone-open #donate {
+  display: none !important;
+}
+
+#donate .donate-line,
+#donate .donate-note {
+  margin: 0 0 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.25;
+  color: rgba(200, 180, 255, 0.8);
+}
+
+#donate .donate-note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: rgba(200, 180, 255, 0.6);
+}
+
+#donate .hand-btn {
+  display: block;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 10px;
+  text-decoration: none;
+  white-space: normal;
+}
+
+body.portrait #donate {
+  top: 51%;
+  transform: none;
+  right: 50%;
+  width: min(92vw, 340px);
+  margin-right: calc(min(92vw, 340px) / -2);
+}
+
+body.portrait #donate .donate-line,
+body.portrait #donate .donate-note {
+  font-size: 10px;
+  margin-bottom: 3px;
+}
+
+body.portrait #donate .donate-note {
+  margin: 3px 0 0;
+}
+
+body.portrait #donate .hand-btn {
+  min-height: 28px;
+  padding: 5px 8px;
+}
+
+/* Portrait game-over: the centred title owns the top row, so the menu buttons sit under mute. */
+body.portrait.gameover #howto-btn {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 64px);
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  /* Narrow portrait game-over: HOW TO PLAY sits level with the difficulty control, opposite side. */
+  body.touch-device.gameover #howto-btn {
+    top: auto;
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px);
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  body.touch-device.hand-left.gameover #howto-btn {
+    right: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+}
