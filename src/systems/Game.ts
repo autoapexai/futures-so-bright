@@ -19,7 +19,6 @@ import {
   addEntry,
   insertEntry,
   nextLetter,
-  loadDifficulty,
   saveDifficulty,
   loadClaimTokens,
   addClaimToken,
@@ -95,11 +94,11 @@ export class Game {
   private remoteFetch: Promise<LeaderboardEntry[] | null> | null = null;
   /** Which board is on screen: shared online board or this device's board. */
   private boardIsRemote = false;
-  /** Selected difficulty (1-10, or 11 while this device holds #1). */
-  private difficulty = 5;
+  /** Selected starting level (1-10, or 11 while this device holds #1). Always 1 on load. */
+  private difficulty = MIN_DIFFICULTY;
   /** Difficulty locked in for the current / last run. */
-  private runDifficulty = 5;
-  private pendingDifficulty = 5;
+  private runDifficulty = MIN_DIFFICULTY;
+  private pendingDifficulty = MIN_DIFFICULTY;
   /** This device currently holds #1 on the shared board (11 selectable). */
   private elevenUnlocked = false;
   /** Difficulty-11 run ticket request for the current run. */
@@ -191,11 +190,9 @@ export class Game {
     this.high = loadHighScore();
     // 11 is shown right away only if this device was #1 last time; re-checked below.
     this.elevenUnlocked = remoteEnabled && loadElevenUnlocked();
-    const savedDifficulty = loadDifficulty();
-    this.difficulty =
-      savedDifficulty === SECRET_DIFFICULTY && !this.elevenUnlocked
-        ? MAX_PUBLIC_DIFFICULTY
-        : savedDifficulty;
+    // Every visit starts at level 1; the difficulty selector is optional and only lasts for
+    // this visit (the stored pick is no longer restored on load).
+    this.difficulty = MIN_DIFFICULTY;
     // Warm the shared board on the title screen so game over can use it instantly.
     void this.refreshRemoteBoard().then(() => this.checkTop());
     this.fitCanvas();

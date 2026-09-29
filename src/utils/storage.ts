@@ -210,7 +210,7 @@ export function loadDifficulty(): number {
   } catch {
     /* ignore */
   }
-  return 5;
+  return 1;
 }
 
 export function saveDifficulty(d: number): void {
