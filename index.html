@@ -43,6 +43,14 @@
         <button type="button" class="touch-btn touch-action" data-action="boost" aria-label="Start" draggable="false" style="touch-action:none">START</button>
         <button type="button" id="hand-btn" class="hand-btn" aria-label="Left-hand controls" draggable="false" style="touch-action:none" title="Toggle left / right hand controls">LEFT HAND</button>
       </div>
+      <div id="demo" aria-hidden="true">
+        <video id="demo-video" muted autoplay loop playsinline disablepictureinpicture preload="auto" poster="/demo/fsb-demo.jpg">
+          <source src="/demo/fsb-demo.webm" type="video/webm" />
+          <source src="/demo/fsb-demo.mp4" type="video/mp4" />
+        </video>
+        <span class="demo-tag">DEMO</span>
+      </div>
+      <button type="button" id="clone-btn" class="hand-btn" aria-label="I think I'm a clone now: play level 11" draggable="false" style="touch-action:none">I THINK I'M A CLONE NOW</button>
       <button type="button" id="howto-btn" class="hand-btn" aria-label="How to play" draggable="false" style="touch-action:none">HOW TO PLAY</button>
       <div id="donate" class="v4v-card" role="region" aria-labelledby="v4v-title" aria-hidden="true">
         <p class="v4v-title" id="v4v-title">VALUE FOR VALUE</p>

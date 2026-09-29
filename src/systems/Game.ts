@@ -157,6 +157,8 @@ export class Game {
   /** Difficulty-11 ticket for a run started below 11 by the current #1 (so clearing 10 can enter 11). */
   private climbTicket: Promise<string | 'denied' | null> | null = null;
   private climbDenied = false;
+  /** This run's score stays on this device's board (level 11 without a server ticket). */
+  private runLocalOnly = false;
   /** How to Play walkthrough: -1 = off, else the current step (0-based). Runs in 'playing' state. */
   private tutStep = -1;
   private tutT = 0;
@@ -377,6 +379,15 @@ export class Game {
     });
 
     // How to Play (title & game-over menus): replay the walkthrough.
+    // Demo loop: hide the frame if the video can't load (it never blocks or delays play).
+    const demoVideo = document.getElementById('demo-video') as HTMLVideoElement | null;
+    const lastSource = demoVideo?.querySelector('source:last-of-type');
+    lastSource?.addEventListener('error', () => document.getElementById('demo')?.remove());
+    // Gold "I THINK I'M A CLONE NOW" (title screen): anyone can start level 11 (clone mode) directly.
+    bindTap(document.getElementById('clone-btn'), () => {
+      void this.audio.unlock();
+      this.startCloneRun();
+    });
     bindTap(document.getElementById('howto-btn'), () => {
       void this.audio.unlock();
       if (this.state !== 'title' && this.state !== 'gameover') return;
@@ -904,7 +915,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #diff-ctl, #donate')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #clone-btn, #demo, #diff-ctl, #donate')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -932,6 +943,12 @@ export class Game {
     document.body.classList.toggle('gameover', this.state === 'gameover');
     document.body.classList.toggle('initials', this.state === 'initials');
     this.syncWakeLock();
+    // Title-screen demo loop plays only while the title is up.
+    const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
+    if (demo) {
+      if (this.state === 'title') void demo.play().catch(() => {});
+      else demo.pause();
+    }
     const pauseBtn = document.getElementById('pause-btn');
     if (pauseBtn) {
       pauseBtn.textContent = this.state === 'paused' ? '▶' : '⏸';
@@ -1005,8 +1022,35 @@ export class Game {
   }
 
   /** Actually start play. The run timer (runTime) starts from 0 here. */
-  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null): void {
+  /**
+   * Gold clone button: level 11 for everyone. The server only issues level-11 run tickets (and
+   * logs the 'start' event) for the current #1, and rejects level-11 scores without one, so:
+   * the #1 gets a ticket (start event logged, score goes to the shared board as before); anyone
+   * else (or offline) plays the same level 11, scored on this device's board only.
+   */
+  private startCloneRun(): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
+    if (!remoteEnabled || !this.elevenUnlocked) {
+      this.startRun(SECRET_DIFFICULTY, null, true);
+      return;
+    }
+    this.ticketPending = true;
+    const seq = ++this.startSeq;
+    this.audio.playUi();
+    void startRemoteRun(loadClaimTokens()).then((t) => {
+      if (seq !== this.startSeq) return;
+      this.ticketPending = false;
+      if (this.state !== 'title' && this.state !== 'gameover') return;
+      if (t === 'denied') this.setEleven(false);
+      if (t && t !== 'denied') this.startRun(SECRET_DIFFICULTY, Promise.resolve(t));
+      else this.startRun(SECRET_DIFFICULTY, null, true);
+    });
+  }
+
+  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null, localOnly = false): void {
     this.awaitingTopAfterSubmit = false;
+    this.runLocalOnly = localOnly;
     this.audio.playStart();
     this.state = 'playing';
     this.setBodyFlags();
@@ -1107,8 +1151,8 @@ export class Game {
 
     // Qualify against the shared board when we have it (fetched at run start),
     // else the local board. Never wait on the network here.
-    this.boardIsRemote = this.remoteBoard !== null;
-    this.leaderboard = this.remoteBoard ? [...this.remoteBoard] : localBoard;
+    this.boardIsRemote = this.remoteBoard !== null && !this.runLocalOnly;
+    this.leaderboard = this.boardIsRemote && this.remoteBoard ? [...this.remoteBoard] : localBoard;
     this.highlightIndex = -1;
     if (qualifiesForBoard(this.pendingScore, this.leaderboard)) {
       this.enterInitials();
@@ -1122,6 +1166,7 @@ export class Game {
     const hadRemote = this.boardIsRemote;
     void this.refreshRemoteBoard().then((board) => {
       if (!board || id !== this.runId || this.state !== 'gameover' || this.highlightIndex !== -1) return;
+      if (this.runLocalOnly) return;
       this.leaderboard = [...board];
       this.boardIsRemote = true;
       // Shared board was unavailable at game over but is now: offer initials if it qualifies.
@@ -1139,7 +1184,7 @@ export class Game {
     const id = this.runId;
     // Always keep this device's board (offline fallback + personal best).
     const local = addEntry(score, initials, undefined, difficulty);
-    if (remoteEnabled && this.remoteBoard) {
+    if (remoteEnabled && this.remoteBoard && !this.runLocalOnly) {
       // Optimistic: show the entry on the shared board until the server replies.
       const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty);
       this.leaderboard = optimistic.board;
@@ -1157,7 +1202,7 @@ export class Game {
     this.input.clearTouch();
     this.input.clearJustPressed();
 
-    if (!remoteEnabled) return;
+    if (!remoteEnabled || this.runLocalOnly) return;
     void (ticketReq ?? Promise.resolve(null))
       .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null))
       .then((res) => {
@@ -1859,6 +1904,7 @@ export class Game {
     } else {
       this.formation.empty(s);
     }
+    if (this.level === 0) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
   }
 
   private hitFx(x: number, y: number, lead: boolean): void {
@@ -1897,7 +1943,6 @@ export class Game {
       this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
       this.spawnFloater(cx, o.y - 6, 'GATE BOOST +SHADE', '#ffe66d');
     }
-    if (this.level === 0) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
   }
 
   private hitsObstacle(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
