@@ -5,6 +5,7 @@ const DIFFICULTY_KEY = 'fsb-difficulty-v1';
 const CLAIMS_KEY = 'fsb-claims-v1';
 const ELEVEN_KEY = 'fsb-eleven-v1';
 const ELEVEN_REVEAL_KEY = 'fsb-eleven-reveal-v1';
+const TUTORIAL_KEY = 'fsb-tutorial-done-v1';
 const MAX_CLAIMS = 40;
 
 export type HandPreference = 'left' | 'right';
@@ -271,6 +272,22 @@ export function saveElevenUnlocked(on: boolean): void {
   try {
     if (on) localStorage.setItem(ELEVEN_KEY, '1');
     else localStorage.removeItem(ELEVEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** The first-load How to Play walkthrough has been finished on this device. */
+export function loadTutorialDone(): boolean {
+  try {
+    return localStorage.getItem(TUTORIAL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+export function saveTutorialDone(): void {
+  try {
+    localStorage.setItem(TUTORIAL_KEY, '1');
   } catch {
     /* ignore */
   }

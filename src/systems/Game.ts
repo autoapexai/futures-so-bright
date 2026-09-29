@@ -26,6 +26,8 @@ import {
   saveElevenUnlocked,
   loadElevenRevealSeen,
   saveElevenRevealSeen,
+  loadTutorialDone,
+  saveTutorialDone,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
@@ -34,14 +36,15 @@ import {
   MIN_DIFFICULTY,
   MAX_PUBLIC_DIFFICULTY,
   SECRET_DIFFICULTY,
-  speedFactor,
-  densityFactor,
   pointMultiplier,
   difficultyLabel,
+  hazardLevers,
 } from '../utils/difficulty';
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
 
+/** How to Play walkthrough step count. */
+const TUT_STEPS = 4;
 /** Level-up banner duration (s). */
 const BANNER_SECONDS = 2.4;
 /** Re-request the difficulty-11 ticket on dismiss if the card sat open this long (ticket lives 1 h). */
@@ -118,8 +121,19 @@ export class Game {
   private level = 0;
   /** Ships left (player + clones, drawn or in reserve). */
   private ships = 1;
-  /** Play time on the current level (pauses excluded). */
+  /** Play time on the current level (pauses excluded). Levels 1-10 and clone levels alike. */
   private levelTime = 0;
+  /** Current run cleared level 10 and ended as a win (victory screen). */
+  private victory = false;
+  /** Difficulty-11 ticket for a run started below 11 by the current #1 (so clearing 10 can enter 11). */
+  private climbTicket: Promise<string | 'denied' | null> | null = null;
+  private climbDenied = false;
+  /** How to Play walkthrough: -1 = off, else the current step (0-based). Runs in 'playing' state. */
+  private tutStep = -1;
+  private tutT = 0;
+  private tutProgress = 0;
+  private tutLastX = 0;
+  private tutLastY = 0;
   private bannerText = '';
   private bannerT = 0;
   private formation = new Formation();
@@ -235,6 +249,8 @@ export class Game {
     app.addEventListener('pointerdown', this.onPointer, { passive: false });
     this.bindChrome();
     this.setBodyFlags();
+    // First load on this device: the How to Play walkthrough plays before any run can start.
+    if (!loadTutorialDone()) this.startTutorial();
     // Test-only hooks (FSB_TEST=1 builds); compiled out of production bundles.
     if (__FSB_TEST__) void import('./testHooks').then((m) => m.installTestHooks(this));
   }
@@ -319,6 +335,14 @@ export class Game {
       syncHandBtn(next);
       this.input.clearTouch();
       this.audio.playUi();
+    });
+
+    // How to Play (title & game-over menus): replay the walkthrough.
+    bindTap(document.getElementById('howto-btn'), () => {
+      void this.audio.unlock();
+      if (this.state !== 'title' && this.state !== 'gameover') return;
+      if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
+      this.startTutorial();
     });
 
     // Difficulty − / + (title & game-over menus, all devices)
@@ -783,7 +807,13 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #diff-ctl')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #diff-ctl')) return;
+    // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
+    if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
+      if (e.cancelable) e.preventDefault();
+      this.finishTutorial();
+      return;
+    }
     // Stick / BOOST handle themselves while a run is live or entering initials
     if (
       (this.state === 'playing' || this.state === 'initials') &&
@@ -892,7 +922,21 @@ export class Game {
     this.runTime = 0;
     this.runId++;
     this.runDifficulty = difficulty;
+    this.victory = false;
     this.runTicket = difficulty === SECRET_DIFFICULTY ? ticket : null;
+    // Levels 1-10 are 30 s stages; clearing 10 enters 11 only for the current #1. The server
+    // only accepts an 11 score whose run is no longer than its ticket's age, so the ticket
+    // must be requested now, at run start, not when level 10 is cleared.
+    this.climbTicket = null;
+    this.climbDenied = false;
+    if (difficulty < SECRET_DIFFICULTY && remoteEnabled && this.elevenUnlocked) {
+      const id = this.runId;
+      const req = startRemoteRun(loadClaimTokens());
+      this.climbTicket = req;
+      void req.then((r) => {
+        if (r === 'denied' && id === this.runId) this.climbDenied = true;
+      });
+    }
     // Clone levels: a difficulty-11 run starts on level 11 with one ship.
     this.level = difficulty === SECRET_DIFFICULTY ? FIRST_CLONE_LEVEL : 0;
     this.ships = 1;
@@ -1170,24 +1214,33 @@ export class Game {
       return;
     }
 
-    this.runTime += dt;
-    if (this.level > 0) {
-      // Clone levels: 30 s of play on a level passes it; exactly one level per pass.
-      this.levelTime += dt;
-      if (this.levelTime >= LEVEL_SECONDS) {
-        this.levelTime -= LEVEL_SECONDS;
-        this.levelUp();
-      }
-      this.bannerT = Math.max(0, this.bannerT - dt);
+    if (this.tutStep >= 0) {
+      this.tickTutorial(dt);
+      this.input.clearJustPressed();
+      return;
     }
+
+    this.runTime += dt;
+    // Every level is a 30 s stage: 1-10 advance one level (score carries over), clone levels
+    // (11+) multiply ships. Exactly one level per pass.
+    this.levelTime += dt;
+    if (this.levelTime >= LEVEL_SECONDS) {
+      this.levelTime -= LEVEL_SECONDS;
+      if (this.level > 0) this.levelUp();
+      else if (this.clearStage()) return;
+    }
+    this.bannerT = Math.max(0, this.bannerT - dt);
 
     const boosting = this.input.boosting && this.charge > 0.05;
     const speedMul = boosting ? 1.35 : 1;
     if (boosting && this.input.consume(' ')) this.audio.playBoost();
 
-    // Difficulty scales base speed + ramp (m) and points (pts); 5 is exactly 1 / 1.
-    const m = speedFactor(this.runDifficulty);
-    const pts = pointMultiplier(this.runDifficulty);
+    // Difficulty scales base speed + ramp (m) and points (pts). m is the eased hazard speed
+    // (original level 1 eased for 1-10, original level 5 for 11; see utils/difficulty.ts).
+    const d = this.runDifficulty;
+    const hz = hazardLevers(d);
+    const m = hz.speed;
+    const pts = pointMultiplier(d);
     this.scrollSpeed = 240 * m + this.distance * 0.035 * m + (boosting ? 90 : 0);
     const pr = this.touchReserves();
     // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
@@ -1212,7 +1265,8 @@ export class Game {
       this.distance,
       pr.top,
       this.viewH - pr.bottom,
-      densityFactor(this.runDifficulty),
+      hz.density,
+      hz.rampMul,
     );
     this.particles.update(dt);
     this.renderer.update(dt, this.scrollSpeed);
@@ -1233,7 +1287,7 @@ export class Game {
     this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
 
     // shade drain
-    const drain = (boosting ? 0.14 : 0.048) + this.distance * 0.000003;
+    const drain = ((boosting ? 0.14 : 0.048) + this.distance * 0.000003) * hz.drainMul;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
       // Out of shade with clones left: this ship is lost, a clone takes the lead.
@@ -1285,8 +1339,8 @@ export class Game {
             this.loseLeadShip();
             break;
           }
-          this.charge = clamp(this.charge - 0.28, 0, 1);
-          this.player.invuln = 0.85;
+          this.charge = clamp(this.charge - 0.28 * hz.hitDamageMul, 0, 1);
+          this.player.invuln = 0.85 * hz.hitGraceMul;
           this.audio.playHit();
           this.renderer.bumpShake(10);
           this.renderer.bumpFlash(0.35);
@@ -1305,6 +1359,203 @@ export class Game {
     if (f.occupiedCount > 0) this.collideClones();
 
     this.input.clearJustPressed();
+  }
+
+  /** Start the How to Play walkthrough (first load, or the How to Play button). Never scores. */
+  private startTutorial(): void {
+    this.tutStep = 0;
+    this.tutT = 0;
+    this.tutProgress = 0;
+    this.state = 'playing';
+    this.setBodyFlags();
+    this.score = 0;
+    this.distance = 0;
+    this.charge = 1;
+    this.runDifficulty = MIN_DIFFICULTY;
+    this.level = 0;
+    this.ships = 1;
+    this.levelTime = 0;
+    this.bannerT = 0;
+    this.victory = false;
+    this.formation.clear();
+    this.player.reset(this.viewH);
+    this.tutLastX = this.player.x;
+    this.tutLastY = this.player.y;
+    this.world.reset();
+    this.world.spawnObstacles = false;
+    this.world.spawnCollectibles = false;
+    this.particles.clear();
+    this.renderer.shake = 0;
+    this.renderer.flash = 0;
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+  }
+
+  private nextTutorialStep(): void {
+    this.tutStep++;
+    this.tutT = 0;
+    this.tutProgress = 0;
+    this.audio.playCollect();
+    if (this.tutStep === 1) this.world.spawnObstacles = true;
+    if (this.tutStep === 2) {
+      this.world.spawnObstacles = false;
+      this.world.spawnCollectibles = true;
+      this.charge = Math.min(this.charge, 0.45);
+    }
+    if (this.tutStep === 3) {
+      this.world.spawnObstacles = true;
+      this.world.spawnCollectibles = true;
+    }
+  }
+
+  /** Walkthrough done: remember it on this device and go to the title screen (pick a level, play). */
+  private finishTutorial(): void {
+    if (this.tutStep < 0) return;
+    this.tutStep = -1;
+    saveTutorialDone();
+    this.world.reset();
+    this.world.spawnObstacles = true;
+    this.world.spawnCollectibles = true;
+    this.particles.clear();
+    this.state = 'title';
+    this.setBodyFlags();
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  /**
+   * One walkthrough frame, ~30 s in total. Each step is finished by doing it:
+   * 1 move, 2 dodge hazards for a few seconds, 3 grab 2 circles, 4 read the rules and tap / ENTER.
+   * Hazards run at level 1 speed; hits flash but never end it; nothing is scored or submitted.
+   */
+  private tickTutorial(dt: number): void {
+    this.tutT += dt;
+    const boosting = this.tutStep === 3 && this.input.boosting && this.charge > 0.05;
+    const hz = hazardLevers(MIN_DIFFICULTY);
+    this.scrollSpeed = 240 * hz.speed + (boosting ? 90 : 0);
+    const pr = this.touchReserves();
+    this.player.update(dt, this.input.axis, boosting, this.viewW, this.viewH, boosting ? 1.35 : 1, pr.top, pr.bottom, pr.left);
+    // A steady trickle of hazards so step 2 has something to dodge within a few seconds.
+    this.world.update(dt, this.scrollSpeed, this.viewW, this.viewH, 0, pr.top, this.viewH - pr.bottom, 1.2, 1);
+    this.particles.update(dt);
+    this.renderer.update(dt, this.scrollSpeed);
+    this.trailAcc += dt;
+    if (this.trailAcc >= (this.touchPrimary ? 0.033 : 0)) {
+      this.trailAcc = 0;
+      this.particles.trail(this.player.x - 24, this.player.y, boosting ? '#00f0ff' : '#ff4ec8');
+    }
+    if (this.tutStep === 3) this.charge = clamp(this.charge - (boosting ? 0.14 : 0) * dt, 0.2, 1);
+
+    const hb = this.player.hitbox;
+    for (const c of this.world.collectibles) {
+      if (c.alive && circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) {
+        c.alive = false;
+        this.charge = clamp(this.charge + 0.22, 0, 1);
+        this.audio.playCollect();
+        this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
+        this.spawnFloater(c.x, c.y, '+SHADE', '#00f0ff');
+        if (this.tutStep === 2) this.tutProgress++;
+      }
+    }
+    if (this.player.invuln <= 0) {
+      for (const o of this.world.obstacles) {
+        if (o.alive && this.hitsObstacle(o, hb)) {
+          this.charge = clamp(this.charge - 0.1, 0.25, 1);
+          this.player.invuln = 0.85;
+          this.audio.playHit();
+          this.renderer.bumpShake(6);
+          this.renderer.bumpFlash(0.25);
+          this.particles.burst(this.player.x, this.player.y, '#ff6b35', this.touchPrimary ? 10 : 20, 220);
+          break;
+        }
+      }
+    }
+    {
+      const fs = this.floaters;
+      let w = 0;
+      for (let i = 0; i < fs.length; i++) {
+        const f = fs[i];
+        f.y -= 40 * dt;
+        f.life -= dt;
+        if (f.life > 0) fs[w++] = f;
+        else this.floaterPool.push(f);
+      }
+      fs.length = w;
+    }
+
+    if (this.tutStep === 0) {
+      this.tutProgress += Math.hypot(this.player.x - this.tutLastX, this.player.y - this.tutLastY);
+      this.tutLastX = this.player.x;
+      this.tutLastY = this.player.y;
+      if (this.tutProgress > 180 && this.tutT > 1.2) this.nextTutorialStep();
+    } else if (this.tutStep === 1) {
+      if (this.tutT > 7) this.nextTutorialStep();
+    } else if (this.tutStep === 2) {
+      if (this.tutProgress >= 2 || this.tutT > 12) this.nextTutorialStep();
+    } else if (this.tutStep === 3) {
+      if (this.input.consume('enter') || this.tutT > 12) this.finishTutorial();
+    }
+  }
+
+  private tutorialText(): { title: string; lines: string[] } {
+    const touch = this.touchPrimary;
+    switch (this.tutStep) {
+      case 0:
+        return { title: 'MOVE YOUR SHIP', lines: [touch ? 'Drag the stick to fly' : 'WASD / Arrows to fly'] };
+      case 1:
+        return {
+          title: 'DODGE THE GLARE',
+          lines: ['Beams, flares and neon bars drain your shades', 'Rings: fly through the hole'],
+        };
+      case 2:
+        return {
+          title: 'GRAB THE CIRCLES',
+          lines: ['Glowing circles recharge your shades', 'SHADE CHARGE empty = too bright, run over'],
+        };
+      default:
+        return {
+          title: 'SURVIVE 30 SECONDS',
+          lines: [
+            'Survive 30 seconds to pass a level',
+            'Levels 1 to 10 get harder as you go',
+            `The circles are a boost: they fuel ${touch ? 'BOOST' : 'SPACE boost'}`,
+            touch ? 'Tap to ride' : 'ENTER or click to ride',
+          ],
+        };
+    }
+  }
+
+  /**
+   * Pass a level 1-10. Returns true if the run ended (cleared 10 without access to 11: a win).
+   * Clearing 10 enters clone mode (level 11) only for the current #1, as before.
+   */
+  private clearStage(): boolean {
+    const cleared = this.runDifficulty;
+    this.bannerText = `LEVEL ${cleared} CLEARED`;
+    this.bannerT = BANNER_SECONDS;
+    if (cleared < MAX_PUBLIC_DIFFICULTY) {
+      this.runDifficulty = cleared + 1;
+      this.audio.playCollect();
+      return false;
+    }
+    if (this.elevenUnlocked && !this.climbDenied && this.climbTicket) {
+      // Straight into clone mode: submitted as 11 with the ticket requested at run start.
+      this.runDifficulty = SECRET_DIFFICULTY;
+      this.runTicket = this.climbTicket;
+      this.level = FIRST_CLONE_LEVEL;
+      this.ships = 1;
+      this.formation.clear();
+      this.audio.playCollect();
+      return false;
+    }
+    // Beat level 10: the run ends as a win and is submitted normally (difficulty 10).
+    this.victory = true;
+    this.bannerT = 0;
+    this.renderer.bumpFlash(0.5);
+    this.endRun();
+    this.input.clearJustPressed();
+    return true;
   }
 
   /** Pass the current clone level: next level, ship count reset to that level's number. */
@@ -1427,8 +1678,12 @@ export class Game {
         this.high,
         this.charge,
         this.distance,
-        this.level > 0 ? { level: this.level, ships: this.ships } : null,
+        this.tutStep >= 0 ? null : this.level > 0 ? { level: this.level, ships: this.ships } : { level: this.runDifficulty, ships: 0 },
       );
+      if (this.tutStep >= 0) {
+        const tt = this.tutorialText();
+        this.renderer.drawTutorial(ctx, this.tutStep + 1, TUT_STEPS, tt.title, tt.lines);
+      }
       if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
     }
     if (this.state === 'title') this.renderer.drawTitle(ctx, this.high, this.pulse);
@@ -1451,6 +1706,7 @@ export class Game {
         this.leaderboard,
         this.highlightIndex,
         this.boardIsRemote ? 'GLOBAL TOP 10' : 'TOP 10',
+        this.victory ? 'YOU BEAT LEVEL 10' : 'TOO BRIGHT!',
       );
     }
   }

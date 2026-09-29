@@ -26,6 +26,9 @@ export interface Collectible {
 export class WorldSpawner {
   obstacles: Obstacle[] = [];
   collectibles: Collectible[] = [];
+  /** Spawn switches (the How to Play walkthrough turns hazards / circles on step by step). */
+  spawnObstacles = true;
+  spawnCollectibles = true;
   private spawnTimer = 0;
   private collectTimer = 0.8;
   private difficulty = 0;
@@ -104,23 +107,25 @@ export class WorldSpawner {
     yMin?: number,
     yMax?: number,
     density = 1,
+    rampMul = 1,
   ): void {
     if (yMin !== undefined) this.laneTop = yMin;
     else this.laneTop = Math.max(80, H * 0.12);
     if (yMax !== undefined) this.laneBot = yMax;
     else this.laneBot = H - Math.max(80, H * 0.12);
-    this.difficulty = Math.min(1, distance / 8000);
+    // rampMul > 1 stretches the ramp to full hazard density (difficulty easing; 1 = original).
+    this.difficulty = Math.min(1, distance / (8000 * rampMul));
     this.spawnTimer -= dt;
     this.collectTimer -= dt;
 
     // density > 1 spawns obstacles more often (difficulty setting; 1 = original).
     const interval = lerp(1.1, 0.45, this.difficulty) / density;
-    if (this.spawnTimer <= 0) {
+    if (this.spawnTimer <= 0 && this.spawnObstacles) {
       this.spawnObstacle(W);
       this.spawnTimer = interval * rand(0.7, 1.15);
     }
 
-    if (this.collectTimer <= 0) {
+    if (this.collectTimer <= 0 && this.spawnCollectibles) {
       this.spawnCollectible(W);
       this.collectTimer = rand(0.55, 1.2);
     }

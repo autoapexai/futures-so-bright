@@ -9,6 +9,7 @@ import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
 /** Clone level + ship count for the HUD (difficulty-11 runs only). */
 export interface LevelInfo {
   level: number;
+  /** Ships left (clone levels); 0 for levels 1-10, which show just "LVL n". */
   ships: number;
 }
 
@@ -689,7 +690,7 @@ export class Renderer {
     size: number,
     maxW: number,
   ): void {
-    const text = `LVL ${info.level}  ·  ${shipsLabel(info.ships)}`;
+    const text = info.ships > 0 ? `LVL ${info.level}  ·  ${shipsLabel(info.ships)}` : `LVL ${info.level}`;
     ctx.textAlign = align;
     ctx.fillStyle = 'rgba(255, 230, 109, 0.95)';
     this.fitFont(ctx, text, '700', size, "'Orbitron', sans-serif", maxW, Math.min(size, 11));
@@ -697,7 +698,7 @@ export class Renderer {
   }
 
   /** Level-up banner, e.g. "LEVEL 12 · 2 SHIPS"; `t` counts down from `dur` seconds. */
-  drawLevelBanner(ctx: CanvasRenderingContext2D, text: string, t: number, dur: number): void {
+  drawLevelBanner(ctx: CanvasRenderingContext2D, text: string, t: number, dur: number, atY?: number): void {
     if (t <= 0) return;
     const W = this.W;
     const H = this.H;
@@ -710,7 +711,7 @@ export class Renderer {
     ctx.textBaseline = 'middle';
     const size = this.fitFont(ctx, text, '800', this.u(portrait ? 30 : 28), "'Orbitron', sans-serif", W * 0.82, 14);
     const tw = ctx.measureText(text).width;
-    const cy = portrait ? H * 0.3 : H * 0.34;
+    const cy = atY ?? (portrait ? H * 0.3 : H * 0.34);
     const bh = size * 1.9;
     const bw = tw + size * 1.6;
     ctx.fillStyle = 'rgba(8, 0, 20, 0.72)';
@@ -725,6 +726,45 @@ export class Renderer {
       ctx.shadowColor = 'rgba(255, 180, 60, 0.9)';
     }
     ctx.fillText(text, W / 2, cy + 1);
+    ctx.restore();
+  }
+
+  /**
+   * How to Play step: the level-up banner (held fully visible) as the title, hint lines
+   * under it on the same dark backdrop, and a small step counter above.
+   */
+  drawTutorial(ctx: CanvasRenderingContext2D, step: number, total: number, title: string, lines: string[]): void {
+    const W = this.W;
+    const H = this.H;
+    const portrait = H > W * 1.1;
+    const cy = portrait ? H * 0.27 : H * 0.25;
+    this.drawLevelBanner(ctx, title, 1, 2, cy);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const maxW = W * (portrait ? 0.88 : 0.7);
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.85)';
+    this.fillFitted(ctx, `HOW TO PLAY  ·  ${step}/${total}`, W / 2, cy - this.u(portrait ? 40 : 36), '700', this.u(13), "'Orbitron', sans-serif", maxW, 10);
+    if (lines.length) {
+      const fs = this.u(portrait ? 18 : 17);
+      const lh = fs * 1.3;
+      let bw = 0;
+      for (const line of lines) {
+        const size = this.fitFont(ctx, line, '700', fs, "'Rajdhani', sans-serif", maxW, 11);
+        bw = Math.max(bw, ctx.measureText(line).width + size * 1.6);
+      }
+      const top = cy + this.u(portrait ? 30 : 28);
+      const bh = lh * lines.length + fs * 0.7;
+      ctx.fillStyle = 'rgba(8, 0, 20, 0.72)';
+      roundRect(ctx, W / 2 - bw / 2, top, bw, bh, fs * 0.6);
+      ctx.fill();
+      let y = top + fs * 0.35 + lh / 2;
+      lines.forEach((line, i) => {
+        ctx.fillStyle = i === lines.length - 1 && lines.length > 1 ? 'rgba(0, 240, 255, 0.9)' : 'rgba(255,255,255,0.92)';
+        this.fillFitted(ctx, line, W / 2, y, '700', fs, "'Rajdhani', sans-serif", maxW, 11);
+        y += lh;
+      });
+    }
     ctx.restore();
   }
 
@@ -1189,6 +1229,7 @@ export class Renderer {
     board: LeaderboardEntry[] = [],
     highlightIndex = -1,
     boardTitle = 'TOP 10',
+    headline = 'TOO BRIGHT!',
   ): void {
     const big = this.touchUi;
     const portrait = this.H > this.W * 1.1;
@@ -1210,7 +1251,7 @@ export class Renderer {
     const overY = this.padTop + H * (big ? (portrait ? 0.08 : 0.1) : 0.12);
     this.fillFitted(
       ctx,
-      'TOO BRIGHT!',
+      headline,
       cx,
       overY,
       '900',

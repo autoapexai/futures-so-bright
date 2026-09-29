@@ -8,7 +8,7 @@ export const MAX_PUBLIC_DIFFICULTY = 10;
 export const SECRET_DIFFICULTY = 11;
 export const DEFAULT_DIFFICULTY = 5;
 
-/** Base scroll speed and speed-ramp factor. */
+/** Speed factor per difficulty as the server's plausibility cap assumes it (see hazardSpeedFactor for play). */
 const SPEED = [0.7, 0.775, 0.85, 0.925, 1, 1.09, 1.18, 1.27, 1.36, 1.45, 1.55];
 /** Point multiplier applied to every point earned in a run. */
 const POINTS = [0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.5];
@@ -27,13 +27,73 @@ export function speedFactor(d: number): number {
   return SPEED[idx(d)];
 }
 
-/** Obstacle spawn density factor (spawn interval is divided by this). */
+/** Original spawn density factor (kept for reference; play uses hazardDensityFactor). */
 export function densityFactor(d: number): number {
   return SPEED[idx(d)];
 }
 
 export function pointMultiplier(d: number): number {
   return POINTS[idx(d)];
+}
+
+/**
+ * Hazard tuning (2026-09-29, Dan). SPEED / POINTS above stay as they are: POINTS is
+ * still the per-level point multiplier, and SPEED is still what the server's
+ * plausibility cap assumes (actual speeds are now <= those, so every legit score
+ * stays under the unchanged cap). Gameplay hazards instead use:
+ *
+ *   base  = ORIGINAL difficulty-1 levers for levels 1-10, ORIGINAL difficulty-5 levers for 11
+ *   ease  = target: 1 -> 10x easier, 2 -> 9x ... 9 -> 2x, 10 -> 1x (= original level 1); 11 -> 1x
+ *
+ * Every level eases the SAME levers with the SAME exponents; only the strength S
+ * differs. S was calibrated per level with scripts/difficulty-sim.ts (bisection) so a
+ * new player's average time-to-death is ~ease x the original level 1's. Survival
+ * doesn't grow linearly with S (the distance ramp still ends long runs), hence the table.
+ * S falls strictly from 1 to 10 and 11 has the faster base, so the curve rises strictly.
+ */
+export const EASE_TARGET = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
+const EASE_STRENGTH = [12.82, 9.37, 7.0, 5.19, 3.88, 2.89, 2.35, 1.91, 1.48, 1, 1];
+/** Exponent of S for spawn interval, ramp length, drain, hit damage, hit grace. */
+const EASE_EXP = 0.5;
+/** Exponent of S for hazard / scroll speed (gentler, so the screen still moves). */
+const SPEED_EASE_EXP = 0.2;
+
+export interface HazardLevers {
+  /** Scroll (= hazard approach) speed and speed-ramp factor (was speedFactor). */
+  speed: number;
+  /** Spawn density factor: the spawn interval is divided by this (was densityFactor). */
+  density: number;
+  /** Multiplier on the distance over which hazards ramp to full density (8000 originally). */
+  rampMul: number;
+  /** Multiplier on shade drain per second. */
+  drainMul: number;
+  /** Multiplier on shade lost per hit (0.28 originally). */
+  hitDamageMul: number;
+  /** Multiplier on the post-hit invulnerability window (0.85 s originally). */
+  hitGraceMul: number;
+}
+
+export function easeStrength(d: number): number {
+  return EASE_STRENGTH[idx(d)];
+}
+
+/** Base speed / density before easing: original level 1 (0.7) for 1-10, original level 5 (1.0) for 11. */
+export function hazardBaseFactor(d: number): number {
+  return clampDifficulty(d) === SECRET_DIFFICULTY ? SPEED[DEFAULT_DIFFICULTY - 1] : SPEED[0];
+}
+
+/** All hazard levers for a level (strength override is for the calibration script). */
+export function hazardLevers(d: number, strength = easeStrength(d)): HazardLevers {
+  const base = hazardBaseFactor(d);
+  const e = Math.pow(strength, EASE_EXP);
+  return {
+    speed: base * Math.pow(strength, -SPEED_EASE_EXP),
+    density: base / e,
+    rampMul: e,
+    drainMul: 1 / e,
+    hitDamageMul: 1 / e,
+    hitGraceMul: e,
+  };
 }
 
 export function difficultyLabel(d: number): string {

@@ -1247,3 +1247,28 @@ body.clone-open #touch-hint {
   font-size: clamp(19px, 4.4vmin, 32px);
   letter-spacing: 0.05em;
 }
+
+/* —— How to Play (title / game-over menus, all devices): same look as the hand toggle —— */
+#howto-btn {
+  display: none;
+  z-index: 16;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  bottom: auto;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: auto;
+  min-width: 0;
+  min-height: 40px;
+}
+
+body.title-screen #howto-btn,
+body.gameover #howto-btn {
+  display: block;
+}
+
+body.playing #howto-btn,
+body.paused #howto-btn,
+body.initials #howto-btn,
+body.congrats-open #howto-btn,
+body.clone-open #howto-btn {
+  display: none !important;
+}
