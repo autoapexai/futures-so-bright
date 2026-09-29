@@ -2,6 +2,15 @@ import type { Player } from '../entities/Player';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
+import type { Formation } from '../entities/Formation';
+import { CLONE_SCALE } from '../entities/Formation';
+import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
+
+/** Clone level + ship count for the HUD (difficulty-11 runs only). */
+export interface LevelInfo {
+  level: number;
+  ships: number;
+}
 
 const COL = {
   bgTop: '#120028',
@@ -578,6 +587,7 @@ export class Renderer {
     high: number,
     charge: number,
     distance: number,
+    levelInfo: LevelInfo | null = null,
   ): void {
     const W = this.W;
     const big = this.touchUi;
@@ -614,6 +624,7 @@ export class Renderer {
       );
       ctx.fillText(`BEST  ${Math.floor(high)}  ·  ${Math.floor(distance)}m`, left, top + this.u(50));
       this.drawChargeBar(ctx, left, rightBound, top + this.u(60), charge);
+      if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(102), 'left', this.u(16), maxTw);
     } else if (big) {
       // Landscape / short: two-line HUD so mute/pause chrome never eats the score.
       const top = this.padTop + this.u(10);
@@ -646,6 +657,7 @@ export class Renderer {
         top + this.u(38),
       );
       this.drawChargeBar(ctx, left, rightBound, top + this.u(44), charge);
+      if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(82), 'left', this.u(14), maxTw);
     } else {
       ctx.font = `700 ${this.u(18)}px 'Rajdhani', sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -659,8 +671,140 @@ export class Renderer {
       ctx.fillText(`${Math.floor(distance)}m`, W - this.u(20) - this.padRight, topY);
       const bw = this.u(180);
       this.drawChargeBar(ctx, W / 2 - bw / 2, W / 2 + bw / 2, this.padTop + this.u(18), charge);
+      if (levelInfo) {
+        // Under BEST on the left (the top-right corner belongs to the mute / pause buttons).
+        this.drawLevelTag(ctx, levelInfo, left, this.padTop + this.u(78), 'left', this.u(15), W * 0.34);
+      }
     }
     ctx.restore();
+  }
+
+  /** "LVL 12 · 2 SHIPS" in gold (HUD). */
+  private drawLevelTag(
+    ctx: CanvasRenderingContext2D,
+    info: LevelInfo,
+    x: number,
+    y: number,
+    align: CanvasTextAlign,
+    size: number,
+    maxW: number,
+  ): void {
+    const text = `LVL ${info.level}  ·  ${shipsLabel(info.ships)}`;
+    ctx.textAlign = align;
+    ctx.fillStyle = 'rgba(255, 230, 109, 0.95)';
+    this.fitFont(ctx, text, '700', size, "'Orbitron', sans-serif", maxW, Math.min(size, 11));
+    ctx.fillText(text, x, y);
+  }
+
+  /** Level-up banner, e.g. "LEVEL 12 · 2 SHIPS"; `t` counts down from `dur` seconds. */
+  drawLevelBanner(ctx: CanvasRenderingContext2D, text: string, t: number, dur: number): void {
+    if (t <= 0) return;
+    const W = this.W;
+    const H = this.H;
+    const age = dur - t;
+    const a = Math.min(1, age / 0.18, t / 0.45);
+    const portrait = H > W * 1.1;
+    ctx.save();
+    ctx.globalAlpha = clamp(a, 0, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const size = this.fitFont(ctx, text, '800', this.u(portrait ? 30 : 28), "'Orbitron', sans-serif", W * 0.82, 14);
+    const tw = ctx.measureText(text).width;
+    const cy = portrait ? H * 0.3 : H * 0.34;
+    const bh = size * 1.9;
+    const bw = tw + size * 1.6;
+    ctx.fillStyle = 'rgba(8, 0, 20, 0.72)';
+    roundRect(ctx, W / 2 - bw / 2, cy - bh / 2, bw, bh, bh / 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 220, 110, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#ffe66d';
+    if (!this.lite) {
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = 'rgba(255, 180, 60, 0.9)';
+    }
+    ctx.fillText(text, W / 2, cy + 1);
+    ctx.restore();
+  }
+
+  private cloneSprite: HTMLCanvasElement | null = null;
+
+  /** Pre-rendered clone ship (one drawImage per clone; no per-clone gradients / blur). */
+  private getCloneSprite(): HTMLCanvasElement {
+    if (this.cloneSprite) return this.cloneSprite;
+    const k = 2; // supersample for crisp scaling
+    const c = document.createElement('canvas');
+    c.width = 76 * k;
+    c.height = 28 * k;
+    const g = c.getContext('2d');
+    if (g) {
+      g.scale(k, k);
+      g.translate(44, 14);
+      g.fillStyle = 'rgba(0, 255, 255, 0.45)';
+      g.beginPath();
+      g.moveTo(-22, -6);
+      g.lineTo(-40, 0);
+      g.lineTo(-22, 6);
+      g.closePath();
+      g.fill();
+      const body = g.createLinearGradient(-20, 0, 24, 0);
+      body.addColorStop(0, '#3a1560');
+      body.addColorStop(0.5, '#ff4ec8');
+      body.addColorStop(1, '#00e8ff');
+      g.fillStyle = body;
+      roundRect(g, -22, -10, 48, 20, 8);
+      g.fill();
+      g.strokeStyle = 'rgba(255, 230, 109, 0.85)';
+      g.lineWidth = 2;
+      g.stroke();
+      g.fillStyle = 'rgba(180, 240, 255, 0.85)';
+      g.beginPath();
+      g.ellipse(4, -2, 10, 8, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#0a0018';
+      roundRect(g, -2, -8, 18, 8, 2);
+      g.fill();
+      g.fillStyle = 'rgba(0, 255, 220, 0.8)';
+      roundRect(g, 0, -7, 6, 6, 1);
+      g.fill();
+      roundRect(g, 8, -7, 6, 6, 1);
+      g.fill();
+    }
+    this.cloneSprite = c;
+    return c;
+  }
+
+  /** Drawn clones (at most MAX_DRAWN_SHIPS - 1) plus an "x N" counter when there are more ships. */
+  drawClones(ctx: CanvasRenderingContext2D, f: Formation, ships: number, px: number, py: number): void {
+    if (f.occupiedCount === 0 && ships <= MAX_DRAWN_SHIPS) return;
+    const img = this.getCloneSprite();
+    const w = 76 * CLONE_SCALE;
+    const h = 28 * CLONE_SCALE;
+    const ax = 44 * CLONE_SCALE;
+    const ay = 14 * CLONE_SCALE;
+    const blinkOff = Math.floor(this.time * 20) % 2 === 0;
+    for (const s of f.slots) {
+      if (!s.occupied) continue;
+      if (s.invuln > 0 && blinkOff) continue;
+      ctx.drawImage(img, s.x - ax, s.y - ay, w, h);
+    }
+    if (ships > MAX_DRAWN_SHIPS) {
+      const text = `x ${formatShips(ships)}`;
+      ctx.save();
+      ctx.font = `800 ${this.u(15)}px 'Orbitron', sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const tx = Math.min(px + f.extRight + 26, this.W - ctx.measureText(text).width - 8);
+      const ty = Math.max(this.padTop + 12, py - f.extUp - 4);
+      ctx.fillStyle = 'rgba(8, 0, 20, 0.6)';
+      const tw = ctx.measureText(text).width;
+      roundRect(ctx, tx - 6, ty - this.u(11), tw + 12, this.u(22), 8);
+      ctx.fill();
+      ctx.fillStyle = '#ffe66d';
+      ctx.fillText(text, tx, ty + 1);
+      ctx.restore();
+    }
   }
 
   private drawChargeBar(

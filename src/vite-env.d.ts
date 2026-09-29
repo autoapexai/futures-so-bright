@@ -8,3 +8,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Build-time flag (vite.config.ts define): test hooks on/off. */
+declare const __FSB_TEST__: boolean;

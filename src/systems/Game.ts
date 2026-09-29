@@ -4,6 +4,8 @@ import { WorldSpawner, aabb, circleRect, type Obstacle } from '../entities/Obsta
 import { Input } from './Input';
 import { ParticleSystem } from './Particles';
 import { Renderer } from './Renderer';
+import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
+import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
 import {
   loadHighScore,
@@ -39,6 +41,11 @@ import {
 } from '../utils/difficulty';
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
+
+/** Level-up banner duration (s). */
+const BANNER_SECONDS = 2.4;
+/** Re-request the difficulty-11 ticket on dismiss if the card sat open this long (ticket lives 1 h). */
+const TICKET_REFRESH_MS = 45 * 60 * 1000;
 
 const LANDSCAPE_W = 960;
 const LANDSCAPE_H = 540;
@@ -98,6 +105,26 @@ export class Game {
   /** Congratulations overlay is up (after a server-confirmed new #1). */
   private congratsOpen = false;
   private congratsAt = 0;
+  /** "I Think I'm a Clone Now" card is up: a real difficulty-11 run waits for it. */
+  private cloneOpen = false;
+  private cloneAt = 0;
+  /** Difficulty-11 ticket request in flight (run not started yet). */
+  private ticketPending = false;
+  private startSeq = 0;
+  /** Ticket issued for the run waiting behind the clone card. */
+  private pendingTicket: string | null = null;
+  private pendingTicketAt = 0;
+  /** Clone level of the current run (11+), or 0 when this isn't a difficulty-11 run. */
+  private level = 0;
+  /** Ships left (player + clones, drawn or in reserve). */
+  private ships = 1;
+  /** Play time on the current level (pauses excluded). */
+  private levelTime = 0;
+  private bannerText = '';
+  private bannerT = 0;
+  private formation = new Formation();
+  private readonly cloneHb = { x: 0, y: 0, w: 52 * CLONE_SCALE * 0.7, h: 28 * CLONE_SCALE * 0.7 };
+  private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
   private dpr = 1;
@@ -208,6 +235,8 @@ export class Game {
     app.addEventListener('pointerdown', this.onPointer, { passive: false });
     this.bindChrome();
     this.setBodyFlags();
+    // Test-only hooks (FSB_TEST=1 builds); compiled out of production bundles.
+    if (__FSB_TEST__) void import('./testHooks').then((m) => m.installTestHooks(this));
   }
 
   private bindChrome(): void {
@@ -325,6 +354,7 @@ export class Game {
 
   private changeDifficulty(delta: number): void {
     if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen) return;
     const max = this.elevenUnlocked ? SECRET_DIFFICULTY : MAX_PUBLIC_DIFFICULTY;
     const next = Math.min(max, Math.max(MIN_DIFFICULTY, this.difficulty + delta));
     if (next === this.difficulty) return;
@@ -400,6 +430,68 @@ export class Game {
     this.input.clearJustPressed();
     this.audio.playUi();
     return true;
+  }
+
+  /** Gold "I Think I'm a Clone Now" title card, shown before every real difficulty-11 run. */
+  private showClone(): void {
+    const el = document.getElementById('clone-card');
+    this.cloneOpen = true;
+    this.cloneAt = performance.now();
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('clone-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playCollect();
+  }
+
+  /** Dismiss the clone card and start the difficulty-11 run (first 450 ms ignored, like congrats). */
+  private dismissClone(): boolean {
+    if (!this.cloneOpen) return false;
+    if (performance.now() - this.cloneAt < 450) return true;
+    this.cloneOpen = false;
+    const el = document.getElementById('clone-card');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('clone-open');
+    const t = this.pendingTicket;
+    this.pendingTicket = null;
+    // Waiting on the card only ages the ticket (run time <= ticket age always holds);
+    // but a ticket expires after 1 h, so fetch a fresh one if the card sat open very long.
+    let ticket: Promise<string | 'denied' | null> = Promise.resolve(t);
+    if (performance.now() - this.pendingTicketAt > TICKET_REFRESH_MS) {
+      ticket = startRemoteRun(loadClaimTokens());
+      void ticket.then((r) => {
+        if (r === 'denied') this.setEleven(false);
+      });
+    }
+    this.startRun(SECRET_DIFFICULTY, ticket);
+    return true;
+  }
+
+  /** Difficulty 11: get the server ticket first, then show the clone card; play starts on dismiss. */
+  private requestElevenRun(): void {
+    this.ticketPending = true;
+    const seq = ++this.startSeq;
+    this.audio.playUi();
+    void startRemoteRun(loadClaimTokens()).then((t) => {
+      if (seq !== this.startSeq) return;
+      this.ticketPending = false;
+      if (this.state !== 'title' && this.state !== 'gameover') return;
+      if (this.congratsOpen) return;
+      if (t === 'denied') {
+        // Lost #1 before starting: drop to 10 and play that instead.
+        this.setEleven(false);
+        this.startRun(this.difficulty, null);
+      } else if (t === null) {
+        // Offline / timeout: play 11 locally as before (no card; submit falls back to this device's board).
+        this.startRun(SECRET_DIFFICULTY, Promise.resolve(null));
+      } else {
+        this.pendingTicket = t;
+        this.pendingTicketAt = performance.now();
+        this.showClone();
+      }
+    });
   }
 
   /** ~1.6 s dimmed overlay: sun-flare + shades + "This one goes to eleven." Never blocks input. */
@@ -686,6 +778,11 @@ export class Game {
       this.dismissCongrats();
       return;
     }
+    if (this.cloneOpen) {
+      if (e.cancelable) e.preventDefault();
+      this.dismissClone();
+      return;
+    }
     if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #diff-ctl')) return;
     // Stick / BOOST handle themselves while a run is live or entering initials
     if (
@@ -767,6 +864,21 @@ export class Game {
       this.dismissCongrats();
       return;
     }
+    if (this.cloneOpen) {
+      this.dismissClone();
+      return;
+    }
+    if (this.ticketPending) return;
+    if (this.difficulty === SECRET_DIFFICULTY && remoteEnabled) {
+      // Difficulty 11 needs a server ticket, issued only to the current #1.
+      this.requestElevenRun();
+      return;
+    }
+    this.startRun(this.difficulty, null);
+  }
+
+  /** Actually start play. The run timer (runTime) starts from 0 here. */
+  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null): void {
     this.awaitingTopAfterSubmit = false;
     this.audio.playStart();
     this.state = 'playing';
@@ -779,16 +891,14 @@ export class Game {
     this.highlightIndex = -1;
     this.runTime = 0;
     this.runId++;
-    this.runDifficulty = this.difficulty;
-    this.runTicket = null;
-    if (this.runDifficulty === SECRET_DIFFICULTY && remoteEnabled) {
-      // Difficulty 11 needs a server ticket, issued only to the current #1.
-      const ticket = startRemoteRun(loadClaimTokens());
-      this.runTicket = ticket;
-      void ticket.then((t) => {
-        if (t === 'denied') this.setEleven(false); // lost #1 before starting: next run drops to 10
-      });
-    }
+    this.runDifficulty = difficulty;
+    this.runTicket = difficulty === SECRET_DIFFICULTY ? ticket : null;
+    // Clone levels: a difficulty-11 run starts on level 11 with one ship.
+    this.level = difficulty === SECRET_DIFFICULTY ? FIRST_CLONE_LEVEL : 0;
+    this.ships = 1;
+    this.levelTime = 0;
+    this.bannerT = 0;
+    this.formation.clear();
     // Refresh the shared board in the background while this run plays.
     void this.refreshRemoteBoard();
     this.player.reset(this.viewH);
@@ -1009,6 +1119,14 @@ export class Game {
       }
       if (Math.random() < (this.touchPrimary ? 0.08 : 0.3)) this.particles.spark(this.player.x + 8, this.player.y - 6, '#ffe66d');
       this.particles.update(dt);
+      if (this.cloneOpen) {
+        if (this.input.consumeAny()) this.dismissClone();
+        return;
+      }
+      if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
       // Any key (after mute handled above) or prior Space/Enter starts the run.
       if (this.input.consumeAny()) {
@@ -1030,6 +1148,14 @@ export class Game {
         if (this.input.consumeAny()) this.dismissCongrats();
         return;
       }
+      if (this.cloneOpen) {
+        if (this.input.consumeAny()) this.dismissClone();
+        return;
+      }
+      if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
       if (this.input.consumeAny()) this.beginRun();
       return;
@@ -1045,6 +1171,15 @@ export class Game {
     }
 
     this.runTime += dt;
+    if (this.level > 0) {
+      // Clone levels: 30 s of play on a level passes it; exactly one level per pass.
+      this.levelTime += dt;
+      if (this.levelTime >= LEVEL_SECONDS) {
+        this.levelTime -= LEVEL_SECONDS;
+        this.levelUp();
+      }
+      this.bannerT = Math.max(0, this.bannerT - dt);
+    }
 
     const boosting = this.input.boosting && this.charge > 0.05;
     const speedMul = boosting ? 1.35 : 1;
@@ -1055,7 +1190,20 @@ export class Game {
     const pts = pointMultiplier(this.runDifficulty);
     this.scrollSpeed = 240 * m + this.distance * 0.035 * m + (boosting ? 90 : 0);
     const pr = this.touchReserves();
-    this.player.update(dt, this.input.axis, boosting, this.viewW, this.viewH, speedMul, pr.top, pr.bottom, pr.left);
+    // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
+    const f = this.formation;
+    this.player.update(
+      dt,
+      this.input.axis,
+      boosting,
+      this.viewW,
+      this.viewH,
+      speedMul,
+      pr.top + f.extUp,
+      pr.bottom + f.extDown,
+      pr.left + f.extLeft,
+    );
+    if (f.occupiedCount > 0) f.update(dt, this.player.x, this.player.y, this.pulse);
     this.world.update(
       dt,
       this.scrollSpeed,
@@ -1087,6 +1235,11 @@ export class Game {
     // shade drain
     const drain = (boosting ? 0.14 : 0.048) + this.distance * 0.000003;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
+    if (this.charge <= 0 && this.ships > 1) {
+      // Out of shade with clones left: this ship is lost, a clone takes the lead.
+      this.loseLeadShip();
+      this.charge = 0.75;
+    }
     if (this.charge <= 0) {
       this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
       this.renderer.bumpShake(14);
@@ -1127,6 +1280,11 @@ export class Game {
       for (const o of this.world.obstacles) {
         if (!o.alive) continue;
         if (this.hitsObstacle(o, hb)) {
+          if (this.ships > 1) {
+            // With clones, a hit costs this ship (a clone takes the lead), not shade.
+            this.loseLeadShip();
+            break;
+          }
           this.charge = clamp(this.charge - 0.28, 0, 1);
           this.player.invuln = 0.85;
           this.audio.playHit();
@@ -1143,7 +1301,79 @@ export class Game {
       }
     }
 
+    // Clones: only the drawn ones collide; a hit clone is lost (the reserve refills its slot).
+    if (f.occupiedCount > 0) this.collideClones();
+
     this.input.clearJustPressed();
+  }
+
+  /** Pass the current clone level: next level, ship count reset to that level's number. */
+  private levelUp(): void {
+    this.level++;
+    this.ships = shipsForLevel(this.level);
+    this.formation.fill(Math.min(this.ships - 1, CLONE_SLOTS), this.player.x, this.player.y);
+    this.bannerText = `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
+    this.bannerT = BANNER_SECONDS;
+    this.audio.playCollect();
+  }
+
+  /** Reserve ships beyond the drawn formation. */
+  private get reserve(): number {
+    return Math.max(0, this.ships - 1 - this.formation.occupiedCount);
+  }
+
+  /** The player's ship is lost (hit or out of shade) while clones remain: a clone takes over. */
+  private loseLeadShip(): void {
+    this.ships--;
+    if (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
+    this.player.invuln = 1.0;
+    this.hitFx(this.player.x, this.player.y, true);
+  }
+
+  private collideClones(): void {
+    const hb = this.cloneHb;
+    const obs = this.world.obstacles;
+    for (const s of this.formation.slots) {
+      if (!s.occupied || s.invuln > 0) continue;
+      hb.x = s.x - hb.w / 2;
+      hb.y = s.y - hb.h / 2;
+      for (const o of obs) {
+        if (!o.alive) continue;
+        if (this.hitsObstacle(o, hb)) {
+          this.loseClone(s);
+          break;
+        }
+      }
+    }
+  }
+
+  private loseClone(s: CloneSlot): void {
+    this.hitFx(s.x, s.y, false);
+    const hadReserve = this.reserve > 0;
+    this.ships--;
+    if (hadReserve) {
+      // A reserve ship fills the slot, easing in from the player's ship with a short grace.
+      s.x = this.player.x;
+      s.y = this.player.y;
+      s.invuln = 0.6;
+    } else {
+      this.formation.empty(s);
+    }
+  }
+
+  private hitFx(x: number, y: number, lead: boolean): void {
+    this.particles.burst(x, y, '#ff6b35', this.touchPrimary ? (lead ? 10 : 4) : lead ? 20 : 8, lead ? 220 : 160);
+    const now = performance.now();
+    if (now - this.lastHitSfx > 90) {
+      this.lastHitSfx = now;
+      this.audio.playHit();
+    }
+    if (lead) {
+      this.renderer.bumpShake(10);
+      this.renderer.bumpFlash(0.35);
+    } else {
+      this.renderer.bumpShake(3);
+    }
   }
 
   private hitsObstacle(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
@@ -1177,6 +1407,9 @@ export class Game {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
       this.particles.draw(ctx);
+      if (this.level > 0 && (this.state === 'playing' || this.state === 'paused')) {
+        this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
+      }
       this.renderer.drawPlayer(ctx, this.player, this.charge);
       this.renderer.drawFloaters(ctx, this.floaters);
     } else {
@@ -1188,7 +1421,15 @@ export class Game {
     this.renderer.applyPost(ctx, this.state === 'playing' || this.state === 'paused' ? this.charge : 1);
 
     if (this.state === 'playing' || this.state === 'paused') {
-      this.renderer.drawHud(ctx, this.score, this.high, this.charge, this.distance);
+      this.renderer.drawHud(
+        ctx,
+        this.score,
+        this.high,
+        this.charge,
+        this.distance,
+        this.level > 0 ? { level: this.level, ships: this.ships } : null,
+      );
+      if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
     }
     if (this.state === 'title') this.renderer.drawTitle(ctx, this.high, this.pulse);
     if (this.state === 'paused') this.renderer.drawPause(ctx);
