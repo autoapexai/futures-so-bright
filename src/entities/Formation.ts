@@ -28,12 +28,14 @@ export interface CloneSlot {
  * to the player, nearest first. Slots 0..k-1 fill first, so small formations
  * hug the player.
  */
-function buildOffsets(): { ox: number; oy: number }[] {
-  const DX = 32;
-  const DY = 19;
+function buildOffsets(count = CLONE_SLOTS, DX = 32, DY = 19): { ox: number; oy: number }[] {
   const cells: { ox: number; oy: number; d: number; a: number }[] = [];
-  for (let r = -4; r <= 4; r++) {
-    for (let c = -5; c <= 5; c++) {
+  // Grid big enough for `count` cells (the original 9 x 11 grid for the clone formation).
+  const k = Math.ceil(Math.sqrt(count)) + 2;
+  const R = Math.max(4, k);
+  const C = Math.max(5, k);
+  for (let r = -R; r <= R; r++) {
+    for (let c = -C; c <= C; c++) {
       const ox = c * DX + (r & 1 ? DX / 2 : 0);
       const oy = r * DY;
       if (ox === 0 && oy === 0) continue;
@@ -43,7 +45,7 @@ function buildOffsets(): { ox: number; oy: number }[] {
     }
   }
   cells.sort((p, q) => p.d - q.d || p.a - q.a);
-  return cells.slice(0, CLONE_SLOTS).map(({ ox, oy }) => ({ ox, oy }));
+  return cells.slice(0, count).map(({ ox, oy }) => ({ ox, oy }));
 }
 
 /**
@@ -52,17 +54,25 @@ function buildOffsets(): { ox: number; oy: number }[] {
  * ships - 1 - occupied are the reserve that refills lost drawn clones.
  */
 export class Formation {
-  readonly slots: CloneSlot[] = buildOffsets().map(({ ox, oy }, i) => ({
-    ox,
-    oy,
-    x: 0,
-    y: 0,
-    occupied: false,
-    invuln: 0,
-    phase: i * 1.7,
-    breed: BREEDS[0],
-    scale: CLONE_SCALE,
-  }));
+  readonly slots: CloneSlot[];
+  /** Slot capacity (CLONE_SLOTS for clone mode; a fan mode's whole swarm otherwise). */
+  readonly capacity: number;
+
+  /** Default: the clone-mode formation. Fan modes pass their own slot count and spacing. */
+  constructor(capacity = CLONE_SLOTS, dx = 32, dy = 19) {
+    this.capacity = capacity;
+    this.slots = buildOffsets(capacity, dx, dy).map(({ ox, oy }, i) => ({
+      ox,
+      oy,
+      x: 0,
+      y: 0,
+      occupied: false,
+      invuln: 0,
+      phase: i * 1.7,
+      breed: BREEDS[0],
+      scale: CLONE_SCALE,
+    }));
+  }
   occupiedCount = 0;
   /** Offset multiplier (1 = clone formation; the dog pack spreads out as its dogs grow). */
   spread = 1;
@@ -74,7 +84,7 @@ export class Formation {
 
   /** Occupy the first `count` slots (holes filled), placing new clones at the player. */
   fill(count: number, px: number, py: number, grace = 0.6): void {
-    const n = Math.max(0, Math.min(CLONE_SLOTS, count));
+    const n = Math.max(0, Math.min(this.capacity, count));
     for (let i = 0; i < this.slots.length; i++) {
       const s = this.slots[i];
       const want = i < n;

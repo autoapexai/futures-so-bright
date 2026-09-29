@@ -803,6 +803,66 @@ export class Renderer {
     }
   }
 
+  /**
+   * A fan mode's swarm: every occupied slot, each its own dog (shared ship sprite) at its
+   * own normalised scale. Dogs under ~7 px wide (or 'dot' style) are batched as plain
+   * rects, one fill per fur colour; bigger ones are one drawImage each of a cached sprite.
+   * `hidden` is a slot not drawn (decoy "dead"). An "x N" counter covers ships beyond the
+   * drawn ones (only if a swarm is ever capped).
+   */
+  drawSwarm(
+    ctx: CanvasRenderingContext2D,
+    f: Formation,
+    tint: string,
+    style: string,
+    ships: number,
+    px: number,
+    py: number,
+    hidden: object | null = null,
+  ): void {
+    const blinkOff = Math.floor(this.time * 20) % 2 === 0;
+    const dots = new Map<string, Path2D>();
+    for (const s of f.slots) {
+      if (!s.occupied || s === hidden) continue;
+      if (s.invuln > 0 && blinkOff) continue;
+      const k = s.scale;
+      if (style === 'dot' || SPRITE_W * k < 7) {
+        let path = dots.get(s.breed.fur);
+        if (!path) {
+          path = new Path2D();
+          dots.set(s.breed.fur, path);
+        }
+        const w = Math.max(1.5, 36 * k);
+        const h = Math.max(1.5, 20 * k);
+        path.rect(s.x - w / 2, s.y - h / 2, w, h);
+      } else {
+        const img = shipSprite(s.breed, { accent: tint, outline: style === 'outline', flame: true });
+        ctx.drawImage(img, s.x - SPRITE_AX * k, s.y - SPRITE_AY * k, SPRITE_W * k, SPRITE_H * k);
+      }
+    }
+    for (const [fur, path] of dots) {
+      ctx.fillStyle = fur;
+      ctx.fill(path);
+    }
+    const undrawn = ships - 1 - f.occupiedCount;
+    if (undrawn > 0) {
+      const text = `x ${formatShips(ships)}`;
+      ctx.save();
+      ctx.font = `800 ${this.u(15)}px 'Orbitron', sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(text).width;
+      const tx = Math.min(px + f.extRight + 26, this.W - tw - 8);
+      const ty = Math.max(this.padTop + 12, py - f.extUp - 4);
+      ctx.fillStyle = 'rgba(8, 0, 20, 0.6)';
+      roundRect(ctx, tx - 6, ty - this.u(11), tw + 12, this.u(22), 8);
+      ctx.fill();
+      ctx.fillStyle = '#ffe66d';
+      ctx.fillText(text, tx, ty + 1);
+      ctx.restore();
+    }
+  }
+
   private drawChargeBar(
     ctx: CanvasRenderingContext2D,
     leftBound: number,

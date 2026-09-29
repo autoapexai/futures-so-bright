@@ -9,6 +9,7 @@ import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../
 import { clamp } from '../utils/math';
 import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
+import { MODES, CALVIN_TRIPLETS, modeBreeds, type ModeDef } from '../utils/modes';
 import {
   loadHighScore,
   saveHighScore,
@@ -46,6 +47,8 @@ export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover'
 
 /** How to Play walkthrough step count. */
 const TUT_STEPS = 4;
+/** MODES menu: a tap on THE CALVIN TWINS starts it after this beat (ms); a 2nd tap = the egg. */
+const CALVIN_PICK_MS = 550;
 /** Level-up banner duration (s). */
 const BANNER_SECONDS = 2.4;
 /**
@@ -179,8 +182,19 @@ export class Game {
   private continueT = 0;
   /** Distance flown on the current stage; drives the speed / spawn / drain ramp, reset each stage. */
   private stageDist = 0;
-  private formation = new Formation();
+  private readonly cloneFormation = new Formation();
+  private formation = this.cloneFormation;
   private readonly cloneHb = { x: 0, y: 0, w: 52 * CLONE_SCALE * 0.7, h: 28 * CLONE_SCALE * 0.7 };
+  /** Fan mode of the current run (MODES menu), or null for a normal run. */
+  private mode: ModeDef | null = null;
+  private modesOpen = false;
+  /** MODES menu Easter egg: THE CALVIN TWINS entry toggled to THE CALVIN TRIPLETS. */
+  private calvinTriplets = false;
+  /** MODES menu: the CALVIN entry is selected and starts after a short beat unless tapped again. */
+  private calvinPickTimer = 0;
+  private decoyFaked = false;
+  private decoySlot: CloneSlot | null = null;
+  private decoyHiddenT = 0;
   private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
@@ -411,6 +425,38 @@ export class Game {
       document.getElementById('donate')?.remove();
     }
 
+    // MODES (title & game-over menus): fan modes list; Play (START / any key) stays primary.
+    const list = document.getElementById('modes-list');
+    if (list) {
+      for (const m of MODES) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'hand-btn mode-pick';
+        b.draggable = false;
+        const name = document.createElement('span');
+        name.className = 'mode-name';
+        name.textContent = m.name;
+        const ships = document.createElement('span');
+        ships.className = 'mode-ships';
+        ships.textContent = `${m.ships.toLocaleString('en-US')} SHIPS`;
+        ships.style.color = m.tint;
+        b.append(name, ships);
+        b.setAttribute('aria-label', `${m.name}, ${m.ships} ships`);
+        if (m.behavior === 'calvin') {
+          b.id = 'calvin-pick';
+          bindTap(b, () => this.tapCalvin(b));
+        } else {
+          bindTap(b, () => this.pickMode(m));
+        }
+        list.appendChild(b);
+      }
+    }
+    bindTap(document.getElementById('modes-btn'), () => {
+      void this.audio.unlock();
+      this.openModes();
+    });
+    bindTap(document.getElementById('modes-back'), () => this.closeModes());
+
     // Difficulty − / + (title & game-over menus, all devices)
     bindTap(document.getElementById('diff-minus'), () => {
       void this.audio.unlock();
@@ -463,6 +509,89 @@ export class Game {
     const c = this.canvas.getBoundingClientRect();
     if (c.height <= 0) return 0;
     return ((r.top - c.top) * this.viewH) / c.height;
+  }
+
+  private openModes(): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
+    this.modesOpen = true;
+    const el = document.getElementById('modes-menu');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modes-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private closeModes(): void {
+    if (!this.modesOpen) return;
+    this.modesOpen = false;
+    if (this.calvinPickTimer) {
+      window.clearTimeout(this.calvinPickTimer);
+      this.calvinPickTimer = 0;
+    }
+    document.getElementById('calvin-pick')?.classList.remove('selected');
+    const el = document.getElementById('modes-menu');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modes-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+  }
+
+  /**
+   * THE CALVIN TWINS entry: the first tap selects it (glow) and starts the run after a short
+   * beat; tapping it again while it's selected (before the start) toggles the Easter egg,
+   * TWINS <-> TRIPLETS, with a flourish, and leaves it selected. Works with touch or mouse.
+   */
+  private tapCalvin(b: HTMLElement): void {
+    if (!this.modesOpen) return;
+    const variant = () => (this.calvinTriplets ? CALVIN_TRIPLETS : MODES.find((m) => m.behavior === 'calvin'));
+    if (this.calvinPickTimer) {
+      window.clearTimeout(this.calvinPickTimer);
+      this.calvinPickTimer = 0;
+      this.calvinTriplets = !this.calvinTriplets;
+      this.syncCalvinEntry(b, true);
+      this.audio.playCollect();
+      window.setTimeout(() => this.audio.playUi(), 140);
+      // Stays selected: the next single tap plays the variant now showing.
+      b.classList.add('selected');
+      return;
+    }
+    b.classList.add('selected');
+    this.audio.playUi();
+    this.calvinPickTimer = window.setTimeout(() => {
+      this.calvinPickTimer = 0;
+      b.classList.remove('selected');
+      const m = variant();
+      if (m) this.pickMode(m);
+    }, CALVIN_PICK_MS);
+  }
+
+  /** Menu label for the Calvin entry (twins / triplets), with the reveal flourish if asked. */
+  private syncCalvinEntry(b: HTMLElement, flourish = false): void {
+    const m = this.calvinTriplets ? CALVIN_TRIPLETS : MODES.find((x) => x.behavior === 'calvin');
+    if (!m) return;
+    const name = b.querySelector('.mode-name');
+    const ships = b.querySelector('.mode-ships');
+    if (name) name.textContent = m.name;
+    if (ships) ships.textContent = `${m.ships} SHIPS`;
+    b.setAttribute('aria-label', `${m.name}, ${m.ships} ships`);
+    if (flourish) {
+      b.classList.remove('egg');
+      void b.offsetWidth; // restart the CSS animation
+      b.classList.add('egg');
+      window.setTimeout(() => b.classList.remove('egg'), 1100);
+    }
+  }
+
+  /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
+  private pickMode(m: ModeDef): void {
+    if (!this.modesOpen) return;
+    this.closeModes();
+    void this.audio.unlock();
+    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, m);
   }
 
   private syncDifficultyUi(): void {
@@ -905,6 +1034,7 @@ export class Game {
 
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
+    if (this.modesOpen) return; // the MODES menu handles its own taps
     if (this.congratsOpen) {
       if (e.cancelable) e.preventDefault();
       this.dismissCongrats();
@@ -915,7 +1045,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #howto-btn, #clone-btn, #demo, #diff-ctl, #donate')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #menu-btns, #clone-btn, #demo, #diff-ctl, #donate')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1048,7 +1178,7 @@ export class Game {
     });
   }
 
-  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null, localOnly = false): void {
+  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null, localOnly = false, mode: ModeDef | null = null): void {
     this.awaitingTopAfterSubmit = false;
     this.runLocalOnly = localOnly;
     this.audio.playStart();
@@ -1092,8 +1222,22 @@ export class Game {
     this.player.reset(this.viewH);
     this.continueT = 0;
     this.continuesLeft = LAST_DOG_CONTINUES;
-    if (this.level === 0) this.fillPack();
-    else this.setPackK(1);
+    this.mode = mode;
+    this.decoyFaked = false;
+    this.decoySlot = null;
+    this.decoyHiddenT = 0;
+    if (mode) {
+      // Fan modes keep their own swarm (no dog pack).
+      this.ships = mode.ships;
+      this.setupSwarm(mode.scale);
+      this.bannerText = mode.name;
+      this.bannerT = BANNER_SECONDS;
+    } else {
+      this.formation = this.cloneFormation;
+      this.formation.clear();
+      if (this.level === 0) this.fillPack();
+      else this.setPackK(1);
+    }
     this.world.reset();
     this.particles.clear();
     while (this.floaters.length) {
@@ -1320,6 +1464,11 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.modesOpen) {
+        if (this.input.consume('escape')) this.closeModes();
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
       // Any key (after mute handled above) or prior Space/Enter starts the run.
       if (this.input.consumeAny()) {
@@ -1346,6 +1495,11 @@ export class Game {
         return;
       }
       if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
+      if (this.modesOpen) {
+        if (this.input.consume('escape')) this.closeModes();
         this.input.clearJustPressed();
         return;
       }
@@ -1438,7 +1592,7 @@ export class Game {
       pr.bottom + f.extDown,
       pr.left + f.extLeft,
     );
-    if (this.level === 0) {
+    if (this.packRun) {
       // Pack growth eases in over ~0.3 s; sprites and hitboxes use the same scale.
       const want = packScale(this.ships);
       if (this.packK !== want) {
@@ -1447,6 +1601,8 @@ export class Game {
       }
     }
     if (f.occupiedCount > 0) f.update(dt, this.player.x, this.player.y, this.pulse);
+    if (this.mode?.behavior === 'mirror') this.placeMirror(pr.top, this.viewH - pr.bottom);
+    if (this.decoyHiddenT > 0) this.decoyHiddenT = Math.max(0, this.decoyHiddenT - dt);
     this.world.update(
       dt,
       this.scrollSpeed,
@@ -1482,10 +1638,10 @@ export class Game {
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
       // Out of shade with clones / pack dogs left: one is lost, the rest carry on.
-      this.loseLeadShip(this.level === 0 ? 0.85 * hz.hitGraceMul : 1.0);
+      this.loseLeadShip(this.packRun ? 0.85 * hz.hitGraceMul : 1.0);
       this.charge = 0.75;
     }
-    if (this.charge <= 0 && this.level === 0 && this.lastDogLost()) return;
+    if (this.charge <= 0 && this.packRun && this.lastDogLost()) return;
     if (this.charge <= 0) {
       this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
       this.renderer.bumpShake(14);
@@ -1530,10 +1686,10 @@ export class Game {
         if (this.hitsObstacle(o, hb)) {
           if (this.ships > 1) {
             // With clones / pack dogs, a hit costs one ship (dog), not shade. No pause.
-            this.loseLeadShip(this.level === 0 ? 0.85 * hz.hitGraceMul : 1.0);
+            this.loseLeadShip(this.packRun ? 0.85 * hz.hitGraceMul : 1.0);
             break;
           }
-          if (this.level === 0) {
+          if (this.packRun) {
             // The last dog of the pack is hit: game over (or a continue, if enabled).
             if (this.lastDogLost()) return;
             break;
@@ -1576,6 +1732,8 @@ export class Game {
     this.levelTime = 0;
     this.bannerT = 0;
     this.victory = false;
+    this.mode = null;
+    this.formation = this.cloneFormation;
     this.formation.clear();
     this.setPackK(1);
     this.player.reset(this.viewH);
@@ -1738,6 +1896,13 @@ export class Game {
    */
   private clearStage(): boolean {
     const cleared = this.runDifficulty;
+    if (cleared >= SECRET_DIFFICULTY) {
+      // A fan mode that reached 11 keeps playing 11 (its swarm never multiplies).
+      this.bannerText = `LEVEL ${cleared} CLEARED`;
+      this.bannerT = BANNER_SECONDS;
+      this.audio.playCollect();
+      return false;
+    }
     if (cleared < MAX_PUBLIC_DIFFICULTY) {
       this.showPromotion(`LEVEL ${cleared} COMPLETED`, "YOU'VE BEEN PROMOTED!", () => {
         this.runDifficulty = cleared + 1;
@@ -1750,12 +1915,14 @@ export class Game {
       this.showPromotion('YOU BEAT LEVEL 10', "YOU'VE BEEN PROMOTED!", () => {
         this.runDifficulty = SECRET_DIFFICULTY;
         this.runTicket = this.climbTicket;
-        this.level = FIRST_CLONE_LEVEL;
-        this.ships = 1;
-        this.formation.clear();
-        this.setPackK(1);
+        if (!this.mode) {
+          this.level = FIRST_CLONE_LEVEL;
+          this.ships = 1;
+          this.formation.clear();
+          this.setPackK(1);
+        }
         this.freshStage();
-        this.bannerText = `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
+        this.bannerText = this.mode ? `${this.mode.name}  ·  LEVEL 11` : `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
         this.bannerT = BANNER_SECONDS;
       });
       return false;
@@ -1819,7 +1986,12 @@ export class Game {
     if (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
     this.player.invuln = grace;
     this.hitFx(this.player.x, this.player.y, true);
-    if (this.level === 0) this.dogLost(grace);
+    if (this.packRun) this.dogLost(grace);
+  }
+
+  /** A normal levels 1-10 run (not clone mode, not a fan mode): the dog pack rules apply. */
+  private get packRun(): boolean {
+    return this.level === 0 && !this.mode;
   }
 
   /** Fresh pack: the player's Border Collie plus PACK_START - 1 dogs of a random breed mix. */
@@ -1837,7 +2009,7 @@ export class Game {
     this.player.scale = breedScale(PLAYER_BREED) * k;
     this.player.w = 52 * this.player.scale;
     this.player.h = 28 * this.player.scale;
-    if (this.level === 0 && this.tutStep < 0) {
+    if (this.packRun && this.tutStep < 0) {
       for (const sl of this.formation.slots) if (sl.occupied) sl.scale = breedScale(sl.breed) * k;
       this.formation.setSpread(k / PACK_S0);
     } else {
@@ -1878,6 +2050,7 @@ export class Game {
     const obs = this.world.obstacles;
     for (const s of this.formation.slots) {
       if (!s.occupied || s.invuln > 0) continue;
+      if (s === this.decoySlot && this.decoyHiddenT > 0) continue;
       hb.w = 52 * s.scale * 0.7;
       hb.h = 28 * s.scale * 0.7;
       hb.x = s.x - hb.w / 2;
@@ -1893,6 +2066,18 @@ export class Game {
   }
 
   private loseClone(s: CloneSlot): void {
+    if (this.mode?.behavior === 'decoy' && !this.decoyFaked) {
+      // OPERATION DOUBLE DECOY: the first hit on the decoy is faked. Full death effect, it
+      // vanishes for 1.4 s, then slips back in (blinking) — no ship is lost.
+      this.decoyFaked = true;
+      this.decoySlot = s;
+      this.decoyHiddenT = 1.4;
+      s.invuln = 2.2;
+      this.particles.burst(s.x, s.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
+      this.hitFx(s.x, s.y, true);
+      this.spawnFloater(s.x, s.y - 20, 'DECOY!', '#ffe66d');
+      return;
+    }
     this.hitFx(s.x, s.y, false);
     const hadReserve = this.reserve > 0;
     this.ships--;
@@ -1904,7 +2089,45 @@ export class Game {
     } else {
       this.formation.empty(s);
     }
-    if (this.level === 0) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
+    if (this.packRun) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
+  }
+
+  /**
+   * Fan mode swarm: every ship (player + clones) gets a breed; each dog's linear scale is
+   * k * breedScale, with k set so the whole swarm's area = ships * scale^2 standard ships
+   * (10 for the area-10 rule; TOO FAT 16 * 2^2 = 64). Sprites and hitboxes use it.
+   */
+  private setupSwarm(scale: number): void {
+    const m = this.mode;
+    if (!m) return;
+    const n = this.ships;
+    const breeds = modeBreeds(m, n);
+    const sumB2 = breeds.reduce((a, b) => a + breedScale(b) ** 2, 0);
+    const k = Math.sqrt((n * scale * scale) / sumB2);
+    this.player.breed = breeds[0];
+    this.player.scale = k * breedScale(breeds[0]);
+    this.player.w = 52 * this.player.scale;
+    this.player.h = 28 * this.player.scale;
+    const sp = m.spacing;
+    this.formation = new Formation(Math.max(1, n - 1), 54 * scale * sp, 30 * scale * sp);
+    this.formation.fill(n - 1, this.player.x, this.player.y);
+    let i = 1;
+    for (const s of this.formation.slots) {
+      if (!s.occupied) continue;
+      s.breed = breeds[i++] ?? breeds[0];
+      s.scale = k * breedScale(s.breed);
+    }
+    this.decoySlot = null;
+  }
+
+  /** ADJACENT MANTZOUKAS: the 2nd ship mirrors you top-to-bottom, one ship-width "next door". */
+  private placeMirror(top: number, bottom: number): void {
+    for (const s of this.formation.slots) {
+      if (!s.occupied) continue;
+      s.x = this.player.x + 60 * this.player.scale;
+      s.y = clamp(top + bottom - this.player.y, top, bottom);
+      break;
+    }
   }
 
   private hitFx(x: number, y: number, lead: boolean): void {
@@ -1976,8 +2199,12 @@ export class Game {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
       this.particles.draw(ctx);
-      if ((this.level > 0 || this.formation.occupiedCount > 0) && (this.state === 'playing' || this.state === 'paused')) {
+      if ((this.level > 0 || (this.formation.occupiedCount > 0 && !this.mode)) && (this.state === 'playing' || this.state === 'paused')) {
         this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
+      } else if (this.mode && (this.state === 'playing' || this.state === 'paused')) {
+        const m = this.mode;
+        const hidden = this.decoyHiddenT > 0 ? this.decoySlot : null;
+        this.renderer.drawSwarm(ctx, this.formation, m.tint, m.style, this.ships, this.player.x, this.player.y, hidden);
       }
       this.renderer.drawPlayer(ctx, this.player, this.charge);
       this.renderer.drawFloaters(ctx, this.floaters);
@@ -1996,7 +2223,13 @@ export class Game {
         this.high,
         this.charge,
         this.distance,
-        this.tutStep >= 0 ? null : this.level > 0 ? { level: this.level, ships: this.ships } : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
+        this.tutStep >= 0
+          ? null
+          : this.level > 0
+            ? { level: this.level, ships: this.ships }
+            : this.mode
+              ? { level: this.runDifficulty, ships: this.ships }
+              : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
       );
       if (this.tutStep >= 0) {
         const tt = this.tutorialText();

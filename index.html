@@ -51,7 +51,10 @@
         <span class="demo-tag">DEMO</span>
       </div>
       <button type="button" id="clone-btn" class="hand-btn" aria-label="I think I'm a clone now: play level 11" draggable="false" style="touch-action:none">I THINK I'M A CLONE NOW</button>
-      <button type="button" id="howto-btn" class="hand-btn" aria-label="How to play" draggable="false" style="touch-action:none">HOW TO PLAY</button>
+      <div id="menu-btns">
+        <button type="button" id="howto-btn" class="hand-btn" aria-label="How to play" draggable="false" style="touch-action:none">HOW TO PLAY</button>
+        <button type="button" id="modes-btn" class="hand-btn" aria-label="Modes" draggable="false" style="touch-action:none">MODES</button>
+      </div>
       <div id="donate" class="v4v-card" role="region" aria-labelledby="v4v-title" aria-hidden="true">
         <p class="v4v-title" id="v4v-title">VALUE FOR VALUE</p>
         <p class="v4v-msg" id="v4v-msg"></p>
@@ -87,6 +90,14 @@
           <div class="cg-sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <p id="clone-text"><span id="clone-title" class="cg-l1">I Think I'm a Clone Now</span><span id="clone-line" class="cg-l2">Level eleven. A tip of the shades to Weird Al Yankovic.</span></p>
           <div class="cg-hint" aria-hidden="true">Tap or press any key</div>
+        </div>
+      </div>
+      <div id="modes-menu" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modes-title">
+        <div class="cg-card">
+          <p id="modes-title">MODES</p>
+          <div id="modes-list"></div>
+          <div class="cg-hint">Fan nods only · not affiliated with or endorsed by anyone named</div>
+          <button type="button" id="modes-back" class="hand-btn" draggable="false">BACK</button>
         </div>
       </div>
       <div id="hud-chrome" aria-hidden="true">

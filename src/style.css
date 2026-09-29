@@ -1248,29 +1248,141 @@ body.clone-open #touch-hint {
   letter-spacing: 0.05em;
 }
 
-/* —— How to Play (title / game-over menus, all devices): same look as the hand toggle —— */
-#howto-btn {
+/* —— How to Play + MODES (title / game-over menus, all devices): same look as the hand toggle —— */
+#menu-btns {
   display: none;
+  position: absolute;
   z-index: 16;
   top: max(12px, env(safe-area-inset-top, 0px));
-  bottom: auto;
   left: max(12px, env(safe-area-inset-left, 0px));
+  gap: 8px;
+}
+
+body.title-screen #menu-btns,
+body.gameover #menu-btns {
+  display: flex;
+}
+
+body.playing #menu-btns,
+body.paused #menu-btns,
+body.initials #menu-btns,
+body.congrats-open #menu-btns,
+body.clone-open #menu-btns,
+body.modes-open #menu-btns {
+  display: none !important;
+}
+
+#menu-btns .hand-btn {
+  display: block;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
   right: auto;
   min-width: 0;
   min-height: 40px;
 }
 
-body.title-screen #howto-btn,
-body.gameover #howto-btn {
+/* —— MODES menu: same backdrop and card as the clone card —— */
+#modes-menu {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(8, 0, 20, 0.985);
+  pointer-events: auto;
+  animation: cg-in 0.45s ease-out;
+}
+
+#modes-menu.open {
+  display: flex;
+}
+
+body.modes-open #diff-ctl,
+body.modes-open #donate,
+body.modes-open .hand-btn:not(.mode-pick):not(#modes-back),
+body.modes-open .touch-action,
+body.modes-open #touch-hint,
+body.modes-open .joy-zone {
+  visibility: hidden;
+}
+
+#modes-menu .cg-card {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: clamp(14px, 3vmin, 26px) clamp(12px, 3vmin, 26px);
+  border: 2px solid rgba(255, 220, 110, 0.75);
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 200, 80, 0.16), rgba(20, 5, 35, 0.92) 70%);
+  box-shadow: 0 0 34px rgba(255, 200, 80, 0.35), inset 0 0 22px rgba(255, 200, 80, 0.12);
+  text-align: center;
+}
+
+#modes-title {
+  margin: 0 0 0.6em;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: clamp(17px, 3.6vmin, 26px);
+  color: #ffe66d;
+  text-shadow: 0 0 12px rgba(255, 180, 60, 0.75);
+  letter-spacing: 0.04em;
+}
+
+#modes-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#modes-menu .hand-btn {
+  display: block;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 8px;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+#modes-menu .mode-name {
   display: block;
 }
 
-body.playing #howto-btn,
-body.paused #howto-btn,
-body.initials #howto-btn,
-body.congrats-open #howto-btn,
-body.clone-open #howto-btn {
-  display: none !important;
+#modes-menu .mode-ships {
+  display: block;
+  margin-top: 2px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+#modes-menu .cg-hint {
+  margin: 0.9em 0 0.7em;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 220, 160, 0.6);
+}
+
+#modes-back {
+  width: auto !important;
+  margin: 0 auto;
 }
 
 /* —— VALUE FOR VALUE card: game-over / victory only, quieter than RIDE AGAIN (title-card style) —— */
@@ -1365,7 +1477,7 @@ body.portrait.touch-device #donate {
 
 @media (max-width: 500px) and (orientation: portrait) {
   body.portrait.touch-device #donate {
-    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 56px);
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 76px);
   }
 }
 
@@ -1391,23 +1503,68 @@ body.portrait #donate .hand-btn {
 }
 
 /* Portrait game-over: the centred title owns the top row, so the menu buttons sit under mute. */
-body.portrait.gameover #howto-btn {
+body.portrait.gameover #menu-btns {
   left: auto;
   right: max(12px, env(safe-area-inset-right, 0px));
   top: calc(max(12px, env(safe-area-inset-top, 0px)) + 64px);
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 @media (max-width: 500px) and (orientation: portrait) {
-  /* Narrow portrait game-over: HOW TO PLAY sits level with the difficulty control, opposite side. */
-  body.touch-device.gameover #howto-btn {
+  /* Narrow portrait game-over: HOW TO PLAY + MODES stacked level with the difficulty control,
+     on the opposite side (the VALUE FOR VALUE card sits above the taller of the two). */
+  body.touch-device.gameover #menu-btns {
     top: auto;
     bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px);
     left: auto;
     right: max(12px, env(safe-area-inset-right, 0px));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
   }
-  body.touch-device.hand-left.gameover #howto-btn {
+  body.touch-device.hand-left.gameover #menu-btns {
     right: auto;
     left: max(12px, env(safe-area-inset-left, 0px));
+  }
+  body.touch-device.gameover #menu-btns .hand-btn {
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+}
+
+/* THE CALVIN TWINS entry: selected glow, and the TRIPLETS reveal flourish (gold flash + pop). */
+#modes-menu .mode-pick.selected {
+  border-color: rgba(255, 220, 110, 0.9);
+  box-shadow: 0 0 16px rgba(255, 200, 80, 0.5), inset 0 0 10px rgba(255, 200, 80, 0.15);
+}
+
+#modes-menu .mode-pick.egg {
+  animation: calvin-egg 1s ease-out;
+}
+
+#modes-menu .mode-pick.egg .mode-name {
+  animation: calvin-egg-text 1s ease-out;
+}
+
+@keyframes calvin-egg {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 230, 109, 0); }
+  18% { transform: scale(1.08); box-shadow: 0 0 34px rgba(255, 230, 109, 0.95), inset 0 0 18px rgba(255, 230, 109, 0.5); background: rgba(255, 200, 80, 0.25); }
+  45% { transform: scale(0.98); }
+  100% { transform: scale(1); box-shadow: 0 0 16px rgba(255, 200, 80, 0.5); }
+}
+
+@keyframes calvin-egg-text {
+  0% { color: inherit; text-shadow: none; letter-spacing: inherit; }
+  20% { color: #ffe66d; text-shadow: 0 0 12px rgba(255, 180, 60, 0.95); letter-spacing: 0.14em; }
+  100% { color: inherit; text-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #modes-menu .mode-pick.egg,
+  #modes-menu .mode-pick.egg .mode-name {
+    animation: none;
   }
 }
 
