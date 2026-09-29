@@ -190,6 +190,9 @@ export class Renderer {
     ctx.restore();
   }
 
+  /** Canvas y of the top of the HTML card over the game-over screen (0 = none). Set by Game. */
+  cardTopY = 0;
+
   bumpShake(amount: number): void {
     this.shake = Math.max(this.shake, this.lite ? amount * 0.45 : amount);
   }
@@ -1206,7 +1209,9 @@ export class Renderer {
     );
 
     const boardTop = overY + this.u(big ? (portrait ? 72 : 60) : 68);
-    const boardBottom = floor - this.u(big ? (portrait ? 36 : 32) : 40);
+    let boardBottom = floor - this.u(big ? (portrait ? 36 : 32) : 40);
+    // Portrait with the VALUE FOR VALUE card up: the top 10 (and the ride hint) fit above it.
+    if (portrait && this.cardTopY > 0) boardBottom = Math.min(boardBottom, this.cardTopY - this.u(34));
     this.drawLeaderboard(ctx, board, highlightIndex, boardTop, boardBottom, maxTw, boardTitle);
 
     const alpha = 0.55 + Math.sin(this.time * 4) * 0.35;
@@ -1235,10 +1240,13 @@ export class Renderer {
   ): void {
     const W = this.W;
     const cx = W / 2;
-    const rows = 10;
     // Shared (online) boards carry a difficulty per entry: show a LVL column.
     const showLvl = board.some((e) => e && e.difficulty);
     const avail = Math.max(this.u(80), bottom - top);
+    // Short screens (e.g. a phone with the VALUE FOR VALUE card up): fewer, readable rows rather
+    // than ten tiny ones. The player's highlighted entry always stays visible (last row).
+    const rows = Math.max(3, Math.min(10, Math.floor(avail / this.u(15) - 2.2)));
+    if (rows < 10) title = title.replace('TOP 10', `TOP ${rows}`);
     const boardW = Math.min(maxTw, this.u(320));
     const rowFont = (fs: number, bold: boolean) => `${bold ? '700' : '600'} ${fs}px 'Rajdhani', monospace`;
     const titleFont = (fs: number) => `700 ${Math.max(11, fs * 0.95)}px 'Orbitron', sans-serif`;
@@ -1295,8 +1303,9 @@ export class Renderer {
     for (let i = 0; i < rows; i++) {
       const y = startY + i * rowH;
       if (y > bottom - 2) break;
-      const entry = board[i];
-      const hi = i === highlightIndex;
+      const idx = i === rows - 1 && highlightIndex >= rows ? highlightIndex : i;
+      const entry = board[idx];
+      const hi = idx === highlightIndex;
       if (hi) {
         const pulse = 0.55 + Math.sin(this.time * 5) * 0.35;
         ctx.fillStyle = `rgba(0, 240, 255, ${0.12 + pulse * 0.18})`;
@@ -1312,7 +1321,7 @@ export class Renderer {
       const rowColor = ctx.fillStyle;
       ctx.font = rowFont(fontSize, hi);
       ctx.textAlign = 'right';
-      ctx.fillText(String(i + 1), cRank, y);
+      ctx.fillText(String(idx + 1), cRank, y);
       ctx.textAlign = 'left';
       ctx.fillText(entry ? entry.initials : '---', cIni, y);
       ctx.textAlign = 'right';

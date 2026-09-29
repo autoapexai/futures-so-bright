@@ -1273,7 +1273,7 @@ body.clone-open #howto-btn {
   display: none !important;
 }
 
-/* —— Donate (value for value): game-over / victory only, quieter than RIDE AGAIN —— */
+/* —— VALUE FOR VALUE card: game-over / victory only, quieter than RIDE AGAIN (title-card style) —— */
 #donate {
   display: none;
   position: absolute;
@@ -1281,7 +1281,13 @@ body.clone-open #howto-btn {
   right: max(14px, env(safe-area-inset-right, 0px));
   top: 50%;
   transform: translateY(-50%);
-  width: 190px;
+  width: 210px;
+  box-sizing: border-box;
+  padding: 12px 12px 10px;
+  border: 2px solid rgba(255, 220, 110, 0.6);
+  border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 200, 80, 0.14), rgba(20, 5, 35, 0.9) 70%);
+  box-shadow: 0 0 22px rgba(255, 200, 80, 0.25), inset 0 0 16px rgba(255, 200, 80, 0.1);
   text-align: center;
   pointer-events: auto;
 }
@@ -1295,20 +1301,33 @@ body.clone-open #donate {
   display: none !important;
 }
 
-#donate .donate-line,
-#donate .donate-note {
+#donate .v4v-title {
   margin: 0 0 6px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #ffe66d;
+  text-shadow: 0 0 10px rgba(255, 180, 60, 0.75);
+}
+
+#donate .v4v-msg {
+  margin: 0 0 8px;
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
-  font-size: 12px;
-  line-height: 1.25;
-  color: rgba(200, 180, 255, 0.8);
+  font-size: 12.5px;
+  line-height: 1.28;
+  color: #fff3c2;
+  white-space: pre-line;
 }
 
 #donate .donate-note {
   margin: 6px 0 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
   font-size: 11px;
-  color: rgba(200, 180, 255, 0.6);
+  line-height: 1.25;
+  color: rgba(200, 180, 255, 0.65);
 }
 
 #donate .hand-btn {
@@ -1321,26 +1340,48 @@ body.clone-open #donate {
   min-width: 0;
   min-height: 36px;
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 11px;
   text-decoration: none;
   white-space: normal;
+  border-color: rgba(255, 220, 110, 0.8);
+  color: #ffe66d;
 }
 
 body.portrait #donate {
-  top: 51%;
+  /* Portrait: anchored just above the difficulty control; the canvas top 10 fits above it. */
+  top: auto;
+  bottom: 76px;
   transform: none;
   right: 50%;
-  width: min(92vw, 340px);
-  margin-right: calc(min(92vw, 340px) / -2);
+  width: min(92vw, 360px);
+  margin-right: calc(min(92vw, 360px) / -2);
+  padding: 7px 10px 6px;
+  border-radius: 12px;
 }
 
-body.portrait #donate .donate-line,
-body.portrait #donate .donate-note {
+body.portrait.touch-device #donate {
+  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px + 58px);
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  body.portrait.touch-device #donate {
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 56px);
+  }
+}
+
+body.portrait #donate .v4v-title {
   font-size: 10px;
   margin-bottom: 3px;
 }
 
+body.portrait #donate .v4v-msg {
+  font-size: 10.5px;
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+
 body.portrait #donate .donate-note {
+  font-size: 10px;
   margin: 3px 0 0;
 }
 

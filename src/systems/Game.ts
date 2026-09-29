@@ -7,7 +7,7 @@ import { Renderer } from './Renderer';
 import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
-import { DONATE_URL, VENMO_HANDLE } from '../config';
+import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
 import {
   loadHighScore,
   saveHighScore,
@@ -346,15 +346,18 @@ export class Game {
       this.startTutorial();
     });
 
-    // Donate (game-over / victory only; hidden entirely while VENMO_HANDLE is empty).
+    // VALUE FOR VALUE card (game-over / victory only; hidden entirely while VENMO_HANDLE is empty).
     const donate = document.getElementById('donate-btn') as HTMLAnchorElement | null;
     if (donate && DONATE_URL) {
       donate.href = DONATE_URL;
+      const msg = document.getElementById('v4v-msg');
+      if (msg) msg.textContent = V4V_MESSAGE;
       const note = document.getElementById('donate-note');
       if (note) note.textContent = `Goes to @${VENMO_HANDLE}, the game's creator.`;
       document.body.classList.add('has-donate');
       document.getElementById('donate')?.setAttribute('aria-hidden', 'false');
       donate.addEventListener('pointerdown', (e) => e.stopPropagation());
+      donate.addEventListener('click', (e) => this.openVenmo(e));
     } else {
       document.getElementById('donate')?.remove();
     }
@@ -369,6 +372,46 @@ export class Game {
       this.changeDifficulty(1);
     });
     this.syncDifficultyUi();
+  }
+
+  /**
+   * "Open Venmo": on phones try the Venmo app first (deep link); if the page is still in front
+   * after VENMO_APP_WAIT_MS the app didn't open, so open the web profile in a new tab (or this
+   * tab, if the browser blocks the late new tab). Desktop: the plain link (new tab).
+   */
+  private openVenmo(e: MouseEvent): void {
+    if (!this.touchPrimary || !VENMO_APP_URL) return; // desktop: default <a target=_blank>
+    e.preventDefault();
+    let left = false;
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') left = true;
+    };
+    const onBlur = () => {
+      left = true;
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onBlur);
+    window.addEventListener('blur', onBlur);
+    window.location.href = VENMO_APP_URL;
+    window.setTimeout(() => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onBlur);
+      window.removeEventListener('blur', onBlur);
+      if (left || document.visibilityState === 'hidden') return;
+      const w = window.open(DONATE_URL, '_blank', 'noopener');
+      if (!w) window.location.href = DONATE_URL;
+    }, VENMO_APP_WAIT_MS);
+  }
+
+  /** Canvas y of the VALUE FOR VALUE card's top edge on the game-over screen (0 = not shown). */
+  private donateCardTop(): number {
+    const el = document.getElementById('donate');
+    if (!el || !document.body.classList.contains('has-donate')) return 0;
+    const r = el.getBoundingClientRect();
+    if (r.height <= 0) return 0;
+    const c = this.canvas.getBoundingClientRect();
+    if (c.height <= 0) return 0;
+    return ((r.top - c.top) * this.viewH) / c.height;
   }
 
   private syncDifficultyUi(): void {
@@ -1714,6 +1757,7 @@ export class Game {
       );
     }
     if (this.state === 'gameover') {
+      this.renderer.cardTopY = this.donateCardTop();
       this.renderer.drawGameOver(
         ctx,
         this.score,
