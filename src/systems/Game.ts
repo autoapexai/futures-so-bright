@@ -47,6 +47,8 @@ export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover'
 const TUT_STEPS = 4;
 /** Level-up banner duration (s). */
 const BANNER_SECONDS = 2.4;
+/** Promotion interstitial ("LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!") duration (s). */
+const PROMO_SECONDS = 2.0;
 /** Re-request the difficulty-11 ticket on dismiss if the card sat open this long (ticket lives 1 h). */
 const TICKET_REFRESH_MS = 45 * 60 * 1000;
 
@@ -136,6 +138,13 @@ export class Game {
   private tutLastY = 0;
   private bannerText = '';
   private bannerT = 0;
+  /** Promotion interstitial between stages: play is frozen (not timed, not scored) while > 0. */
+  private promoT = 0;
+  private promoTitle = '';
+  private promoSub = '';
+  private promoNext: (() => void) | null = null;
+  /** Distance flown on the current stage; drives the speed / spawn / drain ramp, reset each stage. */
+  private stageDist = 0;
   private formation = new Formation();
   private readonly cloneHb = { x: 0, y: 0, w: 52 * CLONE_SCALE * 0.7, h: 28 * CLONE_SCALE * 0.7 };
   private lastHitSfx = 0;
@@ -998,6 +1007,9 @@ export class Game {
     this.ships = 1;
     this.levelTime = 0;
     this.bannerT = 0;
+    this.promoT = 0;
+    this.promoNext = null;
+    this.stageDist = 0;
     this.formation.clear();
     // Refresh the shared board in the background while this run plays.
     void this.refreshRemoteBoard();
@@ -1276,6 +1288,20 @@ export class Game {
       return;
     }
 
+    if (this.promoT > 0) {
+      // Promotion interstitial: the world is frozen, the run clock and score stand still.
+      this.promoT -= dt;
+      this.particles.update(dt);
+      if (this.promoT <= 0) {
+        this.promoT = 0;
+        const next = this.promoNext;
+        this.promoNext = null;
+        next?.();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
+
     this.runTime += dt;
     // Every level is a 30 s stage: 1-10 advance one level (score carries over), clone levels
     // (11+) multiply ships. Exactly one level per pass.
@@ -1297,7 +1323,7 @@ export class Game {
     const hz = hazardLevers(d);
     const m = hz.speed;
     const pts = pointMultiplier(d);
-    this.scrollSpeed = 240 * m + this.distance * 0.035 * m + (boosting ? 90 : 0);
+    this.scrollSpeed = 240 * m + this.stageDist * 0.035 * m + (boosting ? 90 : 0);
     const pr = this.touchReserves();
     // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
     const f = this.formation;
@@ -1318,7 +1344,7 @@ export class Game {
       this.scrollSpeed,
       this.viewW,
       this.viewH,
-      this.distance,
+      this.stageDist,
       pr.top,
       this.viewH - pr.bottom,
       hz.density,
@@ -1340,10 +1366,11 @@ export class Game {
     }
 
     this.distance += this.scrollSpeed * dt * 0.35;
+    this.stageDist += this.scrollSpeed * dt * 0.35;
     this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
 
     // shade drain
-    const drain = ((boosting ? 0.14 : 0.048) + this.distance * 0.000003) * hz.drainMul;
+    const drain = ((boosting ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
       // Out of shade with clones left: this ship is lost, a clone takes the lead.
@@ -1584,25 +1611,33 @@ export class Game {
 
   /**
    * Pass a level 1-10. Returns true if the run ended (cleared 10 without access to 11: a win).
-   * Clearing 10 enters clone mode (level 11) only for the current #1, as before.
+   * 1-9: a ~2 s "LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!" interstitial, then the next level
+   * starts fresh (hazards cleared, ramp reset, shades full) with the score carried over.
+   * 10: the current #1 gets a "YOU BEAT LEVEL 10" interstitial, then clone mode (level 11);
+   * everyone else ends the run as a win on the YOU BEAT LEVEL 10 screen, as before (the
+   * server only accepts a level-11 score with a run ticket, issued only to the current #1).
    */
   private clearStage(): boolean {
     const cleared = this.runDifficulty;
-    this.bannerText = `LEVEL ${cleared} CLEARED`;
-    this.bannerT = BANNER_SECONDS;
     if (cleared < MAX_PUBLIC_DIFFICULTY) {
-      this.runDifficulty = cleared + 1;
-      this.audio.playCollect();
+      this.showPromotion(`LEVEL ${cleared} COMPLETED`, "YOU'VE BEEN PROMOTED!", () => {
+        this.runDifficulty = cleared + 1;
+        this.freshStage();
+      });
       return false;
     }
     if (this.elevenUnlocked && !this.climbDenied && this.climbTicket) {
       // Straight into clone mode: submitted as 11 with the ticket requested at run start.
-      this.runDifficulty = SECRET_DIFFICULTY;
-      this.runTicket = this.climbTicket;
-      this.level = FIRST_CLONE_LEVEL;
-      this.ships = 1;
-      this.formation.clear();
-      this.audio.playCollect();
+      this.showPromotion('YOU BEAT LEVEL 10', "YOU'VE BEEN PROMOTED!", () => {
+        this.runDifficulty = SECRET_DIFFICULTY;
+        this.runTicket = this.climbTicket;
+        this.level = FIRST_CLONE_LEVEL;
+        this.ships = 1;
+        this.formation.clear();
+        this.freshStage();
+        this.bannerText = `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
+        this.bannerT = BANNER_SECONDS;
+      });
       return false;
     }
     // Beat level 10: the run ends as a win and is submitted normally (difficulty 10).
@@ -1612,6 +1647,28 @@ export class Game {
     this.endRun();
     this.input.clearJustPressed();
     return true;
+  }
+
+  private showPromotion(title: string, sub: string, next: () => void): void {
+    this.promoTitle = title;
+    this.promoSub = sub;
+    this.promoT = PROMO_SECONDS;
+    this.promoNext = next;
+    this.bannerT = 0;
+    this.audio.playPromote();
+  }
+
+  /** A new stage starts fresh: hazards cleared, ramp back to the level's base, shades full. */
+  private freshStage(): void {
+    this.world.reset();
+    this.stageDist = 0;
+    this.levelTime = 0;
+    this.charge = 1;
+    this.player.invuln = Math.max(this.player.invuln, 1.2);
+    while (this.floaters.length) {
+      const f = this.floaters.pop();
+      if (f) this.floaterPool.push(f);
+    }
   }
 
   /** Pass the current clone level: next level, ship count reset to that level's number. */
@@ -1743,6 +1800,9 @@ export class Game {
         this.renderer.drawTutorial(ctx, this.tutStep + 1, TUT_STEPS, tt.title, tt.lines);
       }
       if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
+      if (this.promoT > 0) {
+        this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, PROMO_SECONDS, this.score);
+      }
     }
     if (this.state === 'title') this.renderer.drawTitle(ctx, this.high, this.pulse);
     if (this.state === 'paused') this.renderer.drawPause(ctx);

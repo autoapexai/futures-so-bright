@@ -170,9 +170,10 @@ export class AudioEngine {
     vol: number,
     dest: AudioNode,
     slideTo?: number,
+    delay = 0,
   ): void {
     if (!this.ctx || this.muted) return;
-    const t0 = this.ctx.currentTime;
+    const t0 = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = type;
@@ -226,6 +227,15 @@ export class AudioEngine {
       this.tone(440, 0.2, 'triangle', 0.2, this.master, 220);
       this.tone(330, 0.35, 'sine', 0.18, this.master, 110);
       this.tone(165, 0.5, 'sawtooth', 0.1, this.master, 55);
+    });
+  }
+
+  /** Promotion interstitial: a short rising square-wave fanfare (arcade level-clear). */
+  playPromote(): void {
+    this.whenRunning(() => {
+      if (!this.master) return;
+      const notes = [523, 659, 784, 1047, 784, 1047];
+      notes.forEach((f, i) => this.tone(f, i === notes.length - 1 ? 0.32 : 0.11, 'square', 0.1, this.master!, undefined, i * 0.1));
     });
   }
 

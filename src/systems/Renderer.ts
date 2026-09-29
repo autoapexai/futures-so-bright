@@ -1011,6 +1011,53 @@ export class Renderer {
     }
   }
 
+  /**
+   * Donkey Kong-style stage interstitial (~2 s): "LEVEL N COMPLETED" / "YOU'VE BEEN PROMOTED!"
+   * over the dimmed, frozen play field, in the title / level-banner style. `t` counts down.
+   */
+  drawPromotion(ctx: CanvasRenderingContext2D, title: string, sub: string, t: number, dur: number, score: number): void {
+    const W = this.W;
+    const H = this.H;
+    const portrait = H > W * 1.1;
+    const age = dur - t;
+    const a = clamp(Math.min(age / 0.15, t / 0.2), 0, 1);
+    const side = Math.max(this.padLeft, this.padRight) + this.u(20);
+    const maxW = Math.max(this.u(140), W - side * 2);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(5, 0, 18, 0.86)';
+    ctx.fillRect(0, 0, W, H);
+    const cy = portrait ? H * 0.4 : H * 0.42;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Title: gold, glowing (level-banner colours).
+    ctx.fillStyle = '#ffe66d';
+    if (!this.lite) {
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = 'rgba(255, 180, 60, 0.95)';
+    }
+    const ts = this.fitFont(ctx, title, '900', this.u(portrait ? 34 : 40), "'Orbitron', sans-serif", maxW, this.u(16));
+    ctx.fillText(title, W / 2, cy);
+    // Subtitle pops in a beat later and blinks like an arcade attract line.
+    if (age > 0.35) {
+      const blink = Math.floor(age * 6) % 2 === 0 || age > 1.2;
+      if (blink) {
+        ctx.fillStyle = COL.cyan;
+        ctx.shadowColor = COL.cyan;
+        this.fillFitted(ctx, sub, W / 2, cy + ts * 1.5, '800', this.u(portrait ? 22 : 24), "'Orbitron', sans-serif", maxW, this.u(12));
+      }
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    this.fillFitted(ctx, `SCORE  ${Math.floor(score)}`, W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
+    // Neon rule above and below, like the title card.
+    const rw = Math.min(maxW, this.u(portrait ? 300 : 440));
+    ctx.fillStyle = COL.magenta;
+    ctx.fillRect(W / 2 - rw / 2, cy - ts * 1.1, rw, Math.max(2, this.u(3)));
+    ctx.fillRect(W / 2 - rw / 2, cy + ts * 1.5 + this.u(portrait ? 76 : 72), rw, Math.max(2, this.u(3)));
+    ctx.restore();
+  }
+
   drawPause(ctx: CanvasRenderingContext2D): void {
     const big = this.touchUi;
     ctx.fillStyle = 'rgba(5, 0, 18, 0.65)';
