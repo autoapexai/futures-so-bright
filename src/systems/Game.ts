@@ -398,8 +398,10 @@ export class Game {
       window.removeEventListener('pagehide', onBlur);
       window.removeEventListener('blur', onBlur);
       if (left || document.visibilityState === 'hidden') return;
-      const w = window.open(DONATE_URL, '_blank', 'noopener');
-      if (!w) window.location.href = DONATE_URL;
+      // (No 'noopener' feature: it makes window.open return null, hiding a real popup block.)
+      const w = window.open(DONATE_URL, '_blank');
+      if (w) w.opener = null;
+      else window.location.href = DONATE_URL;
     }, VENMO_APP_WAIT_MS);
   }
 
