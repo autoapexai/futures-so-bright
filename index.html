@@ -105,6 +105,15 @@
         <button type="button" id="pause-btn" aria-label="Pause" draggable="false" style="touch-action:none">⏸</button>
         <button type="button" id="mute-btn" aria-label="Mute" draggable="false" style="touch-action:none">🔊</button>
       </div>
+      <button type="button" id="quit-btn" aria-label="Quit run or change mode" title="Quit run / change mode" draggable="false" style="touch-action:none">QUIT</button>
+      <div id="quit-confirm" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="quit-title">
+        <div class="qc-card">
+          <p id="quit-title">QUIT RUN?</p>
+          <button type="button" id="quit-change" class="qc-btn" draggable="false" style="touch-action:none">CHANGE MODE</button>
+          <button type="button" id="quit-yes" class="qc-btn" draggable="false" style="touch-action:none">QUIT RUN</button>
+          <button type="button" id="quit-no" class="qc-btn" draggable="false" style="touch-action:none">KEEP PLAYING</button>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

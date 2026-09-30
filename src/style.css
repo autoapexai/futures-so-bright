@@ -1883,3 +1883,218 @@ body.touch-device.tutorial #tut-skip {
     margin-top: 4px;
   }
 }
+
+/* —— In-run QUIT (active play only): a pill under pause / mute in the same neon style ——
+   First tap pauses and opens the QUIT RUN? confirm (CHANGE MODE / QUIT RUN / KEEP PLAYING). */
+#quit-btn {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(max(10px, calc(env(safe-area-inset-top, 0px) + 4px)) + 62px);
+  right: max(10px, env(safe-area-inset-right, 0px));
+  width: 52px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid rgba(255, 80, 200, 0.55);
+  border-radius: 12px;
+  background: rgba(10, 0, 25, 0.85);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Extra tap slop sideways and down only (never over the pause / mute buttons above). */
+#quit-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0 -8px -14px -8px;
+}
+
+#quit-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 18px rgba(255, 80, 200, 0.55);
+  background: rgba(60, 0, 50, 0.9);
+}
+
+body.playing:not(.tutorial) #quit-btn {
+  display: block;
+}
+
+/* Touch: as wide as the pause + mute pair above it. */
+body.touch-device #quit-btn {
+  width: 114px;
+}
+
+/* The MODES picker opened over a paused run: its pause button stays out of the way. */
+body.modes-open #pause-btn {
+  visibility: hidden;
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  body #quit-btn {
+    top: calc(max(14px, calc(env(safe-area-inset-top, 0px) + 8px)) + 64px);
+  }
+  body.touch-device #quit-btn {
+    width: 122px;
+    height: 40px;
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 700px) and (pointer: coarse),
+  (min-width: 700px) and (hover: none),
+  (min-width: 700px) and (any-pointer: coarse) {
+  body #quit-btn {
+    top: calc(max(10px, calc(env(safe-area-inset-top, 0px) + 4px)) + 66px);
+  }
+  body.touch-device #quit-btn {
+    width: 122px;
+    height: 40px;
+  }
+}
+
+/* Landscape phones: the joystick zone reaches up the right side, so QUIT sits in the chrome row,
+   left of pause (the canvas HUD's charge bar is centred well clear of it). */
+@media (max-height: 500px) and (orientation: landscape) {
+  body #quit-btn {
+    top: max(6px, env(safe-area-inset-top, 0px));
+    right: calc(max(6px, env(safe-area-inset-right, 0px)) + 104px);
+  }
+  body.touch-device #quit-btn {
+    width: 88px;
+    height: 44px;
+    border-radius: 10px;
+  }
+  #quit-btn::before {
+    inset: -6px 0 -12px -10px;
+  }
+}
+
+/* ...where pause / mute are the 56 px tablet size (landscape phones 700 px+ wide). */
+@media (max-height: 500px) and (orientation: landscape) and (min-width: 700px) and (pointer: coarse),
+  (max-height: 500px) and (orientation: landscape) and (min-width: 700px) and (hover: none),
+  (max-height: 500px) and (orientation: landscape) and (min-width: 700px) and (any-pointer: coarse) {
+  body #quit-btn {
+    right: calc(max(6px, env(safe-area-inset-right, 0px)) + 128px);
+  }
+  body.touch-device #quit-btn {
+    width: 96px;
+    height: 56px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+}
+
+/* QUIT RUN? confirm over the paused run (the MODES picker can open on top of it). */
+#quit-confirm {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 29;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(8, 0, 20, 0.55);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#quit-confirm.open {
+  display: flex;
+}
+
+#quit-confirm .qc-card {
+  width: min(300px, 100%);
+  box-sizing: border-box;
+  padding: 16px 16px 14px;
+  border: 2px solid rgba(255, 80, 200, 0.6);
+  border-radius: 16px;
+  background: rgba(10, 0, 25, 0.94);
+  box-shadow: 0 0 26px rgba(255, 43, 214, 0.35), inset 0 0 16px rgba(255, 43, 214, 0.12);
+  text-align: center;
+}
+
+#quit-title {
+  margin: 0 0 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: #ff9de8;
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.75);
+}
+
+#quit-confirm .qc-btn {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 2px solid rgba(255, 80, 200, 0.55);
+  border-radius: 12px;
+  background: rgba(10, 0, 25, 0.85);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#quit-confirm .qc-btn:last-child {
+  margin-bottom: 0;
+}
+
+#quit-confirm #quit-no {
+  border-color: rgba(0, 255, 255, 0.7);
+  color: #7fffff;
+  box-shadow: 0 0 14px rgba(0, 255, 255, 0.25);
+}
+
+#quit-confirm .qc-btn:active {
+  transform: scale(0.97);
+  background: rgba(60, 0, 50, 0.9);
+}
+
+@media (max-height: 420px) and (orientation: landscape) {
+  #quit-confirm .qc-card {
+    padding: 12px 14px 10px;
+  }
+  #quit-title {
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+  #quit-confirm .qc-btn {
+    min-height: 40px;
+    margin-bottom: 6px;
+    padding: 6px 10px;
+  }
+}
+
+/* CHANGE MODE: the MODES picker over a paused run keeps its mode buttons and BACK. */
+body.touch-device.paused.modes-open #modes-menu .hand-btn {
+  display: block !important;
+}
+
+/* Mouse/keyboard desktops have no pause button: QUIT sits beside the mute button, clear of the distance readout under it. */
+body:not(.touch-device) #quit-btn {
+  top: calc(max(10px, calc(env(safe-area-inset-top, 0px) + 4px)) + 8px);
+  right: calc(max(10px, env(safe-area-inset-right, 0px)) + 60px);
+}

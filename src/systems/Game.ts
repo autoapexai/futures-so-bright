@@ -189,6 +189,9 @@ export class Game {
   private modesOpen = false;
   /** performance.now() when the MODES menu opened: taps just after it are the opening tap's ghost click. */
   private modesOpenedAt = 0;
+  /** In-run QUIT confirm (the run is paused under it); MODES can open over it (CHANGE MODE). */
+  private quitOpen = false;
+  private quitOpenedAt = 0;
   /** The view was re-laid out (rotation) since the last walkthrough frame: don't count it as movement. */
   private tutViewMoved = false;
   /** MODES menu Easter egg: THE CALVIN TWINS entry toggled to THE CALVIN TRIPLETS. */
@@ -475,6 +478,17 @@ export class Game {
     });
     // SKIP on every How to Play step (first load and replays).
     bindTap(document.getElementById('tut-skip'), () => this.skipTutorial());
+    // In-run QUIT: first tap pauses and asks; CHANGE MODE / QUIT RUN / KEEP PLAYING.
+    bindTap(document.getElementById('quit-btn'), () => this.openQuitConfirm());
+    bindTap(document.getElementById('quit-no'), () => {
+      if (!this.quitGhostTap()) this.keepPlaying();
+    });
+    bindTap(document.getElementById('quit-yes'), () => {
+      if (!this.quitGhostTap()) this.quitRun();
+    });
+    bindTap(document.getElementById('quit-change'), () => {
+      if (!this.quitGhostTap()) this.openModes();
+    });
 
     // Difficulty − / + (title & game-over menus, all devices)
     bindTap(document.getElementById('diff-minus'), () => {
@@ -531,7 +545,8 @@ export class Game {
   }
 
   private openModes(): void {
-    if (this.state !== 'title' && this.state !== 'gameover') return;
+    const overRun = this.quitOpen && this.state === 'paused';
+    if (this.state !== 'title' && this.state !== 'gameover' && !overRun) return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
     this.modesOpen = true;
     this.modesOpenedAt = performance.now();
@@ -618,7 +633,90 @@ export class Game {
     if (!this.modesOpen || this.modesGhostTap()) return;
     this.closeModes();
     void this.audio.unlock();
+    if (this.quitOpen) {
+      // CHANGE MODE mid-run: the paused run ends with no score, and the new mode starts at level 1.
+      this.closeQuitConfirm();
+      this.startRun(MIN_DIFFICULTY, null, false, m);
+      return;
+    }
     this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, m);
+  }
+
+  /** QUIT (HUD, active play only): pause the run and show the QUIT RUN? confirm. */
+  private openQuitConfirm(): void {
+    if (this.state !== 'playing' || this.tutStep >= 0 || this.quitOpen || this.modesOpen) return;
+    this.togglePause();
+    if ((this.state as GameState) !== 'paused') return;
+    this.quitOpen = true;
+    this.quitOpenedAt = performance.now();
+    const el = document.getElementById('quit-confirm');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    this.setBodyFlags();
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+  }
+
+  /** A tap on the confirm within 400 ms of opening it is the opening tap's ghost click. */
+  private quitGhostTap(): boolean {
+    return performance.now() - this.quitOpenedAt < 400;
+  }
+
+  private closeQuitConfirm(): void {
+    if (!this.quitOpen) return;
+    this.quitOpen = false;
+    const el = document.getElementById('quit-confirm');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    this.setBodyFlags();
+  }
+
+  /** KEEP PLAYING (or Esc / P / the pause button): close the confirm and resume where it left off. */
+  private keepPlaying(): void {
+    if (!this.quitOpen || this.modesOpen) return;
+    this.closeQuitConfirm();
+    if (this.state === 'paused') this.togglePause();
+    this.input.clearJustPressed();
+  }
+
+  /**
+   * QUIT RUN: end the paused run with nothing recorded (no score, initials, game-over screen or
+   * leaderboard / event write) and open the MODES menu on the title screen.
+   */
+  private quitRun(): void {
+    if (!this.quitOpen || this.modesOpen || this.state !== 'paused') return;
+    this.closeQuitConfirm();
+    this.abandonRun();
+    this.state = 'title';
+    this.setBodyFlags();
+    this.openModes();
+  }
+
+  /** Drop the current run's state; bumping runId makes any late async result for it a no-op. */
+  private abandonRun(): void {
+    this.runId++;
+    this.runTicket = null;
+    this.climbTicket = null;
+    this.promoT = 0;
+    this.promoNext = null;
+    this.bannerT = 0;
+    this.continueT = 0;
+    this.score = 0;
+    this.mode = null;
+    this.level = 0;
+    this.ships = 1;
+    this.formation = this.cloneFormation;
+    this.formation.clear();
+    this.world.reset();
+    this.particles.clear();
+    while (this.floaters.length) {
+      const f = this.floaters.pop();
+      if (f) this.floaterPool.push(f);
+    }
+    this.renderer.shake = 0;
+    this.renderer.flash = 0;
+    this.input.clearTouch();
+    this.input.clearJustPressed();
   }
 
   private syncDifficultyUi(): void {
@@ -1096,6 +1194,7 @@ export class Game {
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
     if (this.modesOpen) return; // the MODES menu handles its own taps
+    if (this.quitOpen) return; // so does the QUIT RUN? confirm
     if (this.congratsOpen) {
       if (e.cancelable) e.preventDefault();
       this.dismissCongrats();
@@ -1106,7 +1205,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1134,6 +1233,7 @@ export class Game {
     document.body.classList.toggle('gameover', this.state === 'gameover');
     document.body.classList.toggle('initials', this.state === 'initials');
     document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
+    document.body.classList.toggle('quit-open', this.quitOpen);
     this.syncWakeLock();
     // Title-screen demo loop plays only while the title is up.
     const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
@@ -1183,6 +1283,8 @@ export class Game {
   }
 
   private togglePause(): void {
+    if (this.modesOpen) return;
+    if (this.state === 'paused' && this.quitOpen) this.closeQuitConfirm();
     if (this.state === 'playing') {
       this.state = 'paused';
       this.input.clearTouch();
@@ -1558,6 +1660,16 @@ export class Game {
       return;
     }
 
+    if (this.quitOpen) {
+      // QUIT RUN? confirm: Esc closes MODES back to it, else Esc / P keep playing.
+      if (this.modesOpen) {
+        if (this.input.consume('escape')) this.closeModes();
+      } else if (this.input.consume('escape') || this.input.consume('p')) {
+        this.keepPlaying();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
     if (this.tutStep >= 0 && this.input.consume('escape')) {
       // Esc skips the How to Play walkthrough (P still pauses it).
       this.skipTutorial();
