@@ -7,7 +7,8 @@
  * LOOK s ahead, misses each hazard with prob MISS, aims with noise, grabs circles when low.
  *
  * MODE 'pack' (phase 3, levels 1-10): the 4-dog pack (lose a dog per hit or empty shade, the
- * rest grow, last dog = death) and the ring-gate boost, on top of the 'after' levers.
+ * rest grow, last dog = death) and ring gates as pure boosts (any touch = full shade, never a hit),
+ * on top of the 'after' levers.
  *
  * Run: npx esbuild scripts/difficulty-sim.ts --bundle --platform=node --format=esm \
  *        --define:window=globalThis --outfile=/tmp/fsb-sim.mjs && node /tmp/fsb-sim.mjs [before|after]
@@ -28,7 +29,16 @@ const W = 960, H = 540, TOP = 60, BOT = 60, LEFT = 20;
 const REACT = 0.3, LOOK = 0.75, MISS = 0.3, NOISE = 22;
 const MODE = process.argv[2] ?? 'after';
 
+/** Ring gates in the pack mode are pure boosts (never a hit); the 'before' / 'after' modes keep the old rim hit. */
+function touchesRing(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+  const qx = Math.max(hb.x, Math.min(cx, hb.x + hb.w)), qy = Math.max(hb.y, Math.min(cy, hb.y + hb.h));
+  const nx = (qx - cx) / (o.w / 2), ny = (qy - cy) / (o.h / 2);
+  return nx * nx + ny * ny <= 1.05;
+}
+
 function hits(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
+  if (o.kind === 'ring' && MODE === 'pack') return false;
   if (o.kind === 'ring') {
     const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
     const nx = (hb.x + hb.w / 2 - cx) / (o.w / 2), ny = (hb.y + hb.h / 2 - cy) / (o.h / 2);
@@ -155,8 +165,8 @@ function runPack(d: number, cap = 1200): number {
         if (!seen.has(o)) { seen.add(o); if (Math.random() < MISS) missed.add(o); }
         if (missed.has(o)) continue;
         if (o.x > p.x + scroll * LOOK || o.x + o.w < p.x - 40 - f.extLeft) continue;
-        if (o.kind === 'ring') { blocked.push([o.y - dn, o.y + o.h * 0.2 + up - 16]); blocked.push([o.y + o.h * 0.8 - dn + 16, o.y + o.h + up]); }
-        else blocked.push([o.y - dn, o.y + o.h + up]);
+        if (o.kind === 'ring') continue; // gates are harmless boosts now: no need to steer around them
+        blocked.push([o.y - dn, o.y + o.h + up]);
       }
       const free = (y: number) => blocked.every(([a, b]) => y < a || y > b);
       let want = p.y;
@@ -186,10 +196,16 @@ function runPack(d: number, cap = 1200): number {
     const hb = p.hitbox;
     for (const c of world.collectibles) if (c.alive && circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) { c.alive = false; charge = Math.min(1, charge + 0.22); }
     for (const o of world.obstacles) {
-      if (o.kind !== 'ring' || passed.has(o) || p.x < o.x + o.w / 2) continue;
-      passed.add(o);
-      const ny = (p.y - (o.y + o.h / 2)) / (o.h / 2);
-      if (ny * ny <= 0.42) charge = Math.min(1, charge + 0.28);
+      // Gate: the first touch (rim or hole, lead dog or pack dog) = FULL POWER.
+      if (o.kind !== 'ring' || !o.alive || passed.has(o)) continue;
+      let touched = touchesRing(o, hb);
+      for (const s of f.slots) {
+        if (touched) break;
+        if (!s.occupied) continue;
+        const w = 52 * s.scale * 0.7, h = 28 * s.scale * 0.7;
+        touched = touchesRing(o, { x: s.x - w / 2, y: s.y - h / 2, w, h });
+      }
+      if (touched) { passed.add(o); charge = 1; }
     }
     if (p.invuln <= 0) for (const o of world.obstacles) {
       if (o.alive && hits(o, hb)) { if (lose(null)) return t; break; }

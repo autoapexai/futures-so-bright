@@ -1611,16 +1611,18 @@ body.touch-device #clone-btn {
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
+  /* Landscape phones: bottom centre, between START and the difficulty control (clear of the title). */
   body.touch-device #clone-btn {
-    bottom: auto;
-    top: max(12px, env(safe-area-inset-top, 0px));
+    top: auto;
+    bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 6px));
     font-size: 10px;
     min-height: 34px;
     padding: 6px 10px;
   }
 }
 
-/* —— Title-screen demo loop (levels 1-3, left-hand phone stick): muted, never blocks play —— */
+/* —— Title-screen demo loop (switching to ITM via MODES, then ITM levels 1-3, left-hand phone stick;
+   its 'DEMO · ITM MODE' caption is burned into the video): muted, never blocks play —— */
 #demo {
   display: none;
   position: absolute;
@@ -1654,30 +1656,17 @@ body.modes-open #demo {
   object-fit: cover;
 }
 
-#demo .demo-tag {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: rgba(255, 157, 232, 0.9);
-  text-shadow: 0 0 6px rgba(255, 43, 214, 0.8);
-}
-
 /* Phones (portrait): centred above the gold clone button; hidden where it can't fit. */
 body.touch-device #demo {
   left: 50%;
   transform: translateX(-50%);
   width: min(62vw, 250px);
-  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px + 58px + 52px);
+  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px + 58px + 52px + 62px);
 }
 
 @media (max-width: 500px) and (orientation: portrait) {
   body.touch-device #demo {
-    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 56px + 50px);
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 56px + 50px + 58px);
   }
 }
 
@@ -1690,5 +1679,207 @@ body.touch-device #demo {
 @media (max-height: 500px) and (orientation: landscape) {
   body.touch-device #demo {
     display: none !important;
+  }
+}
+
+/* —— Big MODES button (start screen): its own glowing magenta pill next to / above the gold one —— */
+#modes-big {
+  display: none;
+  z-index: 16;
+  top: auto;
+  right: auto;
+  /* Desktop: to the right of the gold clone button, same row. */
+  left: calc(50% + 118px);
+  bottom: 70px;
+  min-width: 168px;
+  min-height: 52px;
+  padding: 12px 30px;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  border-color: rgba(255, 90, 210, 0.95);
+  color: #ffc2f0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 60, 200, 0.32), rgba(20, 5, 35, 0.92) 75%);
+  box-shadow: 0 0 20px rgba(255, 43, 214, 0.55), inset 0 0 12px rgba(255, 43, 214, 0.2);
+  text-shadow: 0 0 10px rgba(255, 60, 210, 0.9);
+  white-space: nowrap;
+  animation: modes-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes modes-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.45), inset 0 0 10px rgba(255, 43, 214, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(255, 43, 214, 0.8), inset 0 0 14px rgba(255, 43, 214, 0.26);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #modes-big {
+    animation: none;
+  }
+}
+
+body.title-screen #modes-big {
+  display: block;
+}
+
+body.congrats-open #modes-big,
+body.clone-open #modes-big,
+body.modes-open #modes-big {
+  display: none !important;
+}
+
+/* The small MODES pill stays with HOW TO PLAY on game-over only. */
+body.title-screen #modes-btn {
+  display: none;
+}
+
+/* Phones: centred, its own row directly above the gold clone button. */
+body.touch-device #modes-big {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px + 58px + 50px);
+}
+
+@media (max-width: 500px) and (orientation: portrait) {
+  body.touch-device #modes-big {
+    bottom: calc(max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px)) + var(--boost-size) + 24px + 56px + 50px);
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch-device #modes-big {
+    bottom: calc(max(12px, calc(env(safe-area-inset-bottom, 0px) + 6px)) + 34px + 10px);
+    min-height: 44px;
+    min-width: 150px;
+    padding: 9px 24px;
+    font-size: 14px;
+  }
+}
+
+/* Game-over: same accent on the MODES pill, a size up where there's room (not narrow portrait). */
+body.gameover #modes-btn {
+  border-color: rgba(255, 90, 210, 0.95);
+  color: #ffc2f0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 60, 200, 0.28), rgba(20, 5, 35, 0.92) 75%);
+  box-shadow: 0 0 16px rgba(255, 43, 214, 0.5);
+  text-shadow: 0 0 8px rgba(255, 60, 210, 0.85);
+}
+
+body.gameover:not(.portrait) #modes-btn {
+  min-height: 48px;
+  padding: 10px 22px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+}
+
+#menu-btns {
+  align-items: center;
+}
+
+/* —— SKIP on every How to Play step (first load and replays); Esc on desktop —— */
+#tut-skip {
+  display: none;
+  z-index: 31;
+  left: auto;
+  bottom: auto;
+  right: max(10px, env(safe-area-inset-right, 0px));
+  top: calc(max(10px, calc(env(safe-area-inset-top, 0px) + 4px)) + 64px);
+  min-width: 100px;
+  min-height: 46px;
+  padding: 9px 18px;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  border-color: rgba(0, 255, 255, 0.75);
+  color: #b8ffff;
+  background: rgba(10, 0, 25, 0.88);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+}
+
+body.tutorial #tut-skip {
+  display: block;
+}
+
+/* Landscape phones: the MODES list goes 3 across so all 12 fit without scrolling, clear of the mute button. */
+@media (max-height: 500px) and (orientation: landscape) {
+  #modes-menu {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: max(76px, env(safe-area-inset-right, 0px));
+    padding-left: max(76px, env(safe-area-inset-left, 0px));
+  }
+  #modes-menu .cg-card {
+    width: min(780px, 100%);
+    padding: 8px 12px;
+  }
+  #modes-title {
+    margin-bottom: 0.3em;
+    font-size: 16px;
+  }
+  #modes-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  #modes-menu .hand-btn.mode-pick {
+    min-height: 40px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  #modes-menu .mode-ships {
+    font-size: 11px;
+    margin-top: 1px;
+  }
+  #modes-menu .cg-hint {
+    margin: 0.4em 0 0.4em;
+    font-size: 10px;
+  }
+  #modes-menu #modes-back {
+    min-height: 36px;
+  }
+}
+
+body.touch-device #modes-big:active {
+  transform: translateX(-50%) scale(0.96);
+}
+
+body.touch-device.tutorial #tut-skip {
+  display: block !important;
+}
+
+/* —— Short landscape phones, game over: the V4V card is compact and sits under the top buttons,
+   the difficulty control moves to bottom centre so it never covers Open Venmo; with START on the
+   right (right hand) the card moves to the left. —— */
+@media (max-height: 420px) and (orientation: landscape) {
+  body.touch-device.gameover #diff-ctl {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 4px);
+  }
+  body.touch-device.gameover #donate {
+    top: 62px;
+    transform: none;
+    width: 200px;
+    padding: 8px 10px 6px;
+  }
+  body.touch-device.gameover:not(.hand-left) #donate {
+    right: auto;
+    left: max(14px, env(safe-area-inset-left, 0px));
+  }
+  body.touch-device.gameover #donate .v4v-title {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  body.touch-device.gameover #donate .v4v-msg {
+    font-size: 11px;
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+  body.touch-device.gameover #donate .donate-note {
+    font-size: 10px;
+    margin-top: 4px;
   }
 }

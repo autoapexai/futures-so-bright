@@ -323,3 +323,72 @@ export function shipSprite(b: Breed, o: ShipPaint = {}): HTMLCanvasElement {
   spriteCache.set(key, c);
   return c;
 }
+
+/**
+ * Minimal flying-dog glyph for swarm dogs too small for the full sprite (about 0.05-0.15x):
+ * a pixel silhouette (head + pointed ear + snout, body, legs, raised tail) in the breed's
+ * fur with a darker head/ear and a dark rim, facing right like the sprite. Pre-rendered once
+ * per breed and stamped with one drawImage each.
+ */
+const GLYPH = [
+  '..........#.....',
+  '.........##.....',
+  '#.......####....',
+  '.#......######..',
+  '.##########.....',
+  '..#########.....',
+  '..#########.....',
+  '..#.#....#.#....',
+  '..#.#....#.#....',
+];
+/** Glyph box in glyph px; the dog's body centre is at (GLYPH_AX, GLYPH_AY). */
+export const GLYPH_W = 16;
+export const GLYPH_H = 9;
+export const GLYPH_AX = 7;
+export const GLYPH_AY = 5;
+const glyphCache = new Map<string, HTMLCanvasElement>();
+const GLYPH_K = 4; // supersample
+const GLYPH_PAD = 1;
+const glyphCell = (x: number, y: number) => GLYPH[y]?.[x] === '#';
+
+function glyphCanvas(): [HTMLCanvasElement, CanvasRenderingContext2D | null] {
+  const c = document.createElement('canvas');
+  c.width = (GLYPH_W + GLYPH_PAD * 2) * GLYPH_K;
+  c.height = (GLYPH_H + GLYPH_PAD * 2) * GLYPH_K;
+  return [c, c.getContext('2d')];
+}
+
+/**
+ * The glyph for breed `b`: fur, darker head, eye, and a light dark rim (alpha 0.5, so dense
+ * swarms where rims overlap fills stay colourful rather than going dark). One drawImage per dog.
+ */
+export function dogGlyph(b: Breed): HTMLCanvasElement {
+  const hit = glyphCache.get(b.id);
+  if (hit) return hit;
+  const [c, g] = glyphCanvas();
+  if (g) {
+    const k = GLYPH_K;
+    g.fillStyle = 'rgba(10, 0, 24, 0.5)';
+    for (let y = -1; y <= GLYPH_H; y++) {
+      for (let x = -1; x <= GLYPH_W; x++) {
+        if (glyphCell(x, y)) continue;
+        let near = false;
+        for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1 && !near; dx++) near = glyphCell(x + dx, y + dy);
+        if (near) g.fillRect((x + GLYPH_PAD) * k, (y + GLYPH_PAD) * k, k, k);
+      }
+    }
+    for (let y = 0; y < GLYPH_H; y++) {
+      for (let x = 0; x < GLYPH_W; x++) {
+        if (!glyphCell(x, y)) continue;
+        // Head / ear / snout (x >= 8, top rows) in the second fur colour, the rest in the main fur.
+        g.fillStyle = x >= 8 && y <= 3 ? b.fur2 : b.fur;
+        g.fillRect((x + GLYPH_PAD) * k, (y + GLYPH_PAD) * k, k, k);
+      }
+    }
+    // Eye.
+    g.fillStyle = '#0a0018';
+    g.fillRect((11 + GLYPH_PAD) * k, (2 + GLYPH_PAD) * k + 1, k - 1, k - 1);
+  }
+  glyphCache.set(b.id, c);
+  return c;
+}

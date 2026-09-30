@@ -52,10 +52,10 @@ const CALVIN_PICK_MS = 550;
 /** Level-up banner duration (s). */
 const BANNER_SECONDS = 2.4;
 /**
- * Gate boost: flying through a ring gate's hole refills this much shade charge. It equals the
- * original game's ring-rim (gate) hit penalty (0.28 of the bar), with the sign flipped.
+ * Ring gates are pure boosts: touching any part of one (rim or hole) sets the shade charge to
+ * this (a full bar), once per gate. Gates never cost a dog, shade or count as a hit.
  */
-const GATE_BOOST = 0.28;
+const GATE_CHARGE = 1.0;
 /** Dog pack: a normal run (levels 1-10) starts with N0 dogs on screen. */
 const PACK_START = 4;
 /** Per-dog scale with the full pack (s0); each dog is this times its breed size. */
@@ -187,6 +187,10 @@ export class Game {
   /** Fan mode of the current run (MODES menu), or null for a normal run. */
   private mode: ModeDef | null = null;
   private modesOpen = false;
+  /** performance.now() when the MODES menu opened: taps just after it are the opening tap's ghost click. */
+  private modesOpenedAt = 0;
+  /** The view was re-laid out (rotation) since the last walkthrough frame: don't count it as movement. */
+  private tutViewMoved = false;
   /** MODES menu Easter egg: THE CALVIN TWINS entry toggled to THE CALVIN TRIPLETS. */
   private calvinTriplets = false;
   /** MODES menu: the CALVIN entry is selected and starts after a short beat unless tapped again. */
@@ -310,6 +314,10 @@ export class Game {
   }
 
   private bindChrome(): void {
+    // The last button fired by a pointer tap. The browser's follow-up click is hit-tested after
+    // that tap may have closed an overlay (e.g. MODES' BACK), so it can land on the button
+    // underneath (the gold clone button started a level-11 run); such a click is a ghost.
+    const lastPointerTap = { el: null as HTMLElement | null, t: 0 };
     const bindTap = (el: HTMLElement | null, fn: () => void): void => {
       if (!el) return;
       let armed = false;
@@ -325,6 +333,8 @@ export class Game {
         if (!armed) return;
         armed = false;
         fromPointer = true;
+        lastPointerTap.el = el;
+        lastPointerTap.t = performance.now();
         fn();
       });
       el.addEventListener('pointercancel', () => {
@@ -337,6 +347,7 @@ export class Game {
           fromPointer = false;
           return;
         }
+        if (lastPointerTap.el !== el && performance.now() - lastPointerTap.t < 600) return;
         fn();
       });
     };
@@ -437,10 +448,10 @@ export class Game {
         name.textContent = m.name;
         const ships = document.createElement('span');
         ships.className = 'mode-ships';
-        ships.textContent = `${m.ships.toLocaleString('en-US')} SHIPS`;
+        ships.textContent = `${m.ships.toLocaleString('en-US')} DOGS`;
         ships.style.color = m.tint;
         b.append(name, ships);
-        b.setAttribute('aria-label', `${m.name}, ${m.ships} ships`);
+        b.setAttribute('aria-label', `${m.name}, ${m.ships} dogs`);
         if (m.behavior === 'calvin') {
           b.id = 'calvin-pick';
           bindTap(b, () => this.tapCalvin(b));
@@ -454,7 +465,16 @@ export class Game {
       void this.audio.unlock();
       this.openModes();
     });
-    bindTap(document.getElementById('modes-back'), () => this.closeModes());
+    bindTap(document.getElementById('modes-back'), () => {
+      if (!this.modesGhostTap()) this.closeModes();
+    });
+    // Title screen: the big MODES button (the small one sits with HOW TO PLAY on game-over).
+    bindTap(document.getElementById('modes-big'), () => {
+      void this.audio.unlock();
+      this.openModes();
+    });
+    // SKIP on every How to Play step (first load and replays).
+    bindTap(document.getElementById('tut-skip'), () => this.skipTutorial());
 
     // Difficulty − / + (title & game-over menus, all devices)
     bindTap(document.getElementById('diff-minus'), () => {
@@ -514,13 +534,21 @@ export class Game {
     if (this.state !== 'title' && this.state !== 'gameover') return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
     this.modesOpen = true;
+    this.modesOpenedAt = performance.now();
     const el = document.getElementById('modes-menu');
+    const card = el?.querySelector<HTMLElement>('.cg-card');
+    if (card) card.scrollTop = 0;
     el?.classList.add('open');
     el?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modes-open');
     this.input.clearTouch();
     this.input.clearJustPressed();
     this.audio.playUi();
+  }
+
+  /** A tap on the MODES menu within 400 ms of opening it is the opening tap's ghost click (touch). */
+  private modesGhostTap(): boolean {
+    return performance.now() - this.modesOpenedAt < 400;
   }
 
   private closeModes(): void {
@@ -545,7 +573,7 @@ export class Game {
    * TWINS <-> TRIPLETS, with a flourish, and leaves it selected. Works with touch or mouse.
    */
   private tapCalvin(b: HTMLElement): void {
-    if (!this.modesOpen) return;
+    if (!this.modesOpen || this.modesGhostTap()) return;
     const variant = () => (this.calvinTriplets ? CALVIN_TRIPLETS : MODES.find((m) => m.behavior === 'calvin'));
     if (this.calvinPickTimer) {
       window.clearTimeout(this.calvinPickTimer);
@@ -575,8 +603,8 @@ export class Game {
     const name = b.querySelector('.mode-name');
     const ships = b.querySelector('.mode-ships');
     if (name) name.textContent = m.name;
-    if (ships) ships.textContent = `${m.ships} SHIPS`;
-    b.setAttribute('aria-label', `${m.name}, ${m.ships} ships`);
+    if (ships) ships.textContent = `${m.ships} DOGS`;
+    b.setAttribute('aria-label', `${m.name}, ${m.ships} dogs`);
     if (flourish) {
       b.classList.remove('egg');
       void b.offsetWidth; // restart the CSS animation
@@ -587,7 +615,7 @@ export class Game {
 
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
   private pickMode(m: ModeDef): void {
-    if (!this.modesOpen) return;
+    if (!this.modesOpen || this.modesGhostTap()) return;
     this.closeModes();
     void this.audio.unlock();
     this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, m);
@@ -849,6 +877,37 @@ export class Game {
     };
   }
 
+  /**
+   * The logical view changed size mid-run (phone rotated): keep the ship, pack, hazards and
+   * circles in the same relative spots instead of stranding them at old coordinates, and give a
+   * short grace so the re-layout can't cause a hit. Score, run, level and timers are untouched.
+   */
+  private relayoutPlayfield(oldW: number, oldH: number): void {
+    const sx = this.viewW / oldW;
+    const sy = this.viewH / oldH;
+    const live = this.state === 'playing' || this.state === 'paused';
+    this.player.x *= sx;
+    this.player.y *= sy;
+    for (const o of this.world.obstacles) {
+      o.x = (o.x + o.w / 2) * sx - o.w / 2;
+      o.y = (o.y + o.h / 2) * sy - o.h / 2;
+    }
+    for (const c of this.world.collectibles) {
+      c.x *= sx;
+      c.y *= sy;
+    }
+    for (const sl of this.formation.slots) {
+      if (!sl.occupied) continue;
+      sl.x *= sx;
+      sl.y *= sy;
+    }
+    if (live) {
+      this.player.invuln = Math.max(this.player.invuln, 1.0);
+      for (const sl of this.formation.slots) if (sl.occupied) sl.invuln = Math.max(sl.invuln, 1.0);
+    }
+    this.tutViewMoved = true;
+  }
+
   /** Logical px reserved so craft stays above thumb stick / BOOST / notch. */
   private touchReserves(): { top: number; bottom: number; left: number } {
     if (!this.touchPrimary) return { top: 60, bottom: 60, left: 20 };
@@ -922,9 +981,12 @@ export class Game {
       : LANDSCAPE_H;
     const viewChanged = nextW !== this.viewW || nextH !== this.viewH;
     if (viewChanged) {
+      const oldW = this.viewW;
+      const oldH = this.viewH;
       this.viewW = nextW;
       this.viewH = nextH;
       this.renderer.resize(this.viewW, this.viewH);
+      if (oldW > 0 && oldH > 0) this.relayoutPlayfield(oldW, oldH);
     }
 
     let displayW: number;
@@ -1044,7 +1106,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #menu-btns, #clone-btn, #demo, #diff-ctl, #donate')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1071,6 +1133,7 @@ export class Game {
     document.body.classList.toggle('title-screen', this.state === 'title');
     document.body.classList.toggle('gameover', this.state === 'gameover');
     document.body.classList.toggle('initials', this.state === 'initials');
+    document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
     this.syncWakeLock();
     // Title-screen demo loop plays only while the title is up.
     const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
@@ -1495,6 +1558,12 @@ export class Game {
       return;
     }
 
+    if (this.tutStep >= 0 && this.input.consume('escape')) {
+      // Esc skips the How to Play walkthrough (P still pauses it).
+      this.skipTutorial();
+      this.input.clearJustPressed();
+      return;
+    }
     if (this.input.consume('p') || this.input.consume('escape')) {
       this.togglePause();
     }
@@ -1758,6 +1827,13 @@ export class Game {
     if (this.tutStep < 0) return;
     this.tutStep = -1;
     saveTutorialDone();
+    this.tutViewMoved = false;
+    while (this.floaters.length) {
+      const f = this.floaters.pop();
+      if (f) this.floaterPool.push(f);
+    }
+    this.player.reset(this.viewH);
+    this.charge = 1;
     this.world.reset();
     this.world.spawnObstacles = true;
     this.world.spawnCollectibles = true;
@@ -1767,6 +1843,13 @@ export class Game {
     this.input.clearTouch();
     this.input.clearJustPressed();
     this.audio.playUi();
+  }
+
+  /** SKIP (button, or Esc on desktop): end the walkthrough on any step; saved as seen, nothing scored. */
+  private skipTutorial(): void {
+    if (this.tutStep < 0 || (this.state !== 'playing' && this.state !== 'paused')) return;
+    void this.audio.unlock();
+    this.finishTutorial();
   }
 
   /**
@@ -1830,6 +1913,12 @@ export class Game {
       fs.length = w;
     }
 
+    if (this.tutViewMoved) {
+      // Rotation / resize re-laid the view out: that jump isn't the player flying.
+      this.tutViewMoved = false;
+      this.tutLastX = this.player.x;
+      this.tutLastY = this.player.y;
+    }
     if (this.tutStep === 0) {
       this.tutProgress += Math.hypot(this.player.x - this.tutLastX, this.player.y - this.tutLastY);
       this.tutLastX = this.player.x;
@@ -1848,11 +1937,11 @@ export class Game {
     const touch = this.touchPrimary;
     switch (this.tutStep) {
       case 0:
-        return { title: 'MOVE YOUR SHIP', lines: [touch ? 'Drag the stick to fly' : 'WASD / Arrows to fly'] };
+        return { title: 'MOVE YOUR DOG', lines: [touch ? 'Drag the stick to fly' : 'WASD / Arrows to fly'] };
       case 1:
         return {
           title: 'DODGE THE GLARE',
-          lines: ['Beams, flares, neon bars and ring rims cost a dog', "Fly through a ring's hole: GATE BOOST, +shade"],
+          lines: ['Beams, flares and neon bars cost a dog', 'Fly into any ring gate: GATE BOOST, FULL POWER'],
         };
       case 2:
         return {
@@ -1866,7 +1955,7 @@ export class Game {
             'Survive 30 seconds to pass a level',
             'Levels 1 to 10 get harder as you go',
             'You start with 4 dogs: lose them all = game over',
-            `Circles and ring gates refill shade; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
+            `Circles refill shade, gates fill it; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
             touch ? 'Tap to ride' : 'ENTER or click to ride',
           ],
         };
@@ -2126,40 +2215,56 @@ export class Game {
   }
 
   /**
-   * Ring gates: when a ring's centre line passes the player's ship, a ship inside the hole
-   * gets a GATE BOOST (+GATE_BOOST shade) with a gold ring flash, sparkle burst and chime.
+   * Ring gates: the first touch on any part of a ring (rim or hole) by the player's dog or a
+   * pack / swarm dog gives GATE BOOST · FULL POWER (shade to a full bar) with a gold ring flash,
+   * sparkle burst and chime. Once per gate; gates are never hazards.
    */
   private checkGates(): void {
-    const px = this.player.x;
-    const py = this.player.y;
-    for (const o of this.world.obstacles) {
+    const obs = this.world.obstacles;
+    let rings = false;
+    for (const o of obs) if (o.kind === 'ring' && o.alive && !o.passed) rings = true;
+    if (!rings) return;
+    const phb = this.player.hitbox;
+    for (const o of obs) {
       if (o.kind !== 'ring' || !o.alive || o.passed) continue;
-      const cx = o.x + o.w / 2;
-      if (px < cx) continue;
+      let touched = this.touchesGate(o, phb.x, phb.y, phb.w, phb.h);
+      if (!touched) {
+        for (const sl of this.formation.slots) {
+          if (!sl.occupied) continue;
+          const w = 52 * sl.scale * 0.7;
+          const h = 28 * sl.scale * 0.7;
+          if (this.touchesGate(o, sl.x - w / 2, sl.y - h / 2, w, h)) {
+            touched = true;
+            break;
+          }
+        }
+      }
+      if (!touched) continue;
       o.passed = true;
+      const cx = o.x + o.w / 2;
       const cy = o.y + o.h / 2;
-      const ny = (py - cy) / (o.h / 2);
-      if (ny * ny > 0.42) continue; // not through the hole (the rim / outside)
-      this.charge = clamp(this.charge + GATE_BOOST, 0, 1);
+      this.charge = Math.max(this.charge, GATE_CHARGE);
       o.boostT = GATE_GLOW_SECONDS;
       this.audio.playGate();
       this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
-      this.spawnFloater(cx, o.y - 6, 'GATE BOOST +SHADE', '#ffe66d');
+      this.spawnFloater(cx, o.y - 6, 'GATE BOOST · FULL POWER', '#ffe66d');
     }
   }
 
+  /** Does this box touch any part of ring gate o (its outer ellipse, rim included)? */
+  private touchesGate(o: Obstacle, x: number, y: number, w: number, h: number): boolean {
+    const cx = o.x + o.w / 2;
+    const cy = o.y + o.h / 2;
+    const qx = clamp(cx, x, x + w);
+    const qy = clamp(cy, y, y + h);
+    const nx = (qx - cx) / (o.w / 2);
+    const ny = (qy - cy) / (o.h / 2);
+    return nx * nx + ny * ny <= 1.05;
+  }
+
   private hitsObstacle(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
-    if (o.kind === 'ring') {
-      const cx = o.x + o.w / 2;
-      const cy = o.y + o.h / 2;
-      const px = hb.x + hb.w / 2;
-      const py = hb.y + hb.h / 2;
-      const nx = (px - cx) / (o.w / 2);
-      const ny = (py - cy) / (o.h / 2);
-      const d2 = nx * nx + ny * ny;
-      // hit the rim, safe in the hole
-      return d2 < 1.05 && d2 > 0.42;
-    }
+    // Ring gates are never hazards (touching one is a GATE BOOST, see checkGates).
+    if (o.kind === 'ring') return false;
     if (o.kind === 'flare') {
       return circleRect(o.x + o.w / 2, o.y + o.h / 2, o.w * 0.38, hb.x, hb.y, hb.w, hb.h);
     }

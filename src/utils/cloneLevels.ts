@@ -46,5 +46,5 @@ export function formatShips(n: number): string {
 }
 
 export function shipsLabel(n: number): string {
-  return `${formatShips(n)} ${n === 1 ? 'SHIP' : 'SHIPS'}`;
+  return `${formatShips(n)} ${n === 1 ? 'DOG' : 'DOGS'}`;
 }

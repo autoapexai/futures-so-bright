@@ -2,7 +2,7 @@ import type { Player } from '../entities/Player';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
-import { paintShip, shipSprite, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, type Breed } from '../render/shipSprite';
+import { paintShip, shipSprite, dogGlyph, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, GLYPH_W, GLYPH_H, GLYPH_AX, GLYPH_AY, type Breed } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
 
@@ -32,7 +32,12 @@ const COL = {
   white: '#ffffff',
 };
 
+/** Smallest scale the player's dog is drawn at (visual only; the hitbox keeps p.scale). */
+const PLAYER_MIN_VIS = 0.6;
+
 export class Renderer {
+  /** Scratch list for drawSwarm's tiny glyph dogs (reused each frame). */
+  private tinyDogs: Formation['slots'][number][] = [];
   shake = 0;
   flash = 0;
   /** Lower-cost path for mobile Safari (fewer rays, less blur, thinner scanlines). */
@@ -392,17 +397,15 @@ export class Renderer {
       const t = p.trail[i];
       ctx.globalAlpha = t.a * 0.45;
       ctx.fillStyle = COL.cyan;
-      if (this.lite) {
-        const tw = 18 * t.a;
-        const th = 10 * t.a;
-        ctx.fillRect(t.x - tw * 0.5, t.y - th * 0.5, tw, th);
-      } else {
+      // A soft round jet trail (never a block), sized with the drawn dog.
+      if (!this.lite) {
         ctx.shadowBlur = 10;
         ctx.shadowColor = COL.cyan;
-        ctx.beginPath();
-        ctx.ellipse(t.x, t.y, 10 * t.a, 6 * t.a, 0, 0, Math.PI * 2);
-        ctx.fill();
       }
+      const tv = Math.min(1, Math.max(p.scale, PLAYER_MIN_VIS));
+      ctx.beginPath();
+      ctx.ellipse(t.x, t.y, 10 * t.a * tv, 6 * t.a * tv, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
@@ -415,8 +418,21 @@ export class Renderer {
     const tilt = clamp(p.vy / 400, -0.35, 0.35);
     ctx.rotate(tilt);
 
+    // The player's Border Collie is always drawn legibly: never smaller than PLAYER_MIN_VIS
+    // (about 20+ px on a phone) even in the tiny swarm modes; the hitbox stays at true scale.
+    // When enlarged, a soft cyan halo marks it out from the swarm.
+    const vis = Math.max(p.scale, PLAYER_MIN_VIS);
+    if (vis > p.scale * 1.25) {
+      ctx.fillStyle = 'rgba(10, 0, 24, 0.72)';
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.75)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(-4 * vis, -4 * vis, 44 * vis, 30 * vis, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     // Jet flame (animated), then the dog itself via the shared ship sprite painter.
-    ctx.scale(p.scale, p.scale);
+    ctx.scale(vis, vis);
     const flick = 0.7 + Math.sin(this.time * 40) * 0.3;
     ctx.shadowBlur = this.lite ? 0 : 16;
     ctx.shadowColor = COL.cyan;
@@ -805,8 +821,8 @@ export class Renderer {
 
   /**
    * A fan mode's swarm: every occupied slot, each its own dog (shared ship sprite) at its
-   * own normalised scale. Dogs under ~7 px wide (or 'dot' style) are batched as plain
-   * rects, one fill per fur colour; bigger ones are one drawImage each of a cached sprite.
+   * own normalised scale. Dogs under ~16 px wide (or 'dot' style) are stamped as a cached
+   * minimal dog glyph (at least ~10 px wide); bigger ones are one drawImage each of a cached sprite.
    * `hidden` is a slot not drawn (decoy "dead"). An "x N" counter covers ships beyond the
    * drawn ones (only if a swarm is ever capped).
    */
@@ -821,28 +837,24 @@ export class Renderer {
     hidden: object | null = null,
   ): void {
     const blinkOff = Math.floor(this.time * 20) % 2 === 0;
-    const dots = new Map<string, Path2D>();
+    const minW = this.u(10);
+    const tiny = this.tinyDogs;
+    tiny.length = 0;
     for (const s of f.slots) {
       if (!s.occupied || s === hidden) continue;
       if (s.invuln > 0 && blinkOff) continue;
       const k = s.scale;
-      if (style === 'dot' || SPRITE_W * k < 7) {
-        let path = dots.get(s.breed.fur);
-        if (!path) {
-          path = new Path2D();
-          dots.set(s.breed.fur, path);
-        }
-        const w = Math.max(1.5, 36 * k);
-        const h = Math.max(1.5, 20 * k);
-        path.rect(s.x - w / 2, s.y - h / 2, w, h);
+      if (style === 'dot' || SPRITE_W * k < 16) {
+        // Tiny dog: the minimal glyph, drawn at least minW wide so it still reads as a dog.
+        tiny.push(s);
       } else {
         const img = shipSprite(s.breed, { accent: tint, outline: style === 'outline', flame: true });
         ctx.drawImage(img, s.x - SPRITE_AX * k, s.y - SPRITE_AY * k, SPRITE_W * k, SPRITE_H * k);
       }
     }
-    for (const [fur, path] of dots) {
-      ctx.fillStyle = fur;
-      ctx.fill(path);
+    for (const d of tiny) {
+      const gp = Math.max(minW, 55 * d.scale) / GLYPH_W; // one glyph px
+      ctx.drawImage(dogGlyph(d.breed), d.x - (GLYPH_AX + 1) * gp, d.y - (GLYPH_AY + 1) * gp, (GLYPH_W + 2) * gp, (GLYPH_H + 2) * gp);
     }
     const undrawn = ships - 1 - f.occupiedCount;
     if (undrawn > 0) {
