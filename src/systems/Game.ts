@@ -111,8 +111,17 @@ export function packScale(n: number): number {
 /** ON A MISSION: taps on the MODES title that unlock it, and the most time between two of them (ms). */
 const MISSION_TAPS = 5;
 const MISSION_TAP_GAP_MS = 2000;
-/** ON A MISSION car: linear scale vs a standard ship (sprite length 52 * scale; hitbox 70 %). */
-const MISSION_CAR_SCALE = 1.4;
+/**
+ * ON A MISSION car. Art: MISSION_CAR_LEN view units long (64 car units; body + bumpers ~1.1x
+ * that). Hitbox: a standard ship's at MISSION_HIT_SCALE (52 x 28 * scale, 70 % of it), so the
+ * hitbox grows about half as much as the art did (art 1.4 -> 1.8, hitbox 1.4 -> 1.6) and stays
+ * inside the body: obstacles have to touch the car itself, not its glow or light bar.
+ */
+const MISSION_CAR_LEN = 52 * 1.8;
+const MISSION_HIT_SCALE = 1.6;
+/** The car's top above its centre (light bar), and below it (wheels + hover glow), car units. */
+const MISSION_CAR_UP = 25;
+const MISSION_CAR_DOWN = 19;
 /** ON A MISSION: shade a hit costs (x the level's hit damage). A hit never takes shade below the floor. */
 const MISSION_HIT_SHADE = 0.12;
 const MISSION_SHADE_FLOOR = 0.05;
@@ -1490,8 +1499,9 @@ export class Game {
     this.renderer.chromeRight = this.touchPrimary ? 128 * sx : 0;
 
     const r = this.touchReserves();
+    const rv = this.missionRun ? this.missionReserves(r) : r;
     this.player.x = clamp(this.player.x, r.left, this.viewW * 0.55);
-    this.player.y = clamp(this.player.y, r.top, this.viewH - r.bottom);
+    this.player.y = clamp(this.player.y, rv.top, this.viewH - rv.bottom);
     if (this.state === 'paused') this.pauseDrawn = false;
   };
 
@@ -2268,6 +2278,8 @@ export class Game {
     const pr = this.touchReserves();
     // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
     const f = this.formation;
+    // ON A MISSION: the (bigger) car stays fully under the HUD.
+    const mr = this.missionRun ? this.missionReserves(pr) : pr;
     this.player.update(
       dt,
       this.input.axis,
@@ -2275,10 +2287,11 @@ export class Game {
       this.viewW,
       this.viewH,
       speedMul,
-      pr.top + f.extUp,
-      pr.bottom + f.extDown,
+      mr.top + f.extUp,
+      mr.bottom + f.extDown,
       pr.left + f.extLeft,
     );
+    if (this.missionRun && this.touchPrimary) this.keepCarClearOfControls(dt);
     if (this.packRun) {
       // Pack growth eases in over ~0.3 s; sprites and hitboxes use the same scale.
       const want = packScale(this.ships);
@@ -3177,7 +3190,7 @@ export class Game {
     const sumB2 = breeds.reduce((a, b) => a + breedScale(b) ** 2, 0);
     const k = Math.sqrt((n * scale * scale) / sumB2);
     this.player.breed = breeds[0];
-    this.player.scale = isMission(m) ? MISSION_CAR_SCALE : k * breedScale(breeds[0]);
+    this.player.scale = isMission(m) ? MISSION_HIT_SCALE : k * breedScale(breeds[0]);
     this.player.w = 52 * this.player.scale;
     this.player.h = 28 * this.player.scale;
     const sp = m.spacing;
@@ -3204,7 +3217,69 @@ export class Game {
 
   /** Car length in px / 64 car units (the car painter's scale). */
   private get carScale(): number {
-    return this.player.w / 64;
+    return MISSION_CAR_LEN / 64;
+  }
+
+  /**
+   * ON A MISSION on touch layouts: when the (bigger) car drops onto the BOOST button or the stick
+   * (landscape phones: they sit over the lower lane corners), it slides sideways off the control
+   * so it's never drawn under one. Only x moves; the lane height is unchanged.
+   */
+  private keepCarClearOfControls(dt: number): void {
+    const p = this.player;
+    const s = this.carScale;
+    const half = 36 * s;
+    const top = p.y - MISSION_CAR_UP * s;
+    const bottom = p.y + MISSION_CAR_DOWN * s;
+    const maxX = this.viewW * 0.55;
+    for (const r of this.controlRectsCached()) {
+      if (bottom <= r.y || top >= r.y + r.h || p.x + half <= r.x || p.x - half >= r.x + r.w) continue;
+      const leftSide = r.x + r.w / 2 < this.viewW / 2;
+      const want = leftSide ? r.x + r.w + half + 4 : r.x - half - 4;
+      if (leftSide ? want > maxX : want < 20) continue;
+      const step = 1400 * dt;
+      p.x = leftSide ? Math.min(want, p.x + step) : Math.max(want, p.x - step);
+    }
+  }
+
+  private ctlRects: { x: number; y: number; w: number; h: number }[] = [];
+  private ctlRectsAt = -1;
+  /** touchControlRects(), re-measured at most every 250 ms (layout reads, not every frame). */
+  private controlRectsCached(): { x: number; y: number; w: number; h: number }[] {
+    const now = performance.now();
+    if (this.ctlRectsAt < 0 || now - this.ctlRectsAt > 250) {
+      this.ctlRects = this.touchControlRects();
+      this.ctlRectsAt = now;
+    }
+    return this.ctlRects;
+  }
+
+  /** The stick and BOOST button in view units (touch layouts), for keeping comic bursts clear. */
+  private touchControlRects(): { x: number; y: number; w: number; h: number }[] {
+    const cv = this.canvas.getBoundingClientRect();
+    if (cv.width < 1 || cv.height < 1) return [];
+    const kx = this.viewW / cv.width;
+    const ky = this.viewH / cv.height;
+    const out: { x: number; y: number; w: number; h: number }[] = [];
+    for (const el of [document.getElementById('joy-base'), document.querySelector<HTMLElement>('[data-action="boost"]')]) {
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      out.push({ x: (r.left - cv.left) * kx, y: (r.top - cv.top) * ky, w: r.width * kx, h: r.height * ky });
+    }
+    return out;
+  }
+
+  /**
+   * ON A MISSION: the car's centre limits so the whole car (light bar to wheels) stays under the
+   * HUD and inside the lane on every layout; touch layouts keep their stick / BOOST reserve.
+   */
+  private missionReserves(pr: { top: number; bottom: number }): { top: number; bottom: number } {
+    const s = this.carScale;
+    return {
+      top: Math.max(pr.top, Math.ceil(this.renderer.hudBottom(this.viewW, this.viewH) + MISSION_CAR_UP * s + 4)),
+      bottom: Math.max(pr.bottom, Math.ceil(MISSION_CAR_DOWN * s + 6)),
+    };
   }
 
   /**
@@ -3342,8 +3417,12 @@ export class Game {
         const p = this.player;
         const blink = p.invuln > 0 && Math.floor(this.pulse * 20) % 2 === 0;
         const lens = this.charge > 0.3 ? 'rgba(0, 255, 220, 0.95)' : 'rgba(255, 200, 50, 0.95)';
-        this.car.draw(ctx, p.x, p.y, clamp(p.vy / 500, -0.3, 0.3), this.carScale, this.pulse, this.renderer.lite, lens, blink ? 0.45 : 1);
-        this.car.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite);
+        this.car.draw(ctx, p.x, p.y, clamp(p.vy / 500, -0.3, 0.3), this.carScale, this.pulse, this.renderer.lite, lens, blink ? 0.7 : 1);
+        // Comic bursts: under the HUD, above the stick / BOOST (touch) or the lane edge.
+        const popTop = this.renderer.hudBottom(this.viewW, this.viewH) + this.renderer.u(4);
+        const popBottom = this.viewH - (this.touchPrimary ? this.touchReserves().bottom : 24);
+        const avoid = this.touchPrimary && this.car.pops.length > 0 ? this.controlRectsCached() : [];
+        this.car.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite, { top: popTop, bottom: popBottom, avoid });
       } else this.renderer.drawPlayer(ctx, this.player, this.charge);
       if (this.shieldT > 0) drawPizzaShield(ctx, this.player.x, this.player.y, Math.max(this.player.w, this.player.h) * 0.75 + 14, this.pulse, this.shieldT);
       this.renderer.drawFloaters(ctx, this.floaters);

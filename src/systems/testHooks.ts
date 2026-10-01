@@ -62,7 +62,14 @@ export function installTestHooks(game: unknown): void {
       missionRun: g.missionRun,
       missionUnlocked: g.missionUnlocked,
       car: g.missionRun
-        ? { partsLeft: g.car.partsLeft, lost: g.car.lost, hits: g.car.hits, debris: g.car.debris.length, pops: g.car.pops.map((p: any) => p.text) }
+        ? { partsLeft: g.car.partsLeft, lost: g.car.lost, hits: g.car.hits, debris: g.car.debris.length, pops: g.car.pops.map((p: any) => p.text),
+            popRects: g.car.popRects.map((r: any) => ({ ...r })),
+            carScale: g.carScale,
+            carRect: { x: g.player.x - 36 * g.carScale, y: g.player.y - 25 * g.carScale, w: 72 * g.carScale, h: 44 * g.carScale },
+            hitbox: { ...g.player.hitbox },
+            hudBottom: g.renderer.hudBottom(g.viewW, g.viewH),
+            controls: g.touchPrimary ? g.touchControlRects() : [],
+            view: { w: g.viewW, h: g.viewH } }
         : null,
       devOpen: g.devOpen,
       boardIsRemote: g.boardIsRemote,

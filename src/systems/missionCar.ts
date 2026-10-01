@@ -27,8 +27,8 @@ interface PartInfo {
 
 export const PARTS: readonly PartInfo[] = [
   { id: 'hubcapR', cx: -20, cy: 7, pop: 'mis_pop_hubcap', sfx: 'boing', color: '#7fffff' },
-  { id: 'siren', cx: 0, cy: -18.5, pop: 'mis_pop_siren', sfx: 'siren', color: '#ff4ec8' },
-  { id: 'door', cx: 0, cy: -0.5, pop: 'mis_pop_door', sfx: 'clang', color: '#ffe66d' },
+  { id: 'siren', cx: 0, cy: -20.2, pop: 'mis_pop_siren', sfx: 'siren', color: '#ff4ec8' },
+  { id: 'door', cx: -0.2, cy: -0.9, pop: 'mis_pop_door', sfx: 'clang', color: '#ffe66d' },
   { id: 'mirror', cx: 14.5, cy: -11, pop: 'mis_pop_mirror', sfx: 'tinkle', color: '#7fffff' },
   { id: 'hood', cx: 23, cy: -5.3, pop: 'mis_pop_hood', sfx: 'whistleUp', color: '#ffe66d' },
   { id: 'bumperR', cx: -33.3, cy: 4.2, pop: 'mis_pop_bumper', sfx: 'clang', color: '#ff6b35' },
@@ -71,9 +71,19 @@ interface Puff {
 interface Pop {
   text: string;
   x: number;
+  /** The car's centre y when it popped, and how far above / below it the burst sits. */
   y: number;
+  off: number;
   t: number;
   color: string;
+}
+
+/** Where comic bursts may go: under the HUD and above the touch controls (view units). */
+export interface PopBounds {
+  top: number;
+  bottom: number;
+  /** On-screen controls to keep clear of (stick, BOOST), view units. */
+  avoid: readonly { x: number; y: number; w: number; h: number }[];
 }
 
 const POP_SECONDS = 1.0;
@@ -84,6 +94,8 @@ export class MissionCar {
   debris: Debris[] = [];
   puffs: Puff[] = [];
   pops: Pop[] = [];
+  /** Where the last frame drew each comic burst (view units, at its 1.3x peak size; for tests). */
+  popRects: { x: number; y: number; w: number; h: number }[] = [];
   hits = 0;
   /** Parts knocked off this run (for tests / the HUD). */
   lost = 0;
@@ -117,13 +129,13 @@ export class MissionCar {
   repair(x: number, y: number, s: number): boolean {
     if (this.attached.size >= PARTS.length) return false;
     for (const p of PARTS) this.attached.add(p.id);
-    this.pop(tr('mis_pop_tape'), x, y - 30 * s, '#c8c8d0');
+    this.pop(tr('mis_pop_tape'), x, y, s, '#e0e0ea');
     return true;
   }
 
-  private pop(text: string, x: number, y: number, color: string): void {
-    if (this.pops.length >= 4) this.pops.shift();
-    this.pops.push({ text, x, y, t: 0, color });
+  private pop(text: string, x: number, y: number, s: number, color: string): void {
+    if (this.pops.length >= 3) this.pops.shift();
+    this.pops.push({ text, x: x + 6 * s, y, off: 34 * s, t: 0, color });
   }
 
   private puff(x: number, y: number, r: number, vx: number, vy: number, life = 0.9): void {
@@ -157,13 +169,13 @@ export class MissionCar {
       });
       if (this.debris.length > 14) this.debris.shift();
       this.puff(px, py, 5 * s, -80, -30, 0.6);
-      this.pop(tr(p.pop), x, y - 30 * s, p.color);
+      this.pop(tr(p.pop), x, y, s, p.color);
       return p.sfx;
     }
     const g = BARE[this.bareHits++ % BARE.length];
     this.sputterT = Math.max(this.sputterT, g.sputter);
     for (let i = 0; i < g.smoke; i++) this.puff(x + (rnd() - 0.2) * 30 * s, y - (4 + rnd() * 10) * s, (4 + rnd() * 5) * s, -60 - rnd() * 120, -20 - rnd() * 60, 0.8 + rnd() * 0.6);
-    this.pop(tr(g.pop), x, y - 30 * s, g.sfx === 'honk' ? '#ffe66d' : '#c8c8d0');
+    this.pop(tr(g.pop), x, y, s, g.sfx === 'honk' ? '#ffe66d' : '#e0e0ea');
     return g.sfx;
   }
 
@@ -222,6 +234,17 @@ export class MissionCar {
       jy = Math.cos(time * 75) * 1.2 * this.rattleT;
     }
     if (this.sputterT > 0) jy += Math.floor(time * 14) % 2 === 0 ? -1.4 : 0.6;
+    // Smoke goes behind the car, so a smoking wreck still reads as a car.
+    ctx.save();
+    for (const p of this.puffs) {
+      const k = p.life / p.max;
+      ctx.globalAlpha = 0.42 * k;
+      ctx.fillStyle = k > 0.6 ? '#b8b8c6' : '#7c7c8c';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(x + jx * s, y + jy * s);
@@ -231,18 +254,14 @@ export class MissionCar {
     ctx.restore();
   }
 
-  /** Flying parts, smoke and comic bursts (over the car). u = the HUD's unit scale. */
-  drawFx(ctx: CanvasRenderingContext2D, s: number, W: number, u: (n: number) => number, time: number, lite: boolean): void {
+  /**
+   * Flying parts, smoke and comic bursts (over the car). u = the HUD's unit scale. Bursts sit just
+   * above the car, or just below it when above would reach the HUD, and always inside `pb`.
+   */
+  drawFx(ctx: CanvasRenderingContext2D, s: number, W: number, u: (n: number) => number, time: number, lite: boolean, pb: PopBounds): void {
     ctx.save();
-    for (const p of this.puffs) {
-      const k = p.life / p.max;
-      ctx.globalAlpha = 0.55 * k;
-      ctx.fillStyle = k > 0.6 ? '#b8b8c6' : '#7c7c8c';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
     ctx.globalAlpha = 1;
+    this.popRects.length = 0;
     for (const d of this.debris) {
       const info = PARTS.find((p) => p.id === d.id);
       if (!info) continue;
@@ -254,20 +273,77 @@ export class MissionCar {
       paintPart(ctx, d.id, time, d.rot, lite);
       ctx.restore();
     }
-    for (const p of this.pops) {
+    // Lay the bursts out newest first, so a fresh one sits by the car and older ones step aside
+    // (never over the HUD, the touch controls, the car or each other), then draw oldest first.
+    const s0 = this.ls;
+    const car = { x: this.lx - 36 * s0, y: this.ly - 25 * s0, w: 72 * s0, h: 44 * s0 };
+    const placed: { x: number; y: number; w: number; h: number }[] = [];
+    const lay: { p: Pop; cx: number; cy: number; fs: number; rx: number; ry: number; sc: number; k: number }[] = [];
+    for (let n = this.pops.length - 1; n >= 0; n--) {
+      const p = this.pops[n];
       const k = p.t / POP_SECONDS;
       const sc = k < 0.12 ? 0.5 + (k / 0.12) * 0.8 : 1.3 - (k - 0.12) * 0.35;
+      let fs = u(15);
+      ctx.font = `900 ${fs}px 'Orbitron', sans-serif`;
+      let tw = ctx.measureText(p.text).width;
+      // Fit the burst (at its 1.3x peak) to the lane width (long words on narrow portrait lanes).
+      const maxW = W - 16;
+      const full = (tw + 2 * u(12)) * 1.3;
+      if (full > maxW) {
+        fs *= maxW / full;
+        ctx.font = `900 ${fs}px 'Orbitron', sans-serif`;
+        tw = ctx.measureText(p.text).width;
+      }
+      const rx = tw / 2 + u(12);
+      const ry = fs * 1.05;
+      const halfW = rx * 1.3 + 4;
+      const halfH = ry * 1.3 + 4;
+      const lo = pb.top + halfH;
+      const hi = Math.max(lo, pb.bottom - halfH);
+      // Preferred spot: just above the car (rising), else just below it. Then the nearest spot
+      // that is clear of the HUD, the touch controls, the car and the newer bursts.
+      const above = p.y - p.off - halfH * 0.4 - k * u(18);
+      const below = p.y + p.off + halfH * 0.4 + k * u(10);
+      const clampY = (y: number): number => Math.max(lo, Math.min(hi, y));
+      const clampX = (x: number): number => Math.max(halfW, Math.min(W - halfW, x));
+      const prefY = clampY(above >= lo ? above : below);
+      const prefX = clampX(p.x);
+      const blocks = [...pb.avoid, car, ...placed];
+      const free = (x: number, y: number): boolean =>
+        !blocks.some((r) => x + halfW > r.x && x - halfW < r.x + r.w && y + halfH > r.y && y - halfH < r.y + r.h);
+      const ys = [prefY, clampY(above), clampY(below)];
+      for (let y = lo; y <= hi; y += halfH * 0.5) ys.push(y);
+      const xs = [prefX];
+      for (const r of pb.avoid) xs.push(clampX(r.x + r.w + halfW + 2), clampX(r.x - halfW - 2));
+      let best: { x: number; y: number } | null = null;
+      let bestCost = Infinity;
+      for (const y of ys) {
+        for (const x of xs) {
+          const cost = Math.abs(y - prefY) + Math.abs(x - prefX) * 0.6;
+          if (cost < bestCost && free(x, y)) {
+            best = { x, y };
+            bestCost = cost;
+          }
+        }
+      }
+      // No free spot: an older burst is dropped (it was about to fade anyway); the newest stays put.
+      if (!best && n < this.pops.length - 1) continue;
+      const cx = best ? best.x : prefX;
+      const cy = best ? best.y : prefY;
+      const rect = { x: cx - halfW, y: cy - halfH, w: halfW * 2, h: halfH * 2 };
+      placed.push(rect);
+      this.popRects.push(rect);
+      lay.push({ p, cx, cy, fs, rx, ry, sc, k });
+    }
+    for (let n = lay.length - 1; n >= 0; n--) {
+      const { p, cx, cy, fs, rx, ry, sc, k } = lay[n];
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - k * k);
-      ctx.font = `900 ${u(17)}px 'Orbitron', sans-serif`;
-      const tw = ctx.measureText(p.text).width;
-      const half = (tw * 1.3) / 2 + 6;
-      ctx.translate(Math.max(half + 4, Math.min(W - half - 4, p.x)), Math.max(u(40), p.y - k * 34));
-      ctx.rotate(-0.1);
+      ctx.font = `900 ${fs}px 'Orbitron', sans-serif`;
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.08);
       ctx.scale(sc, sc);
       // Comic starburst behind the word.
-      const rx = tw / 2 + u(14);
-      const ry = u(19);
       ctx.beginPath();
       for (let i = 0; i < 24; i++) {
         const a = (i / 24) * Math.PI * 2;
@@ -302,10 +378,15 @@ export class MissionCar {
 
 // --- painting (car units) ---------------------------------------------------------------------
 
-const BLACK = '#15151c';
-const WHITE = '#efeff2';
-const CHROME = '#cfd6e0';
-const NEON = 'rgba(127, 255, 255, 0.7)';
+const BLACK = '#0c0c12';
+const BLACK_HI = '#2c2c3a';
+const WHITE = '#ffffff';
+const WHITE_SH = '#c9cfdc';
+const CHROME = '#dfe6f0';
+const GLASS = '#3d6f99';
+const GLASS_HI = 'rgba(190, 240, 255, 0.55)';
+const RIM = 'rgba(255, 255, 255, 0.95)';
+const HALO = 'rgba(160, 235, 255, 0.28)';
 
 function bodyPath(ctx: CanvasRenderingContext2D): void {
   ctx.beginPath();
@@ -322,162 +403,212 @@ function bodyPath(ctx: CanvasRenderingContext2D): void {
   ctx.closePath();
 }
 
-/** The whole car: chassis, cabin, sunglasses on the dash, wheels, then each part still on. */
+function cabinPath(ctx: CanvasRenderingContext2D): void {
+  ctx.beginPath();
+  ctx.moveTo(-15.5, -6.5);
+  ctx.lineTo(-11, -16.5);
+  ctx.lineTo(6.5, -16.5);
+  ctx.lineTo(14.5, -6.5);
+  ctx.closePath();
+}
+
+/**
+ * The whole car: a white halo + rim so it reads on the dark purple lanes, black chassis (hood,
+ * trunk, fenders), white roof and doors, light glass with sunglasses on the dash, wheels, then
+ * each part still on.
+ */
 function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, wheelA: number, lite: boolean, lens: string, sputter: boolean): void {
   // Hover glow + tailpipe flame (it's still the future).
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.16)';
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.28)';
   ctx.beginPath();
-  ctx.ellipse(0, 15, 30, 3.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 15.5, 31, 3.4, 0, 0, Math.PI * 2);
   ctx.fill();
   const flick = 0.7 + Math.sin(time * 40) * 0.3;
   if (!sputter || Math.floor(time * 14) % 2 === 0) {
-    ctx.fillStyle = `rgba(0, 255, 255, ${0.55 * flick})`;
+    ctx.fillStyle = `rgba(0, 255, 255, ${0.75 * flick})`;
     ctx.beginPath();
-    ctx.moveTo(-33, 2.5);
-    ctx.lineTo(-33 - 13 * flick, 4);
-    ctx.lineTo(-33, 5.5);
+    ctx.moveTo(-33, 2.2);
+    ctx.lineTo(-33 - 15 * flick, 4);
+    ctx.lineTo(-33, 5.8);
     ctx.closePath();
     ctx.fill();
   }
 
-  // Chassis.
-  ctx.fillStyle = BLACK;
+  // Halo: a soft light outline (no shadowBlur, so it shows on lite / phone renders too).
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = HALO;
+  ctx.lineWidth = 4.2;
+  bodyPath(ctx);
+  ctx.stroke();
   if (!lite) {
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = 'rgba(140, 230, 255, 0.9)';
   }
+  // Chassis: black (hood, trunk, fenders).
+  ctx.fillStyle = BLACK;
   bodyPath(ctx);
   ctx.fill();
   ctx.shadowBlur = 0;
-  // White roof and the white door band (classic black-and-white).
-  ctx.fillStyle = WHITE;
+  // A sheen line along the black body.
+  ctx.strokeStyle = BLACK_HI;
+  ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.moveTo(-11, -16.5);
-  ctx.lineTo(6.5, -16.5);
-  ctx.lineTo(7.4, -15.2);
-  ctx.lineTo(-11.6, -15.2);
-  ctx.closePath();
-  ctx.fill();
-  // Windows (dark glass) with the B-pillar.
-  ctx.fillStyle = '#1d2c4a';
-  ctx.beginPath();
-  ctx.moveTo(-13.6, -7.2);
-  ctx.lineTo(-10, -14.6);
-  ctx.lineTo(5.6, -14.6);
-  ctx.lineTo(12, -7.2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = 'rgba(127, 255, 255, 0.18)';
-  ctx.beginPath();
-  ctx.moveTo(-9, -14);
-  ctx.lineTo(-6.5, -14);
-  ctx.lineTo(-10, -8);
-  ctx.lineTo(-12, -8);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = BLACK;
-  ctx.fillRect(-1.6, -14.8, 2, 7.8);
-  // Duct tape across the rear window crack.
-  ctx.strokeStyle = 'rgba(200, 200, 210, 0.85)';
-  ctx.lineWidth = 1.3;
-  ctx.beginPath();
-  ctx.moveTo(-11.5, -11.5);
-  ctx.lineTo(-4.5, -9.5);
+  ctx.moveTo(-31, -3.2);
+  ctx.lineTo(31.5, -3);
   ctx.stroke();
-  // Sunglasses on the dash (front window, bottom edge). The lenses glint with the shade charge.
-  ctx.save();
-  ctx.translate(6.4, -8.6);
-  ctx.fillStyle = '#050508';
-  ctx.beginPath();
-  ctx.moveTo(-4.4, -1.6);
-  ctx.lineTo(4.4, -1.6);
-  ctx.lineTo(4.1, 0.2);
-  ctx.quadraticCurveTo(3.4, 1.8, 1.8, 1.4);
-  ctx.lineTo(0.6, -0.2);
-  ctx.lineTo(-0.6, -0.2);
-  ctx.lineTo(-1.8, 1.4);
-  ctx.quadraticCurveTo(-3.4, 1.8, -4.1, 0.2);
+
+  // White roof + pillars (the black-and-white's white top).
+  ctx.fillStyle = WHITE;
+  cabinPath(ctx);
+  ctx.fill();
+  // Glass: light tinted so the black sunglasses on the dash stand out.
+  ctx.fillStyle = GLASS;
+  ctx.beginPath(); // rear side window
+  ctx.moveTo(-13, -7.4);
+  ctx.lineTo(-9.4, -14.6);
+  ctx.lineTo(-2.2, -14.6);
+  ctx.lineTo(-2.2, -7.4);
   ctx.closePath();
   ctx.fill();
-  const glint = 0.55 + 0.45 * Math.max(0, Math.sin(time * 2.4));
+  ctx.beginPath(); // front side window
+  ctx.moveTo(-0.2, -14.6);
+  ctx.lineTo(5.4, -14.6);
+  ctx.lineTo(11.4, -7.4);
+  ctx.lineTo(-0.2, -7.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = GLASS_HI;
+  ctx.beginPath();
+  ctx.moveTo(-8.2, -14.2);
+  ctx.lineTo(-5.8, -14.2);
+  ctx.lineTo(-9.2, -7.8);
+  ctx.lineTo(-11.4, -7.8);
+  ctx.closePath();
+  ctx.moveTo(2.4, -14.2);
+  ctx.lineTo(4, -14.2);
+  ctx.lineTo(1.4, -10.6);
+  ctx.lineTo(-0.2, -10.6);
+  ctx.closePath();
+  ctx.fill();
+  // Duct tape across the rear window crack.
+  ctx.strokeStyle = 'rgba(225, 225, 235, 0.95)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-11.8, -11.6);
+  ctx.lineTo(-3.4, -9.4);
+  ctx.stroke();
+  // Sunglasses on the dash (bottom of the front window): big black frames, lenses glint with the shade.
+  ctx.save();
+  ctx.translate(6.2, -9.4);
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.moveTo(-5.4, -2.1);
+  ctx.lineTo(5.4, -2.1);
+  ctx.lineTo(5.1, 0.4);
+  ctx.quadraticCurveTo(4.4, 2.5, 2.1, 2);
+  ctx.lineTo(0.8, -0.1);
+  ctx.lineTo(-0.8, -0.1);
+  ctx.lineTo(-2.1, 2);
+  ctx.quadraticCurveTo(-4.4, 2.5, -5.1, 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.lineWidth = 0.45;
+  ctx.stroke();
+  const glint = 0.6 + 0.4 * Math.max(0, Math.sin(time * 2.4));
   ctx.globalAlpha *= glint;
   ctx.fillStyle = lens;
-  ctx.fillRect(-3.5, -1.1, 1.1, 0.9);
-  ctx.fillRect(1.6, -1.1, 1.1, 0.9);
+  ctx.fillRect(-4.3, -1.4, 1.6, 1.1);
+  ctx.fillRect(1.9, -1.4, 1.6, 1.1);
   ctx.restore();
+  // Dash line under the glass.
+  ctx.fillStyle = WHITE_SH;
+  ctx.fillRect(-13.4, -7.4, 25.4, 0.9);
 
   // Under the parts: what shows when they're gone.
   if (!on.has('door')) {
     ctx.fillStyle = '#2a0d2e';
-    ctx.fillRect(-12.5, -6, 25, 11);
-    ctx.fillStyle = '#6b1f3a';
-    ctx.fillRect(-10, -5.5, 6, 8.5); // seat back
-    ctx.strokeStyle = '#8a8a96';
+    ctx.fillRect(-14, -6.4, 27.6, 11);
+    ctx.fillStyle = '#8a2a4e';
+    ctx.fillRect(-11, -5.6, 6.5, 8.6); // seat back
+    ctx.strokeStyle = '#b8b8c4';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(8, -2.5, 2.6, 0, Math.PI * 2); // steering wheel
     ctx.stroke();
+    // The white door frame stays (sill + pillar), so the bare car still reads black-and-white.
+    ctx.fillStyle = WHITE;
+    ctx.fillRect(-14, 3.2, 27.6, 1.6);
+    ctx.fillRect(-14, -6.4, 1.4, 11.2);
+    ctx.fillRect(12.2, -6.4, 1.4, 11.2);
+    ctx.fillRect(-1.3, -6.4, 1.4, 11.2);
   }
   if (!on.has('hood')) {
-    ctx.fillStyle = '#5a5a66';
-    ctx.fillRect(16, -7.6, 12, 3.4);
-    ctx.fillStyle = `rgba(255, 107, 53, ${0.5 + 0.3 * Math.sin(time * 9)})`;
-    ctx.fillRect(18, -8.4, 3, 1.2);
-    ctx.fillRect(23.5, -8.4, 3, 1.2);
+    ctx.fillStyle = '#6a6a78';
+    ctx.fillRect(16, -7.8, 12, 3.6);
+    ctx.fillStyle = `rgba(255, 107, 53, ${0.6 + 0.3 * Math.sin(time * 9)})`;
+    ctx.fillRect(18, -8.6, 3, 1.3);
+    ctx.fillRect(23.5, -8.6, 3, 1.3);
   }
   if (!on.has('trunk')) {
-    ctx.fillStyle = '#07070a';
-    ctx.fillRect(-30.5, -7.2, 14.5, 3);
-    ctx.strokeStyle = '#3a3a44';
+    ctx.fillStyle = '#050508';
+    ctx.fillRect(-30.5, -7.4, 14.5, 3.2);
+    ctx.strokeStyle = '#6a6a78';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(-23, -5.6, 3.2, Math.PI, Math.PI * 2); // spare tire
+    ctx.arc(-23, -5.8, 3.2, Math.PI, Math.PI * 2); // spare tire
     ctx.stroke();
   }
 
   // Dents, rust and the lights that never fall off.
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = 'rgba(120, 120, 140, 0.8)';
+  ctx.lineWidth = 0.7;
   ctx.beginPath();
-  ctx.arc(-26, 0.5, 2.6, -0.3, 1.9);
-  ctx.moveTo(27, 1);
-  ctx.arc(26, 1, 2.2, 0.2, 2.4);
+  ctx.arc(-26, 0.8, 2.4, -0.3, 1.9);
+  ctx.moveTo(27, 1.3);
+  ctx.arc(26, 1.3, 2, 0.2, 2.4);
   ctx.stroke();
-  ctx.fillStyle = '#7a3b12';
-  for (const [rx, ry, rr] of [[-29, 3.5, 1.1], [-17, 4.4, 0.8], [28.5, 4.2, 0.9], [15.5, -4.6, 0.7]] as const) {
+  ctx.fillStyle = '#9a4a18';
+  for (const [rx, ry, rr] of [[-29, 3.5, 1.1], [-18.4, 4.4, 0.8], [28.5, 4.2, 0.9]] as const) {
     ctx.beginPath();
     ctx.arc(rx, ry, rr, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.fillStyle = '#ffe66d';
-  if (!lite) {
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = '#ffe66d';
-  }
-  ctx.fillRect(31.4, -4.6, 2, 2.4); // headlight
+  ctx.fillStyle = 'rgba(255, 230, 109, 0.35)';
+  ctx.beginPath(); // headlight beam
+  ctx.moveTo(33.4, -4.4);
+  ctx.lineTo(44, -7.5);
+  ctx.lineTo(44, 0.5);
+  ctx.lineTo(33.4, -1.8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff3a8';
+  ctx.fillRect(31.2, -4.8, 2.4, 2.8); // headlight
   ctx.fillStyle = '#ff3355';
-  ctx.shadowColor = '#ff3355';
-  ctx.fillRect(-33.2, -4.2, 1.6, 2.4); // tail light
-  ctx.shadowBlur = 0;
+  ctx.fillRect(-33.4, -4.4, 1.9, 2.8); // tail light
 
-  // Neon rim (the game's look).
-  ctx.strokeStyle = NEON;
-  ctx.lineWidth = 0.7;
+  // Crisp white rim + the game's neon edge.
+  ctx.strokeStyle = RIM;
+  ctx.lineWidth = 0.9;
+  bodyPath(ctx);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(127, 255, 255, 0.85)';
+  ctx.lineWidth = 0.45;
   bodyPath(ctx);
   ctx.stroke();
 
   // Wheels (always stay on).
   for (const wx of [-20, 20]) {
-    ctx.fillStyle = '#08080b';
+    ctx.fillStyle = '#050507';
     ctx.beginPath();
-    ctx.arc(wx, 7, 6.2, 0, Math.PI * 2);
+    ctx.arc(wx, 7, 6.4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(127, 255, 255, 0.45)';
-    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(200, 245, 255, 0.85)';
+    ctx.lineWidth = 0.8;
     ctx.stroke();
     const cap = wx < 0 ? 'hubcapR' : 'hubcapF';
     if (!on.has(cap)) {
-      ctx.fillStyle = '#6b4a2a';
+      ctx.fillStyle = '#7a5530';
       ctx.beginPath();
       ctx.arc(wx, 7, 2.6, 0, Math.PI * 2);
       ctx.fill();
@@ -496,113 +627,122 @@ function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, 
 function paintPart(ctx: CanvasRenderingContext2D, id: PartId, time: number, spin: number, lite: boolean): void {
   switch (id) {
     case 'siren': {
-      ctx.fillStyle = '#2a2a33';
-      ctx.fillRect(-6.5, -17.2, 13, 1.4);
-      const on = Math.floor(time * 6) % 2 === 0;
-      if (!lite) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = on ? '#ff2244' : '#2266ff';
-      }
-      ctx.fillStyle = on ? '#ff2244' : '#7a1020';
+      // Red / blue light bar: both halves lit, alternating bright, with a fake glow (works on lite).
+      const phase = Math.floor(time * 7) % 2 === 0;
+      const red = phase ? '#ff2a4a' : '#a01830';
+      const blue = phase ? '#2050c0' : '#4a8cff';
+      ctx.fillStyle = phase ? 'rgba(255, 40, 70, 0.36)' : 'rgba(60, 120, 255, 0.38)';
       ctx.beginPath();
-      ctx.moveTo(-6, -17.2);
-      ctx.lineTo(-5.4, -20.4);
-      ctx.lineTo(-0.6, -20.4);
-      ctx.lineTo(-0.4, -17.2);
+      ctx.ellipse(phase ? -5.5 : 5.5, -20, 11, 6.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#d6dae2';
+      ctx.fillRect(-10.5, -17.4, 21, 1.4);
+      if (!lite) {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = phase ? '#ff2244' : '#3a7aff';
+      }
+      ctx.fillStyle = red;
+      ctx.beginPath();
+      ctx.moveTo(-10, -17.3);
+      ctx.lineTo(-9.2, -23);
+      ctx.lineTo(-0.5, -23);
+      ctx.lineTo(-0.5, -17.3);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = on ? '#16307a' : '#2a66ff';
+      ctx.fillStyle = blue;
       ctx.beginPath();
-      ctx.moveTo(0.4, -17.2);
-      ctx.lineTo(0.6, -20.4);
-      ctx.lineTo(5.4, -20.4);
-      ctx.lineTo(6, -17.2);
+      ctx.moveTo(0.5, -17.3);
+      ctx.lineTo(0.5, -23);
+      ctx.lineTo(9.2, -23);
+      ctx.lineTo(10, -17.3);
       ctx.closePath();
       ctx.fill();
       ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fillRect(phase ? -8 : 1.8, -22.4, 6.2, 1);
       break;
     }
     case 'antenna':
       ctx.strokeStyle = CHROME;
-      ctx.lineWidth = 0.6;
+      ctx.lineWidth = 0.75;
       ctx.beginPath();
       ctx.moveTo(-28, -6);
       ctx.quadraticCurveTo(-29, -16, -31, -25);
       ctx.stroke();
       ctx.fillStyle = '#ff6b35';
       ctx.beginPath();
-      ctx.arc(-31, -25, 1, 0, Math.PI * 2);
+      ctx.arc(-31, -25, 1.2, 0, Math.PI * 2);
       ctx.fill();
       break;
     case 'mirror':
-      ctx.strokeStyle = BLACK;
+      ctx.strokeStyle = CHROME;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
       ctx.moveTo(12.6, -7.6);
       ctx.lineTo(14, -9.8);
       ctx.stroke();
       ctx.fillStyle = BLACK;
-      ctx.fillRect(13, -12.6, 3.2, 3);
+      ctx.fillRect(13, -12.8, 3.4, 3.2);
+      ctx.strokeStyle = RIM;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(13, -12.8, 3.4, 3.2);
       ctx.fillStyle = CHROME;
-      ctx.fillRect(15.4, -12.2, 0.7, 2.2);
+      ctx.fillRect(15.6, -12.4, 0.7, 2.4);
       break;
     case 'hood':
-      ctx.fillStyle = '#1e1e27';
+      ctx.fillStyle = '#16161f';
       ctx.beginPath();
-      ctx.moveTo(14.5, -6.6);
-      ctx.lineTo(31, -6.1);
+      ctx.moveTo(14.5, -6.7);
+      ctx.lineTo(31, -6.2);
       ctx.lineTo(32.4, -3.6);
       ctx.lineTo(15.2, -4.2);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(16, -5.9);
-      ctx.lineTo(29.5, -5.5);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 0.55;
       ctx.stroke();
       break;
     case 'trunk':
-      ctx.fillStyle = '#1e1e27';
+      ctx.fillStyle = '#16161f';
       ctx.beginPath();
-      ctx.moveTo(-31.4, -6);
-      ctx.lineTo(-15.6, -6.6);
+      ctx.moveTo(-31.4, -6.1);
+      ctx.lineTo(-15.6, -6.7);
       ctx.lineTo(-15.2, -4.2);
       ctx.lineTo(-31.8, -3.6);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(-30, -5.4);
-      ctx.lineTo(-17, -5.8);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 0.55;
       ctx.stroke();
       break;
     case 'door':
+      // The white door band (front + rear doors) of the black-and-white.
       ctx.fillStyle = WHITE;
-      ctx.fillRect(-12.5, -6, 25, 11);
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillRect(-14, -6.4, 27.6, 11);
+      ctx.fillStyle = WHITE_SH;
+      ctx.fillRect(-14, 3.2, 27.6, 1.4);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.lineWidth = 0.5;
-      ctx.strokeRect(-12.5, -6, 25, 11);
+      ctx.strokeRect(-14, -6.4, 27.6, 11);
       ctx.beginPath();
-      ctx.moveTo(-0.6, -6);
-      ctx.lineTo(-0.6, 5);
+      ctx.moveTo(-0.6, -6.4);
+      ctx.lineTo(-0.6, 4.6);
       ctx.stroke();
       // a dent and the handles
       ctx.beginPath();
-      ctx.arc(-6, 1.5, 2.2, 0.4, 2.6);
+      ctx.arc(-6.5, 1.2, 2.2, 0.4, 2.6);
       ctx.stroke();
-      ctx.fillStyle = CHROME;
-      ctx.fillRect(-4.6, -4.4, 2.6, 0.7);
-      ctx.fillRect(8, -4.4, 2.6, 0.7);
+      ctx.fillStyle = '#5a6070';
+      ctx.fillRect(-4.8, -4.6, 2.8, 0.8);
+      ctx.fillRect(8.2, -4.6, 2.8, 0.8);
       break;
     case 'bumperF':
     case 'bumperR': {
       const x = id === 'bumperF' ? 31.6 : -35;
       ctx.fillStyle = CHROME;
-      ctx.fillRect(x, 2.4, 3.4, 3.6);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.fillRect(x + 0.4, 2.8, 2.6, 0.7);
+      ctx.fillRect(x, 2.2, 3.6, 3.9);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + 0.4, 2.6, 2.8, 0.8);
       break;
     }
     case 'hubcapF':
@@ -610,9 +750,9 @@ function paintPart(ctx: CanvasRenderingContext2D, id: PartId, time: number, spin
       const wx = id === 'hubcapF' ? 20 : -20;
       ctx.fillStyle = CHROME;
       ctx.beginPath();
-      ctx.arc(wx, 7, 3.9, 0, Math.PI * 2);
+      ctx.arc(wx, 7, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#7a8290';
+      ctx.strokeStyle = '#6a7280';
       ctx.lineWidth = 0.6;
       ctx.beginPath();
       for (let i = 0; i < 5; i++) {
