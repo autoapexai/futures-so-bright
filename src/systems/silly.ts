@@ -1,10 +1,11 @@
 /**
  * Dan's silliness pack: kitchen-appliance pickups, the leftover-pizza shield, the "cat is
  * walking on the keyboard" fake loading screen, trailer-voice grocery-list taunts, and the
- * THE BOARD group photo shown after the level 111 boss.
+ * boss group photo shown after the level 111 boss.
  */
 import type { BossDef } from './Boss';
 import { drawMimeMini } from './bossMime';
+import { drawToonMini } from './bossToons';
 
 export type Appliance = 'toaster' | 'blender' | 'microwave';
 export const APPLIANCES: readonly Appliance[] = ['toaster', 'blender', 'microwave'];
@@ -29,18 +30,95 @@ export const GROCERIES: Record<string, string[]> = {
     'CREAM PIES (FOR ART)',
   ],
   mantzoukas: ['EGGS', 'MILK', 'ONE (1) REGRETTABLE MELON', 'A MIRROR, FOR SOME REASON', 'TWO OF EVERYTHING', 'ADJACENT CHEESE'],
-  calvin: ['TWIN-PACK YOGURT', 'BOGO BANANAS', 'TWO (2) IDENTICAL HAMS', 'DOUBLE-STUFFED ANYTHING', 'MATCHING SOCKS'],
-  decoy: ['DECOY DUCKS', 'FAKE MUSTACHE', 'IMITATION CRAB', 'ONE (1) SUSPICIOUS LEMON', 'TRENCH COAT (SNACK SIZE)'],
-  buckle: ['EXTRA-LONG BELT', 'SPARE BUCKLES (BULK)', 'ZIPPER WAX', 'LEATHER CONDITIONER', 'ONE (1) HAIR PICK', 'STRETCHY JEANS', 'DANCE-FLOOR SNACKS'],
+  calvin: [
+    '(TOSSES MANE DRAMATICALLY) HAY, ONE (1) BALE',
+    '(NEIGHS IN HARMONY) TWIN-PACK CARROTS',
+    'HORSESHOES, GOLD, SIZE: FANCY',
+    '(STRETCHES NECK TO THE TOP SHELF) SUGAR CUBES',
+    'TWO (2) IDENTICAL PARACHUTES',
+    '(WEEPS INTO A FEEDBAG) APPLES, BOTH KINDS',
+  ],
+  decoy: [
+    '(PULLS A RABBIT OUT OF THE CART) LETTUCE, FOR THE RABBIT',
+    '(SWOOSHES CAPE) DOVE SEED, BULK',
+    'ONE (1) CARDBOARD ME',
+    '(TA-DAA!) MILK. NO WAIT. IT WAS EGGS.',
+    'HANDKERCHIEFS, KNOTTED, ENDLESS',
+    'IS THIS YOUR CEREAL?',
+  ],
+  buckle: [
+    '(STRUTS DOWN AISLE FIVE) EXTRA-LONG BELT',
+    '(A BUCKLE POPS OFF) SPARE BUCKLES, BULK',
+    'ONE (1) BIRTHDAY CAKE, BIG ENOUGH TO HIDE IN',
+    '(MOONWALKS TO THE REGISTER) SUSPENDERS. JUST IN CASE.',
+    'DISCO BALL POLISH',
+    '(GASPS) STRETCHY PANTS',
+  ],
   toofat: ['FAMILY-SIZE EVERYTHING', 'A WHEEL OF CHEESE', 'BULK BUTTER', 'ONE (1) ENORMOUS TURKEY', 'STRETCHY PANTS'],
-  daly: ['HEADSHOTS', 'AUDITION SNACKS', 'A CHARACTER VOICE', 'MYSTERY JERKY', 'CALLBACK CRACKERS'],
-  toosuccessful: ['GOLD-LEAF BAGELS', 'CAVIAR (THE GOOD KIND)', 'A YACHT, SMALL', 'IMPORTED WATER', 'MONOGRAMMED NAPKINS'],
-  alw: ['THROAT LOZENGES', 'CHANDELIER (DECORATIVE)', 'CATS FOOD', 'A PHANTOM MASK', 'OPERA-LENGTH BAGUETTE'],
-  slackerman: ['SNACKS (UNOPENED)', 'TISSUES', 'ONE (1) NAP', 'COLD PIZZA', 'SOMEDAY SPINACH'],
-  cbb: ['BANG BANG SHRIMP', 'IMPROV PICKLES', 'YES-AND YAMS', 'ONE (1) BIT', 'NOISEMAKERS'],
-  curry: ['MORNING COFFEE', 'SATS-FLAVORED GUM', 'A BOOSTAGRAM', 'DOLLAR-STORE MICROPHONE', 'VALUE-FOR-VALUE VEGGIES'],
-  dvorak: ['WRONG MILK', 'CONTRARIAN CEREAL', 'BACKWARDS BAGELS', 'A STRONGLY WORDED LETTUCE', 'ONE (1) OPINION'],
-  itm: ['3,333 EGGS', 'MORNING MUFFINS', 'DOTS (BULK)', 'ONE (1) CORKBOARD', 'A CAT MAGNET', 'EVERYTHING ELSE'],
+  daly: [
+    '(TWIRLS LASSO, HITS OWN FACE) ROPE, LONGER',
+    'BEANS. ALL OF THE BEANS.',
+    '(GALLOPS ON A STICK HORSE) HORSE (STICK)',
+    'A HAT, BIGGER',
+    '(QUICK-DRAWS A RUBBER CHICKEN) RUBBER CHICKEN REFILLS',
+    'HEADSHOTS (COWBOY), HEADSHOTS (ALSO COWBOY)',
+  ],
+  toosuccessful: [
+    'BEEP BOOP. GOLD-LEAF BAGELS.',
+    '(ROCKET BOOTS SPUTTER) PREMIUM ROCKET FUEL',
+    'ONE (1) TROPHY, FOR BEING A TROPHY',
+    '(TIGHTENS LOOSE BOLT) BOLTS, GOLD, LOOSE',
+    'MONEY BAGS (FOR CARRYING MONEY BAGS)',
+    'POLISH. SO MUCH POLISH.',
+  ],
+  alw: [
+    '(HITS A HIGH C, A WINE GLASS SHATTERS) THROAT LOZENGES',
+    'CANDLES, FOR MY ARMS',
+    '(FAINTS ONTO A FAINTING COUCH) A FAINTING COUCH',
+    'MASKS (CHORUS, SIX)',
+    '(SWINGS ON CHAIN) A STURDIER CHAIN',
+    'ROSES, THROWN, PRE-CAUGHT',
+  ],
+  slackerman: [
+    '(YAWNS FOR NINE SECONDS) POPCORN, EXTRA BUTTER',
+    'SODA, THE BIG ONE',
+    '(SHUSHES THE AUDIENCE) EARPLUGS',
+    'ONE (1) RECLINER, PRE-RECLINED',
+    '(FALLS ASLEEP MID-SENTENCE) PILLOWS... ZZZ',
+    '3D GLASSES (FOR SLEEPING)',
+  ],
+  cbb: [
+    '(HONK HONK) CANNON GREASE',
+    'CONFETTI, INDUSTRIAL SIZE',
+    '(SQUEEZES INTO A TINY CAR) A SLIGHTLY LESS TINY CAR',
+    'RUBBER DUCKS, A THOUSAND OF THEM',
+    '(KA-BOOM!) EYEBROWS, REPLACEMENT',
+    'WHOOPEE CUSHIONS (UNWHOOPEED)',
+  ],
+  curry: [
+    '(TUNES IN WITH A HAND-WAVE) MORNING COFFEE',
+    'CASSETTE TAPES, BLANK, FOR MIXTAPES',
+    '(STATIC NOISES) RABBIT EARS, ANTENNA',
+    'SHOULDER PADS, BIGGER',
+    '(SPINS DIAL) VALUE-FOR-VALUE VEGGIES',
+    'ONE (1) LASER BACKGROUND',
+  ],
+  dvorak: [
+    '(CROSSES ARMS) WRONG MILK',
+    'A HALO, BUT CONTRARIAN',
+    '(FLAPS TINY WINGS FURIOUSLY) CLOUD, SINGLE SERVING',
+    'HARPS. NO. NOT HARPS. FINE, HARPS.',
+    '(DISAGREES WITH THE CASHIER) BACKWARDS BAGELS',
+    'FEATHERS, PRE-RUFFLED',
+  ],
+  itm: [
+    '(RUSTLES MENACINGLY) THUMBTACKS, BULK',
+    'STICKY NOTES THAT ACTUALLY STICK',
+    '(THE CAT MAGNET SLIPS) A STRONGER CAT MAGNET',
+    'ONE (1) POLAROID OF THE DUCHESS, FRAMED',
+    '(PAPERS FLUTTER) MORNING MUFFINS',
+    'PUSH PINS, GOLD, FOR SPECIAL OCCASIONS',
+  ],
 };
 
 /** Build one trailer taunt: "IN A WORLD... EGGS. MILK. ONE (1) REGRETTABLE MELON." */
@@ -50,7 +128,7 @@ export function groceryTaunt(modeId: string, rng: () => number, jabs: string[]):
   const n = 3;
   for (let i = 0; i < n && pool.length; i++) items.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
   if (jabs.length && rng() < 0.55) items.splice(1 + Math.floor(rng() * 2), 1, jabs[Math.floor(rng() * jabs.length)]);
-  return `IN A WORLD... ${items.join('. ')}.`;
+  return `IN A WORLD... ${items.map((x) => (/[.?!]$/.test(x) ? x : `${x}.`)).join(' ')}`;
 }
 
 /** Player-history jabs as list items, from local data only. */
@@ -209,6 +287,10 @@ function mini(ctx: CanvasRenderingContext2D, d: BossDef, x: number, y: number, w
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);
+  if (drawToonMini(ctx, d.modeId, 0, 0, w, h * 1.15, performance.now() / 1000)) {
+    ctx.restore();
+    return;
+  }
   const cork = d.level === 111;
   ctx.fillStyle = cork ? '#b5835a' : 'rgba(10,0,28,0.95)';
   ctx.fillRect(-w / 2, -h / 2, w, h);
@@ -301,7 +383,7 @@ export function drawGroupPhoto(ctx: CanvasRenderingContext2D, defs: BossDef[], W
   ctx.fillStyle = '#222';
   ctx.textAlign = 'center';
   ctx.font = `700 ${u(portrait ? 16 : 15)}px 'Comic Sans MS', 'Marker Felt', cursive`;
-  ctx.fillText(`THE BOARD · CLASS OF LEVEL 111 (${list.length} BOSS${list.length === 1 ? '' : 'ES'})`, 0, ph / 2 - ph * 0.07);
+  ctx.fillText(`CLASS OF LEVEL 111 (${list.length} BOSS${list.length === 1 ? '' : 'ES'})`, 0, ph / 2 - ph * 0.07);
   ctx.restore();
 }
 

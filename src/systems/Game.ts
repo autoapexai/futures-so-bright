@@ -36,7 +36,7 @@ import {
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { trackRunStart } from '../utils/track';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
-import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, isCharacterBoss, type BossDef } from './Boss';
+import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -223,7 +223,7 @@ export class Game {
   private decoyFaked = false;
   private decoySlot: CloneSlot | null = null;
   private decoyHiddenT = 0;
-  /** THE BOARD fight in progress (end of levels 10, 20 ... 110 and 111), else null. */
+  /** Boss fight in progress (end of levels 10, 20 ... 110 and 111), else null. */
   private boss: BossFight | null = null;
   /** This level's boss has been fought (beaten or bored), so the level can now be cleared. */
   private bossDone = false;
@@ -1879,7 +1879,7 @@ export class Game {
     this.runTime += dt;
     // Every level 1-111 is a 30 s stage: passing it promotes to the next level (score carries
     // over; gold levels 11+ also multiply the clone swarm). Exactly one level per pass.
-    // Every tenth level (and 111) ends with THE BOARD: the level timer holds at the end while
+    // Every tenth level (and 111) ends with a boss: the level timer holds at the end while
     // the boss is up, and the level clears once it is beaten (or gets bored and leaves).
     this.levelTime += dt;
     if (this.boss) {
@@ -1956,6 +1956,7 @@ export class Game {
         py: this.player.y,
         packH: this.player.h + f.extUp + f.extDown,
         boosting,
+        right: this.bossRightLimit(),
       });
       this.bossEvents();
     }
@@ -1975,7 +1976,7 @@ export class Game {
     }
 
     this.distance += this.scrollSpeed * dt * 0.35;
-    // The stage ramp holds while THE BOARD is up (a long fight must not run the scroll away).
+    // The stage ramp holds while a boss is up (a long fight must not run the scroll away).
     if (!this.boss) this.stageDist += this.scrollSpeed * dt * 0.35;
     this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
     if (this.score > SCORE_CAP) this.score = SCORE_CAP;
@@ -2066,7 +2067,7 @@ export class Game {
       }
     }
 
-    // THE BOARD: a shot (or its body) on the lead dog costs shade, not dogs (see bossHit).
+    // Boss: a shot (or its body) on the lead dog costs shade, not dogs (see bossHit).
     if (this.boss && this.player.invuln <= 0) {
       const bf = this.boss;
       let hit = bf.bodyHits(hb.x, hb.y, hb.w, hb.h);
@@ -2485,18 +2486,64 @@ export class Game {
     this.player.invuln = Math.max(this.player.invuln, 1.0);
   }
 
-  /** THE BOARD arrives: hazards stop spawning (shades and rings keep coming). */
+  /** A boss arrives: hazards stop spawning (shades and rings keep coming). */
   private startBoss(def: BossDef): void {
     const local = loadLeaderboard();
     const bestLvl = local.reduce((a, e) => Math.max(a, e.difficulty ?? 0), 0);
-    const pinned = Math.max(this.high, this.remoteBoard?.[0]?.score ?? 0);
-    this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length), pinned);
+    this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length));
+    this.bossRightT = -1e9;
     this.bossesFought.push(def);
     this.world.spawnObstacles = false;
-    this.bannerText = isCharacterBoss(def) ? def.name : `THE BOARD  ·  ${def.name}`;
+    this.bannerText = def.name;
     this.bannerT = BANNER_SECONDS;
     this.audio.playPromote();
     console.info(`[fsb] boss L${def.level} ${def.modeId} seed ${this.boss.seed}`);
+  }
+
+  /**
+   * Logical x the boss keeps left of, so the touch controls never cover it on a sideways screen
+   * (the stick / BOOST button sit over the right of the lane there). Measured from the DOM
+   * (re-checked twice a second); portrait keeps its controls in the bottom reserve, so no shift.
+   */
+  private bossRightT = -1e9;
+  /** Centre y of the boss banner this frame (0 = not stacked under the boss header). */
+  private bossBannerY = 0;
+  private bossRightV = 0;
+  private bossRightLimit(): number {
+    const W = this.viewW;
+    const now = performance.now();
+    if (now - this.bossRightT < 500 && this.bossRightV > 0) return this.bossRightV;
+    this.bossRightT = now;
+    let right = W;
+    const rects: { x: number; y: number; w: number; h: number }[] = [];
+    const c = this.canvas.getBoundingClientRect();
+    if (this.touchPrimary && c.width > 0 && c.height > 0) {
+      const sx = W / c.width;
+      const sy = this.viewH / c.height;
+      const box = (sel: string): { x: number; y: number; w: number; h: number } | null => {
+        const el = document.querySelector<HTMLElement>(sel);
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return null;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return null;
+        return { x: (r.left - c.left) * sx, y: (r.top - c.top) * sy, w: r.width * sx, h: r.height * sy };
+      };
+      const boost = box('.touch-action[data-action="boost"]');
+      const stick = box('#joy-base');
+      for (const r of [boost, stick]) if (r) rects.push(r);
+      if (this.viewH < W) {
+        // Sideways: keep the boss left of whatever control sits on the right of the lane (the
+        // whole stick zone, since the stick recentres under the thumb anywhere in it).
+        for (const r of [box('#joy-zone'), boost]) {
+          if (!r || r.x < W * 0.45 || r.y > this.viewH - 8) continue;
+          right = Math.min(right, r.x - 6);
+        }
+      }
+    }
+    if (this.boss) this.boss.controls = rects;
+    this.bossRightV = Math.max(W * 0.6, right);
+    return this.bossRightV;
   }
 
   /** Apply the boss's queued events (rings, hits, stun, bonus, exit). */
@@ -2523,7 +2570,7 @@ export class Game {
           break;
         case 'stunned':
           this.audio.playGate();
-          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, isCharacterBoss(bf.def) ? 'STUNNED!' : 'BOARD STUNNED!', '#ffe66d');
+          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, 'STUNNED!', '#ffe66d');
           this.renderer.bumpShake(6);
           break;
         case 'phase':
@@ -2539,11 +2586,11 @@ export class Game {
           this.renderer.bumpFlash(0.6);
           this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 24 : 60, 360);
           this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, '+1,000,000', '#ffe66d');
-          this.bannerText = `${isCharacterBoss(bf.def) ? bf.def.name : 'THE BOARD'} BEATEN  ·  +1,000,000`;
+          this.bannerText = `${bf.def.name} BEATEN  ·  +1,000,000`;
           this.bannerT = BANNER_SECONDS;
           break;
         case 'bored':
-          this.bannerText = `${isCharacterBoss(bf.def) ? bf.def.name : 'THE BOARD'} GOT BORED  ·  NO BONUS`;
+          this.bannerText = `${bf.def.name} GOT BORED  ·  NO BONUS`;
           this.bannerT = BANNER_SECONDS;
           break;
         case 'gone':
@@ -2877,7 +2924,18 @@ export class Game {
     if (this.state !== 'title') {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
-      if (this.boss) this.boss.hudBottom = this.renderer.hudBottom(this.viewW, this.viewH);
+      if (this.boss) {
+        const bf = this.boss;
+        bf.hudBottom = this.renderer.hudBottom(this.viewW, this.viewH);
+        // Boss banners stack under the boss name + HP bar, and the taunt card under the banner.
+        bf.bannerBottom = 0;
+        this.bossBannerY = 0;
+        if (this.bannerT > 0 && bf.headerBottom > 0) {
+          const bh = this.renderer.levelBannerHeight(ctx, this.bannerText, bf.headerW);
+          this.bossBannerY = bf.headerBottom + this.renderer.u(8) + bh / 2;
+          bf.bannerBottom = this.bossBannerY + bh / 2;
+        }
+      }
       if (this.boss) drawBoss(ctx, this.boss, this.viewW, (n) => this.renderer.u(n), this.renderer.lite, this.pulse);
       this.particles.draw(ctx);
       if ((this.level > 0 || (this.formation.occupiedCount > 0 && !this.mode)) && (this.state === 'playing' || this.state === 'paused')) {
@@ -2917,7 +2975,9 @@ export class Game {
         const tt = this.tutorialText();
         this.renderer.drawTutorial(ctx, this.tutStep + 1, TUT_STEPS, tt.title, tt.lines);
       }
-      if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
+      if (this.bannerT > 0 && this.boss && this.bossBannerY > 0) {
+        this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS, this.bossBannerY, this.boss.headerX, this.boss.headerW);
+      } else if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
       if (this.continueT > 0) {
         this.renderer.drawPromotion(ctx, 'CONTINUE?', `${Math.ceil(this.continueT)}  ·  ${this.touchPrimary ? 'TAP BOOST' : 'PRESS ANY KEY'} TO KEEP GOING`, this.continueT, CONTINUE_SECONDS, this.score);
       }

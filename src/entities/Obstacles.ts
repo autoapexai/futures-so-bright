@@ -246,7 +246,7 @@ export class WorldSpawner {
     this.collectibles.push(c);
   }
 
-  /** A ring gate centred at (cx, cy) (THE BOARD's rank-slot stun rings). */
+  /** A ring gate centred at (cx, cy) (the boss stun rings). */
   addRing(cx: number, cy: number): void {
     const y = Math.min(Math.max(cy - 60, this.laneTop), Math.max(this.laneTop, this.laneBot - 120));
     this.pushObs('ring', cx - 45, y, 90, 120, 0, 0);

@@ -1,23 +1,25 @@
 /**
- * THE BOARD: a boss fight at the end of every tenth level (10, 20, ... 110) and a final one at
- * the end of level 111 (leading to VICTORY). Each boss is themed after one of the 12 modes
- * (ordered by starting dog count) and is strictly harder than the one before it: more HP,
+ * THE BOSSES: a boss fight at the end of every tenth level (10, 20, ... 110) and a final one at
+ * the end of level 111 (leading to VICTORY). Every boss is an original, maximally silly cartoon
+ * character (see bossMime.ts and bossToons.ts; no scoreboards anywhere) with its own entrance,
+ * attacks, weak spot, slapstick hit reactions and defeat gag, and is strictly harder than the
+ * one before it: more HP,
  * faster volleys, more projectiles, faster shots, shorter stun, on the same diminishing-step
  * curve style as the gold zone. Every fight varies run to run (attack order, timings within
  * the boss's budget, weak-spot rows, stun-ring spots, taunts) from a seeded RNG, so a given
  * run seed replays identically.
  *
  * How you fight it: hold BOOST and your dogs bark (WOOF) straight ahead. Barks that hit the
- * glowing #1 rank slot (the weak spot) do full damage; elsewhere on the board they only chip.
- * Touch a rank-slot ring to STUN THE BOARD: while stunned it stops firing and every bark is a
- * critical hit. Beating a boss is a flat +1,000,000 points (see BOSS_BONUS). If a fight drags
+ * glowing weak spot (each boss has its own: a golden horseshoe, a loose bolt, a fuse spark...)
+ * do full damage; elsewhere on the body they only chip. Touch a ring to STUN the boss: while
+ * stunned it stops firing and every bark is a critical hit. Beating a boss is a flat +1,000,000 points (see BOSS_BONUS). If a fight drags
  * past the boss's patience it gets BORED and leaves (no bonus, the run carries on).
  */
 import { MODES, type ModeDef, type ModeStyle } from '../utils/modes';
 import { mulberry32, shuffle, subSeed, type Rng } from '../utils/rng';
 import { MAX_LEVEL } from '../utils/difficulty';
 import { groceryTaunt } from './silly';
-import { drawBuckleBuster, drawCowboy, drawVJ } from './bossArt';
+import { TOON_POPS, TOON_SKINS, drawToon, drawToonShot, hasToon } from './bossToons';
 import { drawMime, drawMimeShot } from './bossMime';
 
 /** Flat points for beating any boss (not multiplied; the score is still clamped to SCORE_CAP). */
@@ -70,20 +72,20 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
   },
   calvin: {
     signature: 'twins',
-    blurb: 'Twin boards: two weak spots, one shared health bar',
+    blurb: 'THE NEIGHSAYERS: two stretchy-necked pantomime horses on parachutes; horseshoes, hay bales, carrots; golden-horseshoe weak spots, one shared health bar',
     patterns: ['aimed', 'wall', 'spray'],
-    taunts: ['TWO BOARDS. ONE GRUDGE.', "WE FINISH EACH OTHER'S SCORES.", 'DOUBLE TROUBLE.', 'TWINS NEVER LOSE. TWICE.'],
+    taunts: ['NEIGH. AND ALSO NAY.', "WE FINISH EACH OTHER'S HAY.", 'DOUBLE TROUBLE, QUADRUPLE HOOVES.', 'STABLE GENIUSES.'],
   },
   decoy: {
     signature: 'decoy',
-    blurb: 'Decoy board: only the solid one is real, and they shuffle',
+    blurb: 'THE GREAT SHUFFLINI: a shell-game magician and his cardboard double who swap with a POOF; playing cards, doves, knotted hankies; rabbit-in-the-hat weak spot',
     patterns: ['aimed', 'spray', 'wall'],
-    taunts: ['WHICH ONE IS REAL? GUESS.', 'DECOY? NEVER HEARD OF HER.', 'OPERATION: YOU LOSE.', 'NOTHING TO SEE HERE.'],
+    taunts: ['PICK A MAGICIAN. ANY MAGICIAN.', 'IS THIS YOUR CARD? NO? GOOD.', 'NOTHING UP MY SLEEVE. EXCEPT DOVES.', 'TA-DAA!'],
   },
   // Level 40: an ORIGINAL character boss (replaces the TOO FAT board; the TOO FAT mode stays).
   buckle: {
     signature: 'strut',
-    blurb: 'BUCKLE BUSTER: belly scoreboard, popping buckles, moonwalk struts',
+    blurb: 'BUCKLE BUSTER: bursts out of a cake; popping buckles, disco-ball struts, flying socks; the loose gold buckle is his weak spot',
     patterns: ['buckles', 'slam', 'aimed'],
     taunts: [],
   },
@@ -95,51 +97,51 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
   },
   daly: {
     signature: 'cowboy',
-    blurb: 'Comical cowboy tryout: lasso sweeps, tumbleweeds, rubber-chicken quick-draw; WANTED poster weak spot',
+    blurb: 'DEPUTY DO-OVER: an auditioning cowboy who swings in on a lasso; lasso loops, tumbleweeds, rubber-chicken quick-draw, bean cans; sheriff-badge-on-a-spring weak spot',
     patterns: ['lasso', 'tumble', 'chicken', 'aimed'],
     taunts: ['THANK YOU FOR AUDITIONING.', 'NEXT CHARACTER!', "WE'LL CALL YOU.", 'FROM THE TOP!'],
   },
   toosuccessful: {
     signature: 'coins',
-    blurb: 'Gold coin rain from above',
+    blurb: 'GOLDBOT 3000: a gold trophy robot on rocket boots; slanted coin rain, gold bars, money bags; loose-gold-bolt weak spot',
     patterns: ['rain', 'aimed', 'wall'],
-    taunts: ['MONEY RAIN, BABY.', 'TOO SUCCESSFUL TO LOSE.', 'MAKE IT RAIN.', 'SUCCESS LOOKS GOOD ON ME.'],
+    taunts: ['MONEY RAIN, BABY.', 'BEEP BOOP, I AM RICH.', 'MAKE IT RAIN.', 'GOLD LOOKS GOOD ON ME.'],
   },
   alw: {
     signature: 'chorus',
-    blurb: 'Chorus line: kick lines sweep in step',
+    blurb: 'MADAME CHANDELIERA: an opera-diva chandelier lowered on a chain with a chorus of masks; mask kick lines, rose walls, high notes; golden-mask weak spot',
     patterns: ['kick', 'wall', 'aimed'],
-    taunts: ['THE PHANTOM OF THE LEADERBOARD.', 'FROM THE TOP, WITH FEELING.', 'CUE THE CHORUS.', 'ALL ALONE ON THE BOARD.'],
+    taunts: ['FROM THE TOP, WITH FEELING.', 'CUE THE CHORUS.', 'LA LA LAAAAA!', 'THE CHANDELIER STAYS UP. FOR NOW.'],
   },
   slackerman: {
     signature: 'blink',
-    blurb: 'Blink shots: only the solid ones hurt',
+    blurb: 'THE LATE LATE GHOST: a bedsheet ghost in a recliner at the midnight movie; blinking popcorn (only the solid ones hurt), soda cups, film reels; golden-popcorn-tub weak spot',
     patterns: ['blink', 'spray', 'wall'],
-    taunts: ["I'LL GET TO IT. MAYBE.", 'NOW YOU SEE ME.', 'SLACKING, BUT WINNING.', 'TOO COOL TO TRY.'],
+    taunts: ["I'LL GET TO IT. MAYBE.", 'NOW YOU SEE ME.', 'SHHH, IT IS THE GOOD PART.', 'TOO COMFY TO TRY.'],
   },
   cbb: {
     signature: 'bang',
-    blurb: 'BANG BANG: big shots that burst into three',
+    blurb: 'CAPTAIN KABOOM: a clown on a cannon atop a drum tower, arrives in a tiny car; confetti bombs that burst into rubber ducks, whoopee cushions, inflatable flamingos; fuse-spark weak spot',
     patterns: ['split', 'aimed', 'wall'],
-    taunts: ['BANG! BANG!', "WHAT'S UP, CHUM?", 'YES AND... NO.', 'BIG BANG ENERGY.'],
+    taunts: ['KA-BOOM! KA-BOOM!', 'HONK IF YOU LOVE CANNONS.', 'YES AND... BOOM.', 'BIG BOOM ENERGY.'],
   },
   curry: {
     signature: 'vj',
-    blurb: '80s VJ head on a CRT: glitch bursts, channel-change static walls, countdown number drops',
+    blurb: 'DJ CHANNEL ZAPP: an 80s VJ with a TV for a head; glitch bursts, channel-change static walls, cassette-tape drops, paper airplanes; golden-tuning-dial weak spot',
     patterns: ['glitch', 'static', 'countdown', 'homing'],
-    taunts: ['IN THE MORNING!', 'NUMBER GO UP.', 'VALUE FOR VALUE.', 'BOOSTAGRAM INCOMING.'],
+    taunts: ['IN THE MORNING!', 'STAY TUNED.', 'VALUE FOR VALUE.', 'BOOSTAGRAM INCOMING.'],
   },
   dvorak: {
     signature: 'behind',
-    blurb: 'Contrarian: shots come from behind you',
+    blurb: 'ANGEL CONTRARIEL: a grumpy contrarian cherub on a cloud; feathers from behind you, tiny harps, clouds; halo-gem weak spot',
     patterns: ['behind', 'aimed', 'wall'],
-    taunts: ['WRONG. ALL OF IT.', 'I DISAGREE WITH YOUR DODGING.', 'LOOK BEHIND YOU.', 'CONTRARIAN BY DESIGN.'],
+    taunts: ['WRONG. ALL OF IT.', 'I DISAGREE WITH YOUR DODGING.', 'LOOK BEHIND YOU.', 'HEAVENS, NO.'],
   },
   itm: {
     signature: 'storm',
-    blurb: 'Final board: dot storm plus every trick before it',
+    blurb: 'THE GRAND CORKBOARD: a googly-eyed corkboard with a cat magnet pinning a Duchess polaroid; thumbtack storms, sticky notes, paper balls that burst into rubber bands, paperclips from behind; gold-push-pin weak spot',
     patterns: ['dots', 'homing', 'behind', 'split', 'wall', 'aimed'],
-    taunts: ['IN THE MORNING. ALL OF US.', '3,333 DOTS SAY HI.', 'THE FINAL BOARD.', 'LEVEL 111 IS MINE.'],
+    taunts: ['IN THE MORNING. ALL OF US.', 'PINNED IT.', 'THE FINAL CORKBOARD.', 'LEVEL 111 IS MINE.'],
   },
 };
 
@@ -147,26 +149,37 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
 const ORDER = ['mime', 'calvin', 'decoy', 'buckle', 'daly', 'toosuccessful', 'alw', 'slackerman', 'cbb', 'curry', 'dvorak', 'itm'];
 export const BOSS_LEVELS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, MAX_LEVEL];
 
-/** Character bosses that are not a player mode (banner name, tint, style). */
+/** Every boss is an original character (banner name, tint, style); the modes stay as modes. */
 const CHARACTERS: Record<string, { name: string; tint: string; style: ModeStyle }> = {
-  buckle: { name: 'BUCKLE BUSTER', tint: '#ff3b8d', style: 'solid' },
   mime: { name: 'MONSIEUR MIRROR', tint: '#00f0ff', style: 'solid' },
+  calvin: { name: 'THE NEIGHSAYERS', tint: '#ff7ac8', style: 'solid' },
+  decoy: { name: 'THE GREAT SHUFFLINI', tint: '#b48cff', style: 'solid' },
+  buckle: { name: 'BUCKLE BUSTER', tint: '#ff3b8d', style: 'solid' },
+  daly: { name: 'DEPUTY DO-OVER', tint: '#ffb347', style: 'solid' },
+  toosuccessful: { name: 'GOLDBOT 3000', tint: '#ffd23f', style: 'solid' },
+  alw: { name: 'MADAME CHANDELIERA', tint: '#ff9ecf', style: 'solid' },
+  slackerman: { name: 'THE LATE LATE GHOST', tint: '#b4c8ff', style: 'solid' },
+  cbb: { name: 'CAPTAIN KABOOM', tint: '#ff5a5a', style: 'solid' },
+  curry: { name: 'DJ CHANNEL ZAPP', tint: '#20e0d0', style: 'solid' },
+  dvorak: { name: 'ANGEL CONTRARIEL', tint: '#fff2b0', style: 'solid' },
+  itm: { name: 'THE GRAND CORKBOARD', tint: '#d9a86b', style: 'solid' },
 };
 
 export const BOSSES: readonly BossDef[] = ORDER.map((id, i) => {
-  const m = (MODES.find((x) => x.id === id) as ModeDef | undefined) ?? { ...CHARACTERS[id], ships: 0 };
+  const m = MODES.find((x) => x.id === id) as ModeDef | undefined;
+  const c = CHARACTERS[id];
   const s = SIG[id];
-  return { level: BOSS_LEVELS[i], rank: i + 1, modeId: id, name: m.name, dogs: m.ships, tint: m.tint, style: m.style, ...s };
+  return { level: BOSS_LEVELS[i], rank: i + 1, modeId: id, name: c?.name ?? m?.name ?? id, dogs: m?.ships ?? 0, tint: c?.tint ?? m?.tint ?? '#fff', style: c?.style ?? m?.style ?? 'solid', ...s };
 });
 
-/** Redesigned character bosses: no scoreboard anywhere, banners use just the name. */
+/** Every boss is a character now: no scoreboard anywhere, banners use just the name. */
 export function isCharacterBoss(def: BossDef): boolean {
-  return def.signature === 'mirror';
+  return def.signature === 'mirror' || hasToon(def.modeId);
 }
 
-/** Banner / HP-bar title. */
+/** Banner / HP-bar title (just the character's name). */
 export function bossTitle(def: BossDef): string {
-  return isCharacterBoss(def) ? def.name : `THE BOARD: ${def.name}`;
+  return def.name;
 }
 
 /** The boss at the end of this level, or null. */
@@ -247,8 +260,8 @@ export interface BossShot {
   vy: number;
   r: number;
   kind: 'orb' | 'dot' | 'coin' | 'pie' | 'glove' | 'balloon' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
-  /** Label for countdown numbers. */
-  n?: number;
+  /** Visual-only costume (horseshoe, rubber duck, cassette...): physics and hit radius unchanged. */
+  skin?: string;
   /** BANG BANG: shot age (s) at which a big shot bursts into three. */
   burst?: number;
   t: number;
@@ -306,12 +319,14 @@ export interface BossInput {
   /** The pack's vertical size (lead + formation), so wall gaps always fit it. */
   packH: number;
   boosting: boolean;
+  /** Keep the boss left of this x (the touch controls on sideways screens); defaults to W. */
+  right?: number;
 }
 
 const BARK_EVERY = 0.2;
 const BARK_SPEED = 760;
 const ENTER_S = 1.6;
-const EXIT_S = 1.4;
+const EXIT_S = 2.6;
 
 export class BossFight {
   readonly def: BossDef;
@@ -343,6 +358,7 @@ export class BossFight {
   pops: Pop[] = [];
   private popCd = 0;
   private rng: Rng;
+  private fxRng: Rng;
   private bag: Pattern[] = [];
   private fireT: number;
   private spotT: number;
@@ -354,6 +370,22 @@ export class BossFight {
   private top = 0;
   private bottom = 0;
   private W = 0;
+  /** Right edge the boss keeps clear of (touch controls), and its resting left edge. */
+  private right = 0;
+  restLeft = 0;
+  private enterSfx = 0;
+  /** Bottom of the start banner (set by the game) and the latched taunt-card top. */
+  bannerBottom = 0;
+  /** Bottom / centre / width of the name + HP header (set when drawn). */
+  headerBottom = 0;
+  headerX = 0;
+  headerW = 0;
+  cardTop = 0;
+  cardFor = '';
+  /** On-screen touch controls (logical rects, set by the game) the taunt card keeps clear of. */
+  controls: { x: number; y: number; w: number; h: number }[] = [];
+  /** The taunt card is waiting for the start banner to clear (short sideways screens). */
+  tauntHold = false;
 
   /** Slapstick hit reaction timer (mustache droop, wobble), s. */
   hurtT = 0;
@@ -362,16 +394,14 @@ export class BossFight {
   tangleT = 0;
   /** Local player-history jabs folded into the grocery-list taunts. */
   jabs: string[] = [];
-  /** The final (corkboard) board pins this high score under its cat magnet. */
-  pinnedScore = 0;
 
-  constructor(def: BossDef, runSeed: number, jabs: string[] = [], pinnedScore = 0) {
+  constructor(def: BossDef, runSeed: number, jabs: string[] = []) {
     this.jabs = jabs;
-    this.pinnedScore = pinnedScore;
     this.def = def;
     this.tune = easedTuning(def);
     this.seed = subSeed(runSeed, def.level);
     this.rng = mulberry32(this.seed);
+    this.fxRng = mulberry32(this.seed ^ 0x5eed);
     this.enterS = def.signature === 'mirror' ? 3 : ENTER_S;
     this.exitS = def.signature === 'mirror' ? 2.4 : EXIT_S;
     this.maxHp = this.tune.hp;
@@ -432,14 +462,17 @@ export class BossFight {
     this.shots.length = 0;
     this.slam = 0;
     this.events.push({ type: 'stunned' });
-    if (isCharacterBoss(this.def)) this.addPop('BOING!', this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
+    if (isCharacterBoss(this.def)) this.addPop(TOON_POPS[this.def.modeId]?.stun ?? 'BOING!', this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
     return true;
   }
 
   /** A random slapstick burst on a weak-spot hit (throttled so the screen stays readable). */
   private comicPop(x: number, y: number): void {
-    const words: [string, PopSfx][] = [['BONK!', 'honk'], ['BOING!', 'boing'], ['HONK!', 'honk'], ['SPLAT!', 'boing']];
-    const [text, sfx] = words[Math.floor(this.rng() * words.length)];
+    const words: [string, PopSfx][] = TOON_POPS[this.def.modeId]?.hit ?? [['BONK!', 'honk'], ['BOING!', 'boing'], ['HONK!', 'honk'], ['SPLAT!', 'boing']];
+    // Cosmetic picks use their own RNG so the seeded fight (spots, volleys, timings) replays exactly
+    // as before the cartoon redesign (the mime keeps the fight RNG, as shipped).
+    const pick = this.def.signature === 'mirror' ? this.rng() : this.fxRng();
+    const [text, sfx] = words[Math.floor(pick * words.length)];
     this.addPop(text, x, y - 18, sfx, '#ffe14d');
   }
 
@@ -465,9 +498,10 @@ export class BossFight {
     h = Math.min(h, laneH * 0.82);
     i.w = w;
     i.h = h;
-    i.bob += dt * (sig === 'strut' ? 0.8 : 1.1);
+    i.bob += dt * (sig === 'strut' ? 0.8 : this.def.modeId === 'slackerman' ? 0.8 : 1.1);
     const margin = Math.max(14, this.W * 0.035);
-    let x = this.W - margin - w / 2;
+    // Stay clear of the touch controls on sideways screens (Game passes their left edge).
+    let x = this.right - margin - w / 2;
     let y: number;
     const amp = (laneH - h) / 2;
     if (sig === 'mirror') {
@@ -482,8 +516,18 @@ export class BossFight {
     } else {
       y = (this.top + this.bottom) / 2 + Math.sin(i.bob) * amp * 0.9;
     }
+    // A little personality in how each one moves (vertical ranges stay the same).
+    const id = this.def.modeId;
+    if (id === 'daly') y -= Math.abs(Math.sin(i.bob * 4)) * Math.min(amp * 0.1, 10);
+    else if (id === 'curry') y += Math.sin(i.bob * 23) * 2;
+    else if (id === 'alw') x -= (1 + Math.sin(i.bob * 0.7)) * w * 0.12;
+    else if (id === 'dvorak') x -= (1 + Math.sin(i.bob * 2)) * w * 0.1;
+    y = Math.min(this.bottom - h / 2, Math.max(this.top + h / 2, y));
+    // Leftmost reach at rest (weak-spot props stick out past the box; the mime's mirror most).
+    const sway = id === 'alw' ? w * 0.24 : id === 'dvorak' ? w * 0.2 : 0;
+    this.restLeft = this.right - margin - w - sway - Math.max(24, w * (sig === 'mirror' ? 0.75 : 0.45));
     if (sig === 'strut' && this.slam > 0) x -= this.slam * (this.W * 0.42);
-    i.x = x + this.slideX * (w + margin * 2);
+    i.x = x + this.slideX * (this.W - x + w);
     if (sig === 'mirror' && this.state === 'enter') {
       // MONSIEUR MIRROR pedals in from the LEFT on his tiny tricycle, right across the lane,
       // and skids to a stop at his spot (he can't hurt anyone until the fight starts).
@@ -497,12 +541,14 @@ export class BossFight {
   update(inp: BossInput): void {
     const { dt } = inp;
     this.W = inp.W;
+    this.right = Math.min(inp.W, inp.right ?? inp.W);
     this.top = inp.top;
     this.bottom = inp.bottom;
     this.stateT += dt;
-    if (this.tauntT > 0) this.tauntT = Math.max(0, this.tauntT - dt);
+    if (this.tauntT > 0 && !this.tauntHold) this.tauntT = Math.max(0, this.tauntT - dt);
     if (this.state === 'enter') {
-      this.slideX = Math.max(0, 1 - this.stateT / (this.enterS * 0.8));
+      // Character entrances are animated in the drawing (parachutes, cakes, clown cars...).
+      this.slideX = isCharacterBoss(this.def) ? 0 : Math.max(0, 1 - this.stateT / (this.enterS * 0.8));
       if (this.stateT >= this.enterS) {
         this.state = 'fight';
         this.stateT = 0;
@@ -510,7 +556,7 @@ export class BossFight {
       }
     } else if (this.state === 'defeated' || this.state === 'bored') {
       // The mime deflates in place (drawn), everyone else slides off.
-      this.slideX = this.def.signature === 'mirror' && this.state === 'defeated' ? 0 : Math.min(1, this.stateT / this.exitS);
+      this.slideX = isCharacterBoss(this.def) && this.state === 'defeated' ? 0 : Math.min(1, this.stateT / this.exitS);
       if (this.stateT >= this.exitS) {
         this.state = 'gone';
         this.events.push({ type: 'gone' });
@@ -520,7 +566,16 @@ export class BossFight {
     this.popCd = Math.max(0, this.popCd - dt);
     for (const p of this.pops) p.t += dt;
     this.pops = this.pops.filter((p) => p.t < 0.8);
-    if (this.state === 'enter' && isCharacterBoss(this.def) && this.stateT > 0.2 && this.popCd <= 0) {
+    if (this.state === 'enter' && hasToon(this.def.modeId)) {
+      // One whistle as it arrives and a BOING as it lands (the drawing does the visual gag).
+      if (this.enterSfx === 0 && this.stateT > 0.1) {
+        this.enterSfx = 1;
+        this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'whistleDown' });
+      } else if (this.enterSfx === 1 && this.stateT > this.enterS * 0.7) {
+        this.enterSfx = 2;
+        this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'boing' });
+      }
+    } else if (this.state === 'enter' && isCharacterBoss(this.def) && this.stateT > 0.2 && this.popCd <= 0) {
       this.popCd = 0.9;
       this.pops.push({ text: 'HONK!', x: Math.max(60, Math.min(this.main.x, this.W - 60)), y: this.main.y + this.main.h * 0.25, t: 0, color: '#ffcc00' });
       this.events.push({ type: 'pop', text: 'HONK!', x: this.main.x, y: this.main.y, sfx: 'honk' });
@@ -585,6 +640,7 @@ export class BossFight {
       this.shots.length = 0;
       this.barks.length = 0;
       this.slam = 0;
+      this.tauntT = 0;
       this.events.push({ type: 'defeated' });
       if (isCharacterBoss(this.def)) this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'whistleDown' });
       return;
@@ -618,7 +674,7 @@ export class BossFight {
     if (this.ringT <= 0) {
       this.ringT = this.tune.ringEvery * (0.8 + this.rng() * 0.4);
       const y = this.top + 60 + this.rng() * Math.max(10, this.bottom - this.top - 120);
-      this.events.push({ type: 'ring', x: this.W * (0.62 + this.rng() * 0.12), y });
+      this.events.push({ type: 'ring', x: this.right * (0.62 + this.rng() * 0.12), y });
     }
     // Slam (TOO FAT): telegraph 0.7 s, lunge 0.45 s, hold 0.3 s, back 0.8 s.
     if (this.slamT > 0) {
@@ -645,7 +701,8 @@ export class BossFight {
 
   private shot(x: number, y: number, vx: number, vy: number, r: number, kind: BossShot['kind'], life = 6): void {
     if (this.def.signature === 'mirror' && kind === 'orb') kind = this.pattern === 'mirror' ? 'pie' : this.pattern === 'spray' ? 'balloon' : 'glove';
-    this.shots.push({ x, y, vx, vy, r, kind, t: 0, life, alive: true });
+    const skin = TOON_SKINS[this.def.modeId]?.[this.pattern];
+    this.shots.push({ x, y, vx, vy, r, kind, t: 0, life, alive: true, skin });
   }
 
   private fire(p: Pattern, inp: BossInput): void {
@@ -823,12 +880,10 @@ export class BossFight {
         break;
       }
       case 'countdown': {
-        // Music-video countdown: numbers drop from the top, counting down.
+        // Music-video drop: cassette tapes fall from the top in a staggered line (no digits).
         const k = Math.max(2, n);
         for (let i = 0; i < k; i++) {
-          const s = this.shots.length;
           this.shot(inp.px - 30 + this.rng() * this.W * 0.5, this.top - r - i * 40, -sp * 0.1, sp * 0.48, r * 1.2, 'num');
-          this.shots[s].n = k - i;
         }
         break;
       }
@@ -859,13 +914,13 @@ export class BossFight {
         const ps = easeOf(this.def.modeId).bang ? sp * 0.85 : sp;
         for (let i = -1; i <= 1; i++) {
           const a = Math.atan2(s.vy, s.vx) + i * 0.45;
-          add.push({ x: s.x, y: s.y, vx: Math.cos(a) * ps, vy: Math.sin(a) * ps, r: s.r * 0.6, kind: 'orb', t: 0, life: 5, alive: true });
+          add.push({ x: s.x, y: s.y, vx: Math.cos(a) * ps, vy: Math.sin(a) * ps, r: s.r * 0.6, kind: 'orb', t: 0, life: 5, alive: true, skin: TOON_SKINS[this.def.modeId]?.['>split'] });
         }
         continue;
       }
       if (s.kind === 'warn' && s.life <= 0) {
         s.alive = false;
-        add.push({ x: -s.r, y: s.y, vx: sp * 0.65, vy: 0, r: s.r, kind: 'orb', t: 0, life: 6, alive: true });
+        add.push({ x: -s.r, y: s.y, vx: sp * 0.65, vy: 0, r: s.r, kind: 'orb', t: 0, life: 6, alive: true, skin: TOON_SKINS[this.def.modeId]?.['>warn'] });
         continue;
       }
       if (s.kind === 'homing') {
@@ -934,7 +989,7 @@ export function stutter(text: string, rng: () => number): string {
     .join(' ');
 }
 
-/** Draw THE BOARD (boards, weak spots, shots, barks, name + HP bar, taunt). */
+/** Draw the boss (characters, weak spots, shots, barks, name + HP bar, taunt card). */
 export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number, u: (n: number) => number, lite: boolean, time: number): void {
   const d = f.def;
   ctx.save();
@@ -959,15 +1014,18 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
       }
       continue;
     }
+    if (drawToonShot(ctx, s, BossFight.harmful(s), time)) continue;
     if (s.kind === 'num' || s.kind === 'chicken' || s.kind === 'buckle' || s.kind === 'static' || s.kind === 'glitch' || s.kind === 'tumble' || s.kind === 'lasso') {
       ctx.save();
       ctx.translate(s.x, s.y);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (s.kind === 'num') {
-        ctx.fillStyle = '#7fffff';
-        ctx.font = `900 ${s.r * 2.2}px 'Orbitron', sans-serif`;
-        ctx.fillText(String(s.n ?? 1), 0, 0);
+        // (a cassette tape, never a digit)
+        ctx.fillStyle = '#222';
+        ctx.fillRect(-s.r * 1.2, -s.r * 0.75, s.r * 2.4, s.r * 1.5);
+        ctx.strokeStyle = '#7fffff';
+        ctx.strokeRect(-s.r * 1.2, -s.r * 0.75, s.r * 2.4, s.r * 1.5);
       } else if (s.kind === 'chicken') {
         ctx.rotate(s.t * 8);
         ctx.fillStyle = '#ffe14d';
@@ -1053,148 +1111,22 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   ctx.textBaseline = 'middle';
   for (const k of f.barks) ctx.fillText('WOOF', k.x, k.y);
 
-  for (const b of f.boards) {
-    const x0 = b.x - b.w / 2;
-    const y0 = b.y - b.h / 2;
-    const stun = f.stunned;
-    if (d.signature === 'mirror') {
-      drawMime(ctx, f, b, time);
-      continue;
-    }
-    if (d.signature === 'strut' || d.signature === 'cowboy' || d.signature === 'vj') {
-      ctx.save();
-      if (stun) ctx.filter = 'grayscale(0.8)';
-      if (d.signature === 'strut') drawBuckleBuster(ctx, f, b, time);
-      else if (d.signature === 'cowboy') drawCowboy(ctx, f, b, time);
-      else drawVJ(ctx, f, b, time, lite);
-      ctx.restore();
-      if (stun) {
-        ctx.fillStyle = '#ffe66d';
-        ctx.textAlign = 'center';
-        ctx.font = `900 ${u(12)}px 'Orbitron', sans-serif`;
-        ctx.fillText('STUNNED', b.x, y0 - u(30));
-      }
-      continue;
-    }
-    const tell = false as boolean;
-    ctx.globalAlpha = b.real ? 1 : 0.85;
-    const cork = d.level === MAX_LEVEL;
-    ctx.fillStyle = stun ? 'rgba(60,60,80,0.92)' : tell ? 'rgba(90,0,30,0.92)' : cork ? '#b5835a' : 'rgba(10,0,28,0.9)';
-    ctx.fillRect(x0, y0, b.w, b.h);
-    if (cork && !stun) {
-      // CORKBOARD: speckles (fixed pattern) and a wooden frame.
-      ctx.fillStyle = 'rgba(90, 50, 20, 0.45)';
-      for (let i = 0; i < 70; i++) {
-        const fx = ((i * 73) % 97) / 97;
-        const fy = ((i * 41) % 89) / 89;
-        ctx.fillRect(x0 + fx * b.w, y0 + fy * b.h, 2, 2);
-      }
-      ctx.strokeStyle = '#6b4423';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(x0 - 3, y0 - 3, b.w + 6, b.h + 6);
-    }
-    ctx.lineWidth = d.style === 'outline' || !b.real ? 2 : 4;
-    if (!b.real || d.style === 'dot') ctx.setLineDash([4, 5]);
-    ctx.strokeStyle = stun ? '#9aa' : d.tint;
-    if (!lite && !stun) {
-      ctx.shadowBlur = 16;
-      ctx.shadowColor = d.tint;
-    }
-    ctx.strokeRect(x0, y0, b.w, b.h);
-    ctx.setLineDash([]);
-    ctx.shadowBlur = 0;
-    const rowH = b.h / b.rows;
-    for (let r = 0; r < b.rows; r++) {
-      const ry = y0 + rowH * r;
-      const spot = r === b.spot && f.active;
-      if (cork && !spot) {
-        // pinned paper notes
-        ctx.save();
-        ctx.translate(x0 + b.w / 2, ry + rowH / 2);
-        ctx.rotate(((r * 37) % 7 - 3) * 0.012);
-        ctx.fillStyle = '#f4ecd8';
-        ctx.fillRect(-b.w / 2 + 6, -rowH / 2 + 4, b.w - 12, rowH - 8);
-        ctx.restore();
-        ctx.fillStyle = '#d62828';
-        ctx.beginPath();
-        ctx.arc(x0 + b.w / 2, ry + 6, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (spot) {
-        const pulse = 0.6 + 0.4 * Math.sin(time * 10);
-        ctx.fillStyle = b.real ? `rgba(255,214,63,${0.55 + 0.35 * pulse})` : `rgba(255,255,255,${0.25 + 0.2 * pulse})`;
-        ctx.fillRect(x0 + 3, ry + 3, b.w - 6, rowH - 6);
-      }
-      ctx.fillStyle = spot || cork ? '#1a0030' : 'rgba(255,255,255,0.55)';
-      ctx.font = `800 ${Math.max(9, Math.min(u(13), rowH * 0.42))}px 'Orbitron', sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(spot ? '#1' : `#${r + 2}`, x0 + 6, ry + rowH / 2);
-      ctx.fillRect(x0 + b.w * 0.45, ry + rowH / 2 - 1.5, b.w * 0.45, 3);
-    }
-    if (cork) {
-      // The high score, pinned under a cat-shaped magnet at the top of the corkboard.
-      const nw = Math.max(b.w * 1.1, u(96));
-      const nh = u(26);
-      const nx = b.x - nw / 2;
-      const ny = y0 - nh - u(6);
-      ctx.save();
-      ctx.translate(b.x, ny + nh / 2);
-      ctx.rotate(-0.04);
-      ctx.fillStyle = '#fffbe6';
-      ctx.fillRect(-nw / 2, -nh / 2, nw, nh);
-      ctx.fillStyle = '#1a0030';
-      ctx.textAlign = 'center';
-      ctx.font = `800 ${u(10)}px 'Orbitron', sans-serif`;
-      ctx.fillText(`HIGH SCORE ${Math.floor(f.pinnedScore).toLocaleString('en-US')}`, 0, u(4));
-      // cat magnet: head, ears, eyes, whiskers
-      const cy = -nh / 2;
-      const cr = u(9);
-      ctx.fillStyle = '#111';
-      ctx.beginPath();
-      ctx.arc(0, cy, cr, 0, Math.PI * 2);
-      ctx.moveTo(-cr * 0.95, cy - cr * 0.2);
-      ctx.lineTo(-cr * 0.55, cy - cr * 1.5);
-      ctx.lineTo(-cr * 0.1, cy - cr * 0.8);
-      ctx.moveTo(cr * 0.95, cy - cr * 0.2);
-      ctx.lineTo(cr * 0.55, cy - cr * 1.5);
-      ctx.lineTo(cr * 0.1, cy - cr * 0.8);
-      ctx.fill();
-      ctx.fillStyle = '#ffe66d';
-      ctx.fillRect(-cr * 0.5, cy - cr * 0.2, cr * 0.25, cr * 0.3);
-      ctx.fillRect(cr * 0.25, cy - cr * 0.2, cr * 0.25, cr * 0.3);
-      ctx.strokeStyle = '#ddd';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-cr * 0.3, cy + cr * 0.35);
-      ctx.lineTo(-cr * 1.3, cy + cr * 0.2);
-      ctx.moveTo(cr * 0.3, cy + cr * 0.35);
-      ctx.lineTo(cr * 1.3, cy + cr * 0.2);
-      ctx.stroke();
-      ctx.restore();
-      void nx;
-    }
-    if (stun) {
-      ctx.fillStyle = '#ffe66d';
-      ctx.textAlign = 'center';
-      ctx.font = `900 ${u(12)}px 'Orbitron', sans-serif`;
-      ctx.fillText('STUNNED', b.x, y0 - u(10));
-      for (let i = 0; i < 3; i++) {
-        const a = time * 4 + (i * Math.PI * 2) / 3;
-        ctx.fillText('*', b.x + Math.cos(a) * b.w * 0.35, y0 + Math.sin(a) * 6 - u(24));
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
+  f.boards.forEach((b, idx) => {
+    if (d.signature === 'mirror') drawMime(ctx, f, b, time);
+    else drawToon(ctx, f, b, idx, time, W);
+  });
   // Comic text bursts (BONK! BOING! HONK!): pop in big, then float up and fade.
   for (const p of f.pops) {
     const k = p.t / 0.8;
     const sc = k < 0.15 ? 0.5 + (k / 0.15) * 0.8 : 1.3 - (k - 0.15) * 0.4;
     ctx.save();
     ctx.globalAlpha = Math.max(0, 1 - k * k);
-    ctx.translate(p.x, p.y - k * 30);
+    ctx.font = `900 ${u(18)}px 'Orbitron', sans-serif`;
+    // keep the burst on screen (long words near the right edge)
+    const half = (ctx.measureText(p.text).width * 1.3) / 2;
+    ctx.translate(Math.max(half + 4, Math.min(W - half - 4, p.x)), p.y - k * 30);
     ctx.rotate(-0.12);
     ctx.scale(sc, sc);
-    ctx.font = `900 ${u(18)}px 'Orbitron', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 4;
@@ -1204,19 +1136,21 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     ctx.fillText(p.text, 0, 0);
     ctx.restore();
   }
-  // Name + HP bar at the top-center of the lane.
-  // Just inside the top of the play lane, clear of the HUD; centred on the open lane (left of the board).
-  const m = f.main;
-  const cx = Math.max(W * 0.3, (m.x - m.w / 2) / 2);
-  const barW = Math.min(W * 0.56, u(300), (m.x - m.w / 2) * 0.9);
+  // Name + HP bar at the top of the lane, centred on the open lane left of the boss (clear of
+  // the HUD and of the touch controls); the taunt card and the start banner stack below it.
+  const safeL = u(10);
+  const safeR = Math.max(W * 0.45, Math.min(W - u(10), f.restLeft - u(8)));
+  const cx = (safeL + safeR) / 2;
+  const barW = Math.min(u(300), safeR - safeL - u(20));
   const bx = cx - barW / 2;
   const by = f.laneTop + u(26);
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = d.tint;
   const title = bossTitle(d);
   let size = u(14);
   ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
-  while (ctx.measureText(title).width > Math.max(barW, W * 0.6) && size > 8) {
+  while (ctx.measureText(title).width > safeR - safeL - u(8) && size > 8) {
     size -= 1;
     ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
   }
@@ -1228,50 +1162,94 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   ctx.strokeStyle = 'rgba(255,255,255,0.7)';
   ctx.lineWidth = 1;
   ctx.strokeRect(bx, by, barW, u(9));
-  if (f.tauntT > 0 && f.taunt) {
+  const firstFrame = f.headerBottom <= 0;
+  f.headerBottom = by + u(9);
+  f.headerX = cx;
+  f.headerW = safeR - safeL;
+  if (f.tauntT > 0 && f.taunt && !firstFrame) {
     // Movie-trailer card: letterbox band, "IN A WORLD..." kicker, the list in a condensed serif.
+    // Wrapped and sized to fit inside the safe area between the left edge and the boss, below the
+    // name, the HP bar and any banner, and beside (never under) the on-screen touch controls.
     ctx.globalAlpha = Math.min(1, f.tauntT / 0.4, (3.6 - f.tauntT) / 0.3 + 0.2);
     const kicker = f.taunt.startsWith('IN A WORLD...') ? 'IN A WORLD...' : '';
     const body = kicker ? f.taunt.slice(kicker.length).trim() : f.taunt;
-    const maxW = Math.max(barW, W * 0.62);
-    let ts = u(14);
+    const pad = u(10);
     const serif = "'Trajan Pro', 'Times New Roman', Georgia, serif";
-    ctx.font = `700 ${ts}px ${serif}`;
-    // wrap to at most 2 lines
     const words = body.split(' ');
-    const lines = (): string[] => {
-      const out: string[] = [];
-      let cur = '';
-      for (const w of words) {
-        const t = cur ? cur + ' ' + w : w;
-        if (ctx.measureText(t).width > maxW && cur) {
-          out.push(cur);
-          cur = w;
-        } else cur = t;
-      }
-      if (cur) out.push(cur);
-      return out;
-    };
-    let ls = lines();
-    while ((ls.length > 2 || ls.some((l) => ctx.measureText(l).width > maxW)) && ts > 8) {
-      ts -= 1;
+    const fit = (L: number, R: number, minTs: number): { ts: number; ls: string[]; bandH: number } => {
+      const maxW = Math.max(60, R - L - pad * 2);
+      let ts = u(14);
       ctx.font = `700 ${ts}px ${serif}`;
-      ls = lines();
+      const lines = (): string[] => {
+        const out: string[] = [];
+        let cur = '';
+        for (const w of words) {
+          const t = cur ? cur + ' ' + w : w;
+          if (ctx.measureText(t).width > maxW && cur) {
+            out.push(cur);
+            cur = w;
+          } else cur = t;
+        }
+        if (cur) out.push(cur);
+        return out;
+      };
+      let ls = lines();
+      while ((ls.length > 3 || ls.some((l) => ctx.measureText(l).width > maxW)) && ts > minTs) {
+        ts -= 1;
+        ctx.font = `700 ${ts}px ${serif}`;
+        ls = lines();
+      }
+      return { ts, ls, bandH: ts * (1.6 + ls.length * 1.25) + u(6) };
+    };
+    if (f.cardFor !== f.taunt) {
+      f.cardFor = f.taunt;
+      f.cardTop = by + u(16);
     }
-    const bandH = ts * (1.6 + ls.length * 1.25) + u(6);
-    const bandY = by + u(16);
-    ctx.fillStyle = 'rgba(0,0,0,0.82)';
-    ctx.fillRect(cx - maxW / 2 - u(10), bandY, maxW + u(20), bandH);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(cx - maxW / 2 - u(10), bandY, maxW + u(20), 3);
-    ctx.fillRect(cx - maxW / 2 - u(10), bandY + bandH - 3, maxW + u(20), 3);
+    // Pushed down (never back up) when a banner appears above it.
+    f.cardTop = Math.max(f.cardTop, by + u(16), f.bannerBottom + u(6));
+    const bandY = f.cardTop;
+    // Full width if it fits above any control it would reach (a smaller font if need be), else
+    // beside the control; on a short sideways screen it waits for the banner to clear instead of
+    // shrinking to an unreadable size.
+    const hits = (L: number, R: number, h: number) => f.controls.filter((c) => !(c.y > bandY + h || c.y + c.h < bandY || c.x > R || c.x + c.w < L));
+    let L = safeL;
+    let R = safeR;
+    let lay = fit(L, R, 9);
+    if (hits(L, R, lay.bandH).length) {
+      let best: { ts: number; ls: string[]; bandH: number } | null = null;
+      for (let m = u(14); m >= u(10) && !best; m -= 1) {
+        const t = fit(L, R, m);
+        if (t.ts >= m && !hits(L, R, t.bandH).length) best = t;
+      }
+      if (best) lay = best;
+      else {
+        for (const c of hits(L, R, lay.bandH)) {
+          if (c.x + c.w / 2 < (L + R) / 2) L = Math.max(L, c.x + c.w + u(6));
+          else R = Math.min(R, c.x - u(6));
+        }
+        lay = fit(L, R, 9);
+      }
+    }
+    f.tauntHold = lay.ts < u(11) && f.bannerBottom > 0;
+    if (f.tauntHold) {
+      f.cardTop = by + u(16);
+      ctx.restore();
+      return;
+    }
+    const { ts, ls, bandH } = lay;
+    const ccx = (L + R) / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(L, bandY, R - L, bandH);
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(L, bandY, R - L, 3);
+    ctx.fillRect(L, bandY + bandH - 3, R - L, 3);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8c25a';
     ctx.font = `700 ${Math.max(8, ts * 0.72)}px ${serif}`;
-    ctx.fillText(kicker || 'COMING SOON', cx, bandY + ts * 1.15);
+    ctx.fillText(kicker || 'COMING SOON', ccx, bandY + ts * 1.15);
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${ts}px ${serif}`;
-    ls.forEach((l, i) => ctx.fillText(l, cx, bandY + ts * (2.35 + i * 1.25)));
+    ls.forEach((l, i) => ctx.fillText(l, ccx, bandY + ts * (2.35 + i * 1.25)));
   }
   ctx.restore();
 }

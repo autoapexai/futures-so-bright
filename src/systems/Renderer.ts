@@ -6,7 +6,7 @@ import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
 import { paintShip, shipSprite, dogGlyph, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, GLYPH_W, GLYPH_H, GLYPH_AX, GLYPH_AY, type Breed } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
-import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
+import { MAX_DRAWN_SHIPS, formatShips } from '../utils/cloneLevels';
 
 /** Clone level + ship count for the HUD (difficulty-11 runs only). */
 
@@ -721,16 +721,41 @@ export class Renderer {
     size: number,
     maxW: number,
   ): void {
-    const text = info.ships > 0 ? `LVL ${info.level}  ·  ${shipsLabel(info.ships)}` : `LVL ${info.level}`;
-    ctx.textAlign = align;
+    // "LVL 10  ·  1 dog": the count and the word are drawn apart (count in Orbitron, word in a
+    // different face, size and colour), so "1 DOG" can never read as "100G" in Orbitron.
+    const lvl = info.ships > 0 ? `LVL ${info.level}  ·  ` : `LVL ${info.level}`;
+    const count = info.ships > 0 ? formatShips(info.ships) : '';
+    const word = info.ships > 0 ? (info.ships === 1 ? 'dog' : 'dogs') : '';
+    ctx.textAlign = 'left';
+    const orb = "'Orbitron', sans-serif";
+    const raj = "'Rajdhani', 'Segoe UI', sans-serif";
+    let fs = size;
+    const measure = (): number => {
+      ctx.font = `700 ${fs}px ${orb}`;
+      const a = ctx.measureText(lvl + count).width;
+      ctx.font = `700 ${fs * 1.08}px ${raj}`;
+      return a + fs * 0.6 + (word ? ctx.measureText(word).width : 0);
+    };
+    while (measure() > maxW && fs > Math.min(size, 11)) fs -= 1;
+    const total = measure();
+    let tx = align === 'right' ? x - total : align === 'center' ? x - total / 2 : x;
     ctx.fillStyle = 'rgba(255, 230, 109, 0.95)';
-    this.fitFont(ctx, text, '700', size, "'Orbitron', sans-serif", maxW, Math.min(size, 11));
-    ctx.fillText(text, x, y);
+    ctx.font = `700 ${fs}px ${orb}`;
+    ctx.fillText(lvl + count, tx, y);
+    tx += ctx.measureText(lvl + count).width + fs * 0.6;
+    if (word) {
+      ctx.fillStyle = 'rgba(127, 255, 255, 0.95)';
+      ctx.font = `700 ${fs * 1.08}px ${raj}`;
+      ctx.fillText(word, tx, y);
+      tx += ctx.measureText(word).width;
+    }
+    const text = lvl + count;
+    void text;
     if (info.dogs && info.dogs.length) {
       // Dogs left: one icon per dog (sunglasses on, no flame), bigger as the pack shrinks.
       const iw = this.u(22) * (info.dogIconScale ?? 1);
       const ih = iw * (SPRITE_H / SPRITE_W);
-      let ix = x + ctx.measureText(text).width + this.u(12);
+      let ix = tx + this.u(12);
       const cy = y - size * 0.38;
       for (const b of info.dogs) {
         ctx.drawImage(shipSprite(b, { flame: false, accent: '#ffe66d' }), ix, cy - ih / 2, iw, ih);
@@ -740,7 +765,7 @@ export class Renderer {
   }
 
   /** Level-up banner, e.g. "LEVEL 12 · 2 SHIPS"; `t` counts down from `dur` seconds. */
-  drawLevelBanner(ctx: CanvasRenderingContext2D, text: string, t: number, dur: number, atY?: number): void {
+  drawLevelBanner(ctx: CanvasRenderingContext2D, text: string, t: number, dur: number, atY?: number, atX?: number, maxW?: number): void {
     if (t <= 0) return;
     const W = this.W;
     const H = this.H;
@@ -751,13 +776,14 @@ export class Renderer {
     ctx.globalAlpha = clamp(a, 0, 1);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const size = this.fitFont(ctx, text, '800', this.u(portrait ? 30 : 28), "'Orbitron', sans-serif", W * 0.82, 14);
+    const size = this.fitFont(ctx, text, '800', this.u(portrait ? 30 : 28), "'Orbitron', sans-serif", maxW ? maxW * 0.8 : W * 0.82, maxW ? 11 : 14);
     const tw = ctx.measureText(text).width;
     const cy = atY ?? (portrait ? H * 0.3 : H * 0.34);
+    const cx = atX ?? W / 2;
     const bh = size * 1.9;
     const bw = tw + size * 1.6;
     ctx.fillStyle = 'rgba(8, 0, 20, 0.72)';
-    roundRect(ctx, W / 2 - bw / 2, cy - bh / 2, bw, bh, bh / 2);
+    roundRect(ctx, cx - bw / 2, cy - bh / 2, bw, bh, bh / 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(255, 220, 110, 0.8)';
     ctx.lineWidth = 2;
@@ -767,8 +793,17 @@ export class Renderer {
       ctx.shadowBlur = 14;
       ctx.shadowColor = 'rgba(255, 180, 60, 0.9)';
     }
-    ctx.fillText(text, W / 2, cy + 1);
+    ctx.fillText(text, cx, cy + 1);
     ctx.restore();
+  }
+
+  /** Height of the level banner pill for this text (to stack things under it). */
+  levelBannerHeight(ctx: CanvasRenderingContext2D, text: string, maxW?: number): number {
+    const portrait = this.H > this.W * 1.1;
+    ctx.save();
+    const size = this.fitFont(ctx, text, '800', this.u(portrait ? 30 : 28), "'Orbitron', sans-serif", maxW ? maxW * 0.8 : this.W * 0.82, maxW ? 11 : 14);
+    ctx.restore();
+    return size * 1.9;
   }
 
   /**
