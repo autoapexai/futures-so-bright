@@ -4,8 +4,8 @@ import { WorldSpawner, aabb, circleRect, type Obstacle } from '../entities/Obsta
 import { Input } from './Input';
 import { ParticleSystem } from './Particles';
 import { Renderer, GATE_GLOW_SECONDS } from './Renderer';
-import { Formation, CLONE_SLOTS, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
-import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipsForLevel, shipsLabel } from '../utils/cloneLevels';
+import { Formation, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
+import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipHitCost, shipsForLevel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
 import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
@@ -35,9 +35,28 @@ import {
 } from '../utils/storage';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { trackRunStart } from '../utils/track';
+import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
+import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
+import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
+import {
+  BLENDER_SECONDS,
+  MICROWAVE_SECONDS,
+  TOASTER_POINTS,
+  TOASTER_SECONDS,
+  drawCatLoading,
+  drawGroupPhoto,
+  drawPizzaShield,
+  drawPrizeReveal,
+  historyJabs,
+  speakTrailer,
+  stopSpeech,
+  type Appliance,
+} from './silly';
 import {
   MIN_DIFFICULTY,
   MAX_PUBLIC_DIFFICULTY,
+  MAX_LEVEL,
+  SCORE_CAP,
   SECRET_DIFFICULTY,
   pointMultiplier,
   difficultyLabel,
@@ -51,6 +70,8 @@ const TUT_STEPS = 4;
 /** MODES menu: a tap on THE CALVIN TWINS starts it after this beat (ms); a 2nd tap = the egg. */
 const CALVIN_PICK_MS = 550;
 /** Level-up banner duration (s). */
+/** Length of THE DUCHESS OF PASADENA prize reveal, s. */
+const PRIZE_SECONDS = 5;
 const BANNER_SECONDS = 2.4;
 /**
  * Ring gates are pure boosts: touching any part of one (rim or hole) sets the shade charge to
@@ -202,6 +223,39 @@ export class Game {
   private decoyFaked = false;
   private decoySlot: CloneSlot | null = null;
   private decoyHiddenT = 0;
+  /** THE BOARD fight in progress (end of levels 10, 20 ... 110 and 111), else null. */
+  private boss: BossFight | null = null;
+  /** This level's boss has been fought (beaten or bored), so the level can now be cleared. */
+  private bossDone = false;
+  bossesBeaten = 0;
+  /** Per-run seed (boss randomness + random mode swaps); logged at run start. */
+  runSeed = 0;
+  private runRng: Rng = Math.random;
+  /** Test builds can pin the next run's seed (reproducible videos). */
+  forcedSeed: number | null = null;
+  /** Modes this run has used (the leaderboard stores the end mode plus this count). */
+  private modesUsed = new Set<string>();
+  /** The current mode's full pack size (for scaling the pack on a mid-run mode change). */
+  private modeFullShips = 0;
+  private pendingMode: string | null = null;
+  private pendingModes = 1;
+  /** Silliness pack timers: TOASTER burst, BLENDER spin, MICROWAVE pizza shield, cat freeze. */
+  private toastT = 0;
+  private spinT = 0;
+  private shieldT = 0;
+  catT = 0;
+  nextCatAt = 0;
+  private catRng: Rng = Math.random;
+  /** Group photo after the level 111 boss (then VICTORY). */
+  photoT = 0;
+  /** THE DUCHESS OF PASADENA prize reveal after the photo (then the VICTORY screen). */
+  prizeT = 0;
+  private bossesFought: BossDef[] = [];
+  private a11yT = 0;
+  private tromboneAt = 0;
+  /** The level this run began on (the board's START column). */
+  private runStartLevel = 1;
+  private pendingStart = 1;
   private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
@@ -237,6 +291,11 @@ export class Game {
     );
     if (!ctx) throw new Error('Canvas 2D not available');
     this.ctx = ctx;
+    // Any button, key or tap stops the game-over sad trombone.
+    const hush = (): void => {
+      if (this.audio && this.audio.tromboneOn && performance.now() - this.tromboneAt > 350) this.audio.stopSadTrombone();
+    };
+    for (const ev of ['pointerdown', 'keydown', 'touchstart']) window.addEventListener(ev, hush, { capture: true, passive: true });
     this.input = new Input();
     this.renderer = new Renderer(this.viewW, this.viewH);
 
@@ -439,6 +498,8 @@ export class Game {
       document.getElementById('donate')?.remove();
     }
 
+    this.bindV4V();
+
     // MODES (title & game-over menus): fan modes list; Play (START / any key) stays primary.
     const list = document.getElementById('modes-list');
     if (list) {
@@ -635,9 +696,15 @@ export class Game {
     this.closeModes();
     void this.audio.unlock();
     if (this.quitOpen) {
-      // CHANGE MODE mid-run: the paused run ends with no score, and the new mode starts at level 1.
+      // CHANGE MODE mid-run: swap the mode in place. Score, level, level timer, shade and any
+      // boss fight carry on; the pack keeps its health fraction in the new mode's dogs.
       this.closeQuitConfirm();
-      this.startRun(MIN_DIFFICULTY, null, false, m);
+      this.switchMode(m, true);
+      this.bannerText = `MODE  ·  ${m.name}`;
+      this.bannerT = BANNER_SECONDS;
+      if (this.state === 'paused') this.togglePause();
+      this.input.clearTouch();
+      this.input.clearJustPressed();
       return;
     }
     this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, m);
@@ -704,6 +771,9 @@ export class Game {
     this.continueT = 0;
     this.score = 0;
     this.mode = null;
+    this.boss = null;
+    this.bossDone = false;
+    this.world.spawnObstacles = true;
     this.level = 0;
     this.ships = 1;
     this.formation = this.cloneFormation;
@@ -1358,6 +1428,31 @@ export class Game {
     this.runDifficulty = difficulty;
     trackRunStart(mode ? mode.name : null, difficulty);
     this.victory = false;
+    this.runStartLevel = difficulty;
+    this.audio.stopSadTrombone();
+    stopSpeech();
+    this.toastT = 0;
+    this.spinT = 0;
+    this.shieldT = 0;
+    this.catT = 0;
+    this.photoT = 0;
+    this.prizeT = 0;
+    this.bossesFought = [];
+    this.runSeed = this.forcedSeed ?? newSeed();
+    this.forcedSeed = null;
+    this.runRng = mulberry32(this.runSeed);
+    this.catRng = mulberry32(subSeed(this.runSeed, 999));
+    // The cat walks on the keyboard at most every few minutes, never in the first 30 s.
+    this.nextCatAt = 90 + this.catRng() * 120;
+    this.world.powerRand = mulberry32(subSeed(this.runSeed, 77));
+    this.world.spawnPowers = true;
+    console.info(`[fsb] run seed ${this.runSeed}`);
+    this.boss = null;
+    this.bossDone = false;
+    this.bossesBeaten = 0;
+    this.modesUsed = new Set(mode ? [mode.id] : []);
+    this.modeFullShips = mode ? mode.ships : 0;
+    this.world.spawnObstacles = true;
     this.runTicket = difficulty === SECRET_DIFFICULTY ? ticket : null;
     // Levels 1-10 are 30 s stages; clearing 10 carries on into 11 (any player). Its run ticket
     // is requested when 10 is cleared, dated back by the play time so far (see clearStage).
@@ -1432,9 +1527,21 @@ export class Game {
   private endRun(): void {
     this.input.clearTouch();
     this.audio.playGameOver();
-    this.pendingScore = Math.floor(this.score);
+    // The shared board's cap (SCORE_CAP, one constant; the SQL has the same single value).
+    this.pendingScore = Math.min(SCORE_CAP, Math.floor(this.score));
     this.pendingRunMs = Math.round(this.runTime * 1000);
     this.pendingDifficulty = this.runDifficulty;
+    this.pendingMode = this.mode ? this.mode.id : null;
+    this.pendingModes = Math.max(1, this.modesUsed.size);
+    this.pendingStart = this.runStartLevel;
+    stopSpeech();
+    this.announce(`${this.victory ? 'Victory' : 'Game over'}. Score ${this.pendingScore.toLocaleString('en-US')}, level ${this.pendingDifficulty}.`);
+    if (!this.victory) {
+      // Sad trombone, looping until any button, key or tap (respects mute).
+      this.tromboneAt = performance.now();
+      this.audio.startSadTrombone();
+    }
+    this.boss = null;
     // Load (and, for legacy saves, migrate) the local board before touching the high-score key.
     const localBoard = loadLeaderboard();
     if (this.pendingScore > this.high) {
@@ -1478,13 +1585,16 @@ export class Game {
     const score = this.pendingScore;
     const runMs = this.pendingRunMs;
     const difficulty = this.pendingDifficulty;
-    const ticketReq = difficulty === SECRET_DIFFICULTY ? this.runTicket : null;
+    const ticketReq = difficulty >= SECRET_DIFFICULTY ? this.runTicket : null;
+    const endMode = this.pendingMode;
+    const modeCount = this.pendingModes;
+    const startLevel = this.pendingStart;
     const id = this.runId;
     // Always keep this device's board (offline fallback + personal best).
-    const local = addEntry(score, initials, undefined, difficulty);
+    const local = addEntry(score, initials, undefined, difficulty, this.pendingStart);
     if (remoteEnabled && this.remoteBoard && !this.runLocalOnly) {
       // Optimistic: show the entry on the shared board until the server replies.
-      const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty);
+      const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty, this.pendingStart);
       this.leaderboard = optimistic.board;
       this.highlightIndex = optimistic.index;
       this.boardIsRemote = true;
@@ -1502,7 +1612,7 @@ export class Game {
 
     if (!remoteEnabled || this.runLocalOnly) return;
     void (ticketReq ?? Promise.resolve(null))
-      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null))
+      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel))
       .then((res) => {
       if (res?.claimToken) addClaimToken(res.claimToken);
       if (res) this.remoteBoard = res.board;
@@ -1726,16 +1836,68 @@ export class Game {
       return;
     }
 
+    if (this.photoT > 0) {
+      this.photoT -= dt;
+      this.particles.update(dt);
+      if (this.photoT <= 0) {
+        this.photoT = 0;
+        this.prizeT = PRIZE_SECONDS;
+        this.audio.playPromote();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
+    if (this.prizeT > 0) {
+      this.prizeT -= dt;
+      if (this.prizeT <= 0) {
+        this.prizeT = 0;
+        this.victory = true;
+        this.endRun();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
+    if (this.catT > 0) {
+      // "the cat is walking on the keyboard": everything (run clock, level timer) stands still.
+      this.catT = Math.max(0, this.catT - dt);
+      this.input.clearJustPressed();
+      return;
+    }
+    if (this.tutStep < 0 && !this.boss && this.runTime >= 30 && this.runTime >= this.nextCatAt) {
+      this.catT = 1.5 + this.catRng() * 1.5;
+      this.nextCatAt = this.runTime + 150 + this.catRng() * 150;
+      console.info(`[fsb] cat on keyboard ${this.catT.toFixed(1)}s`);
+      this.input.clearJustPressed();
+      return;
+    }
+    this.a11yT -= dt;
+    if (this.a11yT <= 0) {
+      this.a11yT = 3;
+      this.announce(`Score ${Math.floor(this.score).toLocaleString('en-US')}, level ${this.runDifficulty}`);
+    }
+
     this.runTime += dt;
-    // Every level is a 30 s stage: 1-10 advance one level (score carries over), clone levels
-    // (11+) multiply ships. Exactly one level per pass.
+    // Every level 1-111 is a 30 s stage: passing it promotes to the next level (score carries
+    // over; gold levels 11+ also multiply the clone swarm). Exactly one level per pass.
+    // Every tenth level (and 111) ends with THE BOARD: the level timer holds at the end while
+    // the boss is up, and the level clears once it is beaten (or gets bored and leaves).
     this.levelTime += dt;
-    if (this.levelTime >= LEVEL_SECONDS) {
-      this.levelTime -= LEVEL_SECONDS;
-      if (this.level > 0) this.levelUp();
-      else if (this.clearStage()) return;
+    if (this.boss) {
+      this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
+    } else if (this.levelTime >= LEVEL_SECONDS) {
+      const def = this.bossDone ? null : bossForLevel(this.runDifficulty);
+      if (def) {
+        this.levelTime = LEVEL_SECONDS;
+        this.startBoss(def);
+      } else {
+        this.levelTime -= LEVEL_SECONDS;
+        if (this.clearStage()) return;
+      }
     }
     this.bannerT = Math.max(0, this.bannerT - dt);
+    this.toastT = Math.max(0, this.toastT - dt);
+    this.spinT = Math.max(0, this.spinT - dt);
+    this.shieldT = Math.max(0, this.shieldT - dt);
 
     const boosting = this.input.boosting && this.charge > 0.05;
     const speedMul = boosting ? 1.35 : 1;
@@ -1747,7 +1909,7 @@ export class Game {
     const hz = hazardLevers(d);
     const m = hz.speed;
     const pts = pointMultiplier(d);
-    this.scrollSpeed = 240 * m + this.stageDist * 0.035 * m + (boosting ? 90 : 0);
+    this.scrollSpeed = 240 * m + this.stageDist * 0.035 * m + (boosting ? 90 : 0) + (this.toastT > 0 ? 320 : 0);
     const pr = this.touchReserves();
     // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
     const f = this.formation;
@@ -1784,6 +1946,19 @@ export class Game {
       hz.density,
       hz.rampMul,
     );
+    if (this.boss) {
+      this.boss.update({
+        dt,
+        W: this.viewW,
+        top: pr.top,
+        bottom: this.viewH - pr.bottom,
+        px: this.player.x,
+        py: this.player.y,
+        packH: this.player.h + f.extUp + f.extDown,
+        boosting,
+      });
+      this.bossEvents();
+    }
     this.particles.update(dt);
     this.renderer.update(dt, this.scrollSpeed);
     {
@@ -1800,8 +1975,10 @@ export class Game {
     }
 
     this.distance += this.scrollSpeed * dt * 0.35;
-    this.stageDist += this.scrollSpeed * dt * 0.35;
+    // The stage ramp holds while THE BOARD is up (a long fight must not run the scroll away).
+    if (!this.boss) this.stageDist += this.scrollSpeed * dt * 0.35;
     this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
+    if (this.score > SCORE_CAP) this.score = SCORE_CAP;
 
     // shade drain
     const drain = ((boosting ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
@@ -1839,8 +2016,13 @@ export class Game {
       if (!c.alive) continue;
       if (circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) {
         c.alive = false;
+        if (c.kind !== 'shade') {
+          this.applyPower(c.kind, pts);
+          continue;
+        }
         this.charge = clamp(this.charge + 0.22, 0, 1);
         this.score += c.value * pts;
+        if (this.score > SCORE_CAP) this.score = SCORE_CAP;
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
         this.spawnFloater(c.x, c.y, '+SHADE', '#00f0ff');
@@ -1854,6 +2036,10 @@ export class Game {
       for (const o of this.world.obstacles) {
         if (!o.alive) continue;
         if (this.hitsObstacle(o, hb)) {
+          if (this.shieldT > 0) {
+            this.pizzaAbsorb();
+            break;
+          }
           if (this.ships > 1) {
             // With clones / pack dogs, a hit costs one ship (dog), not shade. No pause.
             this.loseLeadShip(this.packRun ? 0.85 * hz.hitGraceMul : 1.0);
@@ -1880,14 +2066,29 @@ export class Game {
       }
     }
 
+    // THE BOARD: a shot (or its body) on the lead dog costs shade, not dogs (see bossHit).
+    if (this.boss && this.player.invuln <= 0) {
+      const bf = this.boss;
+      let hit = bf.bodyHits(hb.x, hb.y, hb.w, hb.h);
+      for (const s of bf.shots) {
+        if (BossFight.harmful(s) && BossFight.shotHits(s, hb.x, hb.y, hb.w, hb.h)) {
+          s.alive = false;
+          hit = true;
+        }
+      }
+      if (hit && this.shieldT > 0) this.pizzaAbsorb();
+      else if (hit && this.bossHit(hz.hitDamageMul)) return;
+    }
+
     // Clones: only the drawn ones collide; a hit clone is lost (the reserve refills its slot).
-    if (f.occupiedCount > 0) this.collideClones();
+    if (f.occupiedCount > 0 && this.shieldT <= 0) this.collideClones();
 
     this.input.clearJustPressed();
   }
 
   /** Start the How to Play walkthrough (first load, or the How to Play button). Never scores. */
   private startTutorial(): void {
+    this.world.spawnPowers = false;
     this.tutStep = 0;
     this.tutT = 0;
     this.tutProgress = 0;
@@ -2067,7 +2268,7 @@ export class Game {
           title: 'SURVIVE 30 SECONDS',
           lines: [
             'Survive 30 seconds to pass a level',
-            'Levels 1 to 10 get harder as you go',
+            'Levels 1 to 111 get harder as you go',
             'You start with 4 dogs: lose them all = game over',
             `Circles refill shade, gates fill it; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
             touch ? 'Tap to ride' : 'ENTER or click to ride',
@@ -2077,21 +2278,24 @@ export class Game {
   }
 
   /**
-   * Pass a level 1-10. Returns false (the run carries on).
+   * Pass the current level. Returns true when the run ended (cleared 111 = victory).
    * 1-9: a ~2 s "LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!" interstitial, then the next level
    * starts fresh (hazards cleared, ramp reset, shades full) with the score carried over.
-   * 10: every player gets a "YOU BEAT LEVEL 10" interstitial, then clone mode (level 11). On the
-   * shared board the run's level-11 ticket is requested now (the server logs the 'start'),
+   * 10: every player gets a "YOU BEAT LEVEL 10" interstitial, then the gold zone (level 11, clone
+   * mode). On the shared board the run's ticket is requested now (the server logs the 'start'),
    * dated back by the play time so far so the whole run fits the ticket.
+   * 11-110: the same interstitial, then the next gold level; its swarm is refilled to
+   * shipsForLevel (lost clones come back). 111: victory screen, submitted as 111.
    */
   private clearStage(): boolean {
     const cleared = this.runDifficulty;
-    if (cleared >= SECRET_DIFFICULTY) {
-      // A fan mode that reached 11 keeps playing 11 (its swarm never multiplies).
-      this.bannerText = `LEVEL ${cleared} CLEARED`;
-      this.bannerT = BANNER_SECONDS;
-      this.audio.playCollect();
-      return false;
+    if (cleared >= MAX_LEVEL) {
+      // Group photo of every boss fought this run, then VICTORY.
+      this.photoT = 6;
+      this.bannerT = 0;
+      this.audio.playPromote();
+      this.input.clearJustPressed();
+      return true;
     }
     if (cleared < MAX_PUBLIC_DIFFICULTY) {
       this.showPromotion(`LEVEL ${cleared} COMPLETED`, "YOU'VE BEEN PROMOTED!", () => {
@@ -2100,23 +2304,277 @@ export class Game {
       });
       return false;
     }
-    // Beat level 10: straight into clone mode (level 11) for everyone, submitted as 11.
-    this.climbTicket =
-      remoteEnabled && !this.runLocalOnly ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
-    this.showPromotion('YOU BEAT LEVEL 10', "YOU'VE BEEN PROMOTED!", () => {
-      this.runDifficulty = SECRET_DIFFICULTY;
-      this.runTicket = this.climbTicket;
-      if (!this.mode) {
-        this.level = FIRST_CLONE_LEVEL;
-        this.ships = 1;
-        this.formation.clear();
-        this.setPackK(1);
-      }
+    if (cleared === MAX_PUBLIC_DIFFICULTY) {
+      // Beat level 10: straight into the gold zone (level 11) for everyone.
+      this.climbTicket =
+        remoteEnabled && !this.runLocalOnly ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
+    }
+    const title = cleared === MAX_PUBLIC_DIFFICULTY ? 'YOU BEAT LEVEL 10' : `LEVEL ${cleared} COMPLETED`;
+    this.showPromotion(title, "YOU'VE BEEN PROMOTED!", () => {
+      const next = cleared + 1;
+      this.runDifficulty = next;
+      if (cleared === MAX_PUBLIC_DIFFICULTY) this.runTicket = this.climbTicket;
       this.freshStage();
-      this.bannerText = this.mode ? `${this.mode.name}  ·  LEVEL 11` : `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
+      // Every level change switches to a random mode (never the one just played; the Calvin
+      // Triplets egg is not in the pool) with a fresh pack of its starting dogs.
+      const m = this.randomMode();
+      this.switchMode(m, false);
+      this.bannerText = `LEVEL ${next}  ·  ${m.name}`;
       this.bannerT = BANNER_SECONDS;
     });
     return false;
+  }
+
+  /** VALUE FOR VALUE: TIME (suggestion) and TALENT (resume) panels; TREASURE is the Venmo link. */
+  private bindV4V(): void {
+    const modal = document.getElementById('v4v-modal');
+    if (!modal) return;
+    const stop = (e: Event): void => e.stopPropagation();
+    for (const ev of ['pointerdown', 'pointerup', 'click', 'keydown', 'keyup', 'touchstart', 'touchend']) modal.addEventListener(ev, stop);
+    const title = document.getElementById('v4v-modal-title');
+    const errs = (): NodeListOf<HTMLElement> => modal.querySelectorAll('.v4v-err');
+    const open = (view: 'time' | 'talent'): void => {
+      modal.dataset.view = view;
+      if (title) title.textContent = view === 'time' ? 'TIME' : 'TALENT';
+      errs().forEach((e) => (e.textContent = ''));
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      this.input.clearTouch();
+      window.setTimeout(() => (modal.querySelector(view === 'time' ? '#v4v-msg-in' : '#v4v-rname') as HTMLElement | null)?.focus(), 60);
+    };
+    const close = (): void => {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      this.input.clearTouch();
+      this.input.clearJustPressed();
+    };
+    const done = (text: string): void => {
+      const t = document.getElementById('v4v-done-text');
+      if (t) t.textContent = text;
+      if (title) title.textContent = modal.dataset.view === 'time' ? 'TIME' : 'TALENT';
+      modal.dataset.view = 'done';
+    };
+    modal.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Escape') close();
+    });
+    for (const [id, view] of [['v4v-time', 'time'], ['v4v-talent', 'talent']] as const) {
+      const b = document.getElementById(id);
+      b?.addEventListener('pointerdown', stop);
+      b?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void this.audio.unlock();
+        this.audio.stopSadTrombone();
+        open(view);
+      });
+    }
+    modal.querySelectorAll('.v4v-cancel').forEach((b) => b.addEventListener('click', close));
+    const msg = document.getElementById('v4v-msg-in') as HTMLTextAreaElement | null;
+    const count = document.getElementById('v4v-count');
+    msg?.addEventListener('input', () => {
+      if (count) count.textContent = `${msg.value.length} / ${SUGGEST_MAX}`;
+    });
+    const val = (sel: string): string => (modal.querySelector(sel) as HTMLInputElement | null)?.value ?? '';
+    const submit = (formId: string, run: () => Promise<void>, thanks: string): void => {
+      const form = document.getElementById(formId) as HTMLFormElement | null;
+      form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const err = form.querySelector('.v4v-err') as HTMLElement | null;
+        const send = form.querySelector('.v4v-send') as HTMLButtonElement | null;
+        if (send?.disabled) return;
+        if (send) send.disabled = true;
+        if (err) err.textContent = '';
+        run()
+          .then(() => {
+            form.reset();
+            if (count) count.textContent = `0 / ${SUGGEST_MAX}`;
+            done(thanks);
+          })
+          .catch((x: unknown) => {
+            const m = x instanceof Error ? x.message : String(x);
+            if (err) err.textContent = /HTTP 429|too many/i.test(m) ? 'Easy there. Try again in an hour.' : m.replace(/^fsb_\w+ HTTP \d+ (fsb: )?/, '');
+          })
+          .finally(() => {
+            if (send) send.disabled = false;
+          });
+      });
+    };
+    submit('v4v-time-form', () => sendSuggestion(val('#v4v-msg-in'), val('#v4v-name-in'), val('#v4v-email-in'), val('#v4v-time-form .v4v-hp')), 'THANK YOU FOR YOUR TIME');
+    const file = document.getElementById('v4v-rfile') as HTMLInputElement | null;
+    file?.addEventListener('change', () => {
+      const r = checkResume(file.files?.[0]);
+      const err = document.querySelector('#v4v-talent-form .v4v-err') as HTMLElement | null;
+      if (err) err.textContent = typeof r === 'string' ? r : '';
+    });
+    submit(
+      'v4v-talent-form',
+      () => {
+        const f = file?.files?.[0];
+        const r = checkResume(f);
+        if (typeof r === 'string' || !f) return Promise.reject(new Error(typeof r === 'string' ? r : 'Pick a file.'));
+        return sendResume(val('#v4v-rname'), val('#v4v-remail'), val('#v4v-rnote'), f, val('#v4v-talent-form .v4v-hp'));
+      },
+      'TALENT RECEIVED',
+    );
+  }
+
+  /** Kitchen-appliance power-ups (silliness pack). TOASTER points are inside the server's budget. */
+  private applyPower(kind: Appliance, pts: number): void {
+    const x = this.player.x;
+    const y = this.player.y;
+    this.audio.playGate();
+    if (kind === 'toaster') {
+      this.toastT = TOASTER_SECONDS;
+      this.player.vx += 900;
+      this.player.invuln = Math.max(this.player.invuln, 1.5);
+      this.score += TOASTER_POINTS * pts;
+      if (this.score > SCORE_CAP) this.score = SCORE_CAP;
+      this.spawnFloater(x, y - 24, `TOASTED! +${Math.round(TOASTER_POINTS * pts)}`, '#ffb347');
+      this.particles.burst(x, y, '#ffb347', this.touchPrimary ? 10 : 22, 260);
+    } else if (kind === 'blender') {
+      this.spinT = BLENDER_SECONDS;
+      this.spawnFloater(x, y - 24, 'BLENDED!', '#7fffff');
+    } else {
+      this.shieldT = MICROWAVE_SECONDS;
+      this.spawnFloater(x, y - 24, 'LEFTOVER PIZZA SHIELD!', '#f4c542');
+    }
+  }
+
+  /** The pizza shield eats a hit: a slice flies off, no damage. */
+  private pizzaAbsorb(): void {
+    this.player.invuln = Math.max(this.player.invuln, 0.5);
+    this.boss?.clearNear(this.player.x, this.player.y, BOSS_MERCY_R * 0.6);
+    this.particles.burst(this.player.x, this.player.y, '#f4c542', this.touchPrimary ? 6 : 14, 200);
+    this.audio.playCollect();
+  }
+
+  /** Mirror a short status line into the screen-reader live region (canvas text isn't readable). */
+  private announce(text: string): void {
+    const el = document.getElementById('score-a11y');
+    if (el && el.textContent !== text) el.textContent = text;
+  }
+
+  /** A random mode from the 12 (not the current one, never the Calvin Triplets egg). */
+  private randomMode(): ModeDef {
+    const cur = this.mode?.id;
+    const pool = MODES.filter((m) => m.id !== cur && m.id !== CALVIN_TRIPLETS.id);
+    return pick(this.runRng, pool);
+  }
+
+  /**
+   * Switch the run to mode m in place (score, level, level timer, shade and boss carry on).
+   * scaled=false (a level change): a fresh pack of the mode's starting dogs. scaled=true (CHANGE
+   * MODE mid-level): the pack keeps its current health fraction, rounded, at least 1 dog.
+   */
+  private switchMode(m: ModeDef, scaled: boolean): void {
+    let n = m.ships;
+    if (scaled) {
+      const full = this.mode ? this.modeFullShips : this.level > 0 ? shipsForLevel(this.level) : PACK_START;
+      const frac = Math.min(1, this.ships / Math.max(1, full));
+      n = Math.max(1, Math.min(m.ships, Math.round(m.ships * frac)));
+    }
+    this.mode = m;
+    this.level = 0;
+    this.modeFullShips = m.ships;
+    this.modesUsed.add(m.id);
+    this.decoyFaked = false;
+    this.decoySlot = null;
+    this.decoyHiddenT = 0;
+    this.ships = n;
+    this.setupSwarm(m.scale);
+    this.player.invuln = Math.max(this.player.invuln, 1.0);
+  }
+
+  /** THE BOARD arrives: hazards stop spawning (shades and rings keep coming). */
+  private startBoss(def: BossDef): void {
+    const local = loadLeaderboard();
+    const bestLvl = local.reduce((a, e) => Math.max(a, e.difficulty ?? 0), 0);
+    const pinned = Math.max(this.high, this.remoteBoard?.[0]?.score ?? 0);
+    this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length), pinned);
+    this.bossesFought.push(def);
+    this.world.spawnObstacles = false;
+    this.bannerText = `THE BOARD  ·  ${def.name}`;
+    this.bannerT = BANNER_SECONDS;
+    this.audio.playPromote();
+    console.info(`[fsb] boss L${def.level} ${def.modeId} seed ${this.boss.seed}`);
+  }
+
+  /** Apply the boss's queued events (rings, hits, stun, bonus, exit). */
+  private bossEvents(): void {
+    const bf = this.boss;
+    if (!bf) return;
+    for (const e of bf.events) {
+      switch (e.type) {
+        case 'ring':
+          this.world.addRing(e.x, e.y);
+          break;
+        case 'taunt':
+          if (!this.audio.isMuted) speakTrailer(e.text);
+          break;
+        case 'hit':
+          if (e.decoy) {
+            if (Math.random() < 0.3) this.spawnFloater(e.x, e.y - 10, 'DECOY!', '#ffffff');
+          } else {
+            this.particles.burst(e.x, e.y, e.crit ? '#ffe66d' : bf.def.tint, this.touchPrimary ? 3 : 6, 140);
+          }
+          break;
+        case 'stunned':
+          this.audio.playGate();
+          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, 'BOARD STUNNED!', '#ffe66d');
+          this.renderer.bumpShake(6);
+          break;
+        case 'phase':
+          this.renderer.bumpShake(8);
+          this.renderer.bumpFlash(0.25);
+          break;
+        case 'defeated':
+          // Flat bonus, not multiplied, still capped.
+          this.score = Math.min(SCORE_CAP, this.score + BOSS_BONUS);
+          this.bossesBeaten++;
+          this.audio.playPromote();
+          this.renderer.bumpShake(16);
+          this.renderer.bumpFlash(0.6);
+          this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 24 : 60, 360);
+          this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, '+1,000,000', '#ffe66d');
+          this.bannerText = `THE BOARD BEATEN  ·  +1,000,000`;
+          this.bannerT = BANNER_SECONDS;
+          break;
+        case 'bored':
+          this.bannerText = 'THE BOARD GOT BORED  ·  NO BONUS';
+          this.bannerT = BANNER_SECONDS;
+          break;
+        case 'gone':
+          this.boss = null;
+          this.bossDone = true;
+          this.world.spawnObstacles = true;
+          break;
+        default:
+          break;
+      }
+    }
+    bf.events.length = 0;
+  }
+
+  /**
+   * A boss shot hits the lead dog: shade, not dogs (so every mode has the same margin). An empty
+   * shade costs dogs as usual (and refills to 0.75); with no dogs left it's game over.
+   * Returns true when the tick must stop (run over / continue prompt).
+   */
+  private bossHit(damageMul: number): boolean {
+    this.boss?.clearNear(this.player.x, this.player.y, BOSS_MERCY_R);
+    this.charge = clamp(this.charge - 0.2 * damageMul, 0, 1);
+    this.player.invuln = BOSS_HIT_GRACE;
+    this.hitFx(this.player.x, this.player.y, true);
+    if (this.charge > 0) return false;
+    if (this.ships > 1) {
+      this.loseLeadShip(BOSS_HIT_GRACE);
+      this.charge = 0.75;
+      return false;
+    }
+    if (this.packRun) return this.lastDogLost();
+    this.endRun();
+    this.input.clearJustPressed();
+    return true;
   }
 
   private showPromotion(title: string, sub: string, next: () => void): void {
@@ -2130,6 +2588,9 @@ export class Game {
 
   /** A new stage starts fresh: hazards cleared, ramp back to the level's base, shades full. */
   private freshStage(): void {
+    this.bossDone = false;
+    this.boss = null;
+    this.world.spawnObstacles = true;
     this.world.reset();
     this.stageDist = 0;
     this.levelTime = 0;
@@ -2141,21 +2602,16 @@ export class Game {
     }
   }
 
-  /** Pass the current clone level: next level, ship count reset to that level's number. */
-  private levelUp(): void {
-    this.level++;
-    this.ships = shipsForLevel(this.level);
-    this.formation.fill(Math.min(this.ships - 1, CLONE_SLOTS), this.player.x, this.player.y);
-    this.bannerText = `LEVEL ${this.level}  ·  ${shipsLabel(this.ships)}`;
-    this.bannerT = BANNER_SECONDS;
-    this.audio.playCollect();
-  }
-
   /** HUD icons: the player's dog first, then the pack dogs still running. */
   private packBreeds(): Breed[] {
     const out: Breed[] = [this.player.breed];
     for (const sl of this.formation.slots) if (sl.occupied) out.push(sl.breed);
     return out;
+  }
+
+  /** Dogs lost per hit: a quarter of the level's swarm on gold levels 15+ (see shipHitCost), else 1. */
+  private get hitCost(): number {
+    return this.level > 0 && !this.mode ? shipHitCost(this.level) : 1;
   }
 
   /** Reserve ships beyond the drawn formation. */
@@ -2165,8 +2621,8 @@ export class Game {
 
   /** The player's ship is lost (hit or out of shade) while clones remain: a clone takes over. */
   private loseLeadShip(grace = 1.0): void {
-    this.ships--;
-    if (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
+    this.ships = Math.max(1, this.ships - this.hitCost);
+    while (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
     this.player.invuln = grace;
     this.hitFx(this.player.x, this.player.y, true);
     if (this.packRun) this.dogLost(grace);
@@ -2238,9 +2694,19 @@ export class Game {
       hb.h = 28 * s.scale * 0.7;
       hb.x = s.x - hb.w / 2;
       hb.y = s.y - hb.h / 2;
+      let lost = false;
       for (const o of obs) {
         if (!o.alive) continue;
         if (this.hitsObstacle(o, hb)) {
+          this.loseClone(s);
+          lost = true;
+          break;
+        }
+      }
+      if (lost || !this.boss) continue;
+      for (const sh of this.boss.shots) {
+        if (BossFight.harmful(sh) && BossFight.shotHits(sh, hb.x, hb.y, hb.w, hb.h)) {
+          sh.alive = false;
           this.loseClone(s);
           break;
         }
@@ -2262,15 +2728,15 @@ export class Game {
       return;
     }
     this.hitFx(s.x, s.y, false);
-    const hadReserve = this.reserve > 0;
-    this.ships--;
-    if (hadReserve) {
+    this.ships = Math.max(1, this.ships - this.hitCost);
+    if (this.reserve > 0) {
       // A reserve ship fills the slot, easing in from the player's ship with a short grace.
       s.x = this.player.x;
       s.y = this.player.y;
       s.invuln = 0.6;
     } else {
       this.formation.empty(s);
+      while (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
     }
     if (this.packRun) this.dogLost(0.85 * hazardLevers(this.runDifficulty).hitGraceMul);
   }
@@ -2362,6 +2828,7 @@ export class Game {
       this.audio.playGate();
       this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
       this.spawnFloater(cx, o.y - 6, 'GATE BOOST · FULL POWER', '#ffe66d');
+      this.boss?.stunHit();
     }
   }
 
@@ -2393,10 +2860,22 @@ export class Game {
 
     ctx.save();
     ctx.translate(sx, sy);
+    if (this.spinT > 0 && this.state === 'playing') {
+      // BLENDER: one eased spin of the world (HUD and controls stay put), slightly zoomed out.
+      const k = 1 - this.spinT / BLENDER_SECONDS;
+      const e = k * k * (3 - 2 * k);
+      const z = 1 - 0.14 * Math.sin(Math.PI * k);
+      ctx.translate(this.viewW / 2, this.viewH / 2);
+      ctx.rotate(e * Math.PI * 2);
+      ctx.scale(z, z);
+      ctx.translate(-this.viewW / 2, -this.viewH / 2);
+    }
     this.renderer.drawBackground(ctx, this.charge);
     if (this.state !== 'title') {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
+      if (this.boss) this.boss.hudBottom = this.renderer.hudBottom(this.viewW, this.viewH);
+      if (this.boss) drawBoss(ctx, this.boss, this.viewW, (n) => this.renderer.u(n), this.renderer.lite, this.pulse);
       this.particles.draw(ctx);
       if ((this.level > 0 || (this.formation.occupiedCount > 0 && !this.mode)) && (this.state === 'playing' || this.state === 'paused')) {
         this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
@@ -2406,6 +2885,7 @@ export class Game {
         this.renderer.drawSwarm(ctx, this.formation, m.tint, m.style, this.ships, this.player.x, this.player.y, hidden);
       }
       this.renderer.drawPlayer(ctx, this.player, this.charge);
+      if (this.shieldT > 0) drawPizzaShield(ctx, this.player.x, this.player.y, Math.max(this.player.w, this.player.h) * 0.75 + 14, this.pulse, this.shieldT);
       this.renderer.drawFloaters(ctx, this.floaters);
     } else {
       this.renderer.drawPlayer(ctx, this.player, 1);
@@ -2442,6 +2922,9 @@ export class Game {
         this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, PROMO_SECONDS, this.score);
       }
     }
+    if (this.photoT > 0) drawGroupPhoto(ctx, this.bossesFought, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse);
+    if (this.prizeT > 0) drawPrizeReveal(ctx, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse, PRIZE_SECONDS - this.prizeT);
+    if (this.catT > 0) drawCatLoading(ctx, this.viewW, this.viewH, this.pulse, (n) => this.renderer.u(n));
     if (this.state === 'title') this.renderer.drawTitle(ctx, this.high, this.pulse);
     if (this.state === 'paused') this.renderer.drawPause(ctx);
     if (this.state === 'initials') {
@@ -2462,8 +2945,8 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.boardIsRemote ? 'GLOBAL TOP 10' : 'TOP 10',
-        this.victory ? 'YOU BEAT LEVEL 10' : 'TOO BRIGHT!',
+        this.boardIsRemote ? 'GLOBAL TOP 11' : 'TOP 11',
+        this.victory ? `YOU BEAT LEVEL ${MAX_LEVEL} · PRIZE: THE DUCHESS` : 'TOO BRIGHT!',
       );
     }
   }

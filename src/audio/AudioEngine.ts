@@ -231,6 +231,73 @@ export class AudioEngine {
   }
 
   /** Gate boost: a bright upward sweep with a sparkle on top (distinct from the circle pickup). */
+  private tromboneTimer = 0;
+  private tromboneNodes: OscillatorNode[] = [];
+  /** Sad trombone (wah wah wah waaah), looping until stopSadTrombone(). Respects mute. */
+  startSadTrombone(): void {
+    this.stopSadTrombone();
+    const loop = (): void => {
+      this.whenRunning(() => {
+        if (!this.ctx || !this.master || this.muted) return;
+        const c = this.ctx;
+        const notes: [number, number, number][] = [
+          [233.08, 0, 0.42],
+          [220, 0.5, 0.42],
+          [207.65, 1.0, 0.42],
+          [196, 1.5, 1.3],
+        ];
+        for (const [f, at, dur] of notes) {
+          const t0 = c.currentTime + at;
+          const o = c.createOscillator();
+          const lp = c.createBiquadFilter();
+          const g = c.createGain();
+          const lfo = c.createOscillator();
+          const lg = c.createGain();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(f, t0);
+          if (dur > 1) o.frequency.linearRampToValueAtTime(f * 0.94, t0 + dur);
+          lfo.frequency.value = 5.5;
+          lg.gain.value = dur > 1 ? f * 0.025 : 0;
+          lfo.connect(lg);
+          lg.connect(o.frequency);
+          lp.type = 'lowpass';
+          lp.frequency.value = 900;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.06);
+          g.gain.setValueAtTime(0.22, t0 + dur - 0.08);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+          o.connect(lp);
+          lp.connect(g);
+          g.connect(this.master);
+          o.start(t0);
+          lfo.start(t0);
+          o.stop(t0 + dur + 0.02);
+          lfo.stop(t0 + dur + 0.02);
+          this.tromboneNodes.push(o, lfo);
+        }
+      });
+      this.tromboneTimer = window.setTimeout(loop, 3600);
+    };
+    loop();
+  }
+
+  get tromboneOn(): boolean {
+    return this.tromboneTimer !== 0;
+  }
+
+  stopSadTrombone(): void {
+    if (this.tromboneTimer) window.clearTimeout(this.tromboneTimer);
+    this.tromboneTimer = 0;
+    for (const n of this.tromboneNodes) {
+      try {
+        n.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.tromboneNodes = [];
+  }
+
   playGate(): void {
     this.whenRunning(() => {
       if (!this.master) return;

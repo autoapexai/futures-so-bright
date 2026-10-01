@@ -19,6 +19,8 @@ export interface Obstacle {
 }
 
 export interface Collectible {
+  /** 'shade' (sunglasses) or a kitchen-appliance power-up (silliness pack). */
+  kind: 'shade' | 'toaster' | 'blender' | 'microwave';
   x: number;
   y: number;
   r: number;
@@ -35,6 +37,12 @@ export class WorldSpawner {
   spawnCollectibles = true;
   private spawnTimer = 0;
   private collectTimer = 0.8;
+  /** Seconds until the next appliance power-up (modest: one every ~20-35 s). */
+  private powerTimer = 22;
+  /** Appliance picker (the game seeds it per run). */
+  powerRand: () => number = Math.random;
+  /** Off in the How to Play walkthrough and the title demo. */
+  spawnPowers = false;
   private difficulty = 0;
   private laneTop = 80;
   private laneBot = 460;
@@ -48,6 +56,7 @@ export class WorldSpawner {
     this.collectibles.length = 0;
     this.spawnTimer = 0.6;
     this.collectTimer = 0.5;
+    this.powerTimer = 20 + this.powerRand() * 12;
     this.difficulty = 0;
   }
 
@@ -78,6 +87,7 @@ export class WorldSpawner {
         phase: 0,
         alive: true,
         value: 25,
+        kind: 'shade',
       }
     );
   }
@@ -133,6 +143,12 @@ export class WorldSpawner {
       this.spawnTimer = interval * rand(0.7, 1.15);
     }
 
+    this.powerTimer -= dt;
+    if (this.powerTimer <= 0 && this.spawnCollectibles && this.spawnPowers) {
+      this.powerTimer = 20 + this.powerRand() * 15;
+      const kinds = ['toaster', 'blender', 'microwave'] as const;
+      this.addPower(kinds[Math.floor(this.powerRand() * 3) % 3], W + 30, this.laneTop + 40 + this.powerRand() * Math.max(10, this.laneBot - this.laneTop - 80));
+    }
     if (this.collectTimer <= 0 && this.spawnCollectibles) {
       this.spawnCollectible(W);
       this.collectTimer = rand(0.55, 1.2);
@@ -217,6 +233,25 @@ export class WorldSpawner {
     }
   }
 
+  /** An appliance power-up at (x, y). */
+  addPower(kind: 'toaster' | 'blender' | 'microwave', x: number, y: number): void {
+    const c = this.obtainCol();
+    c.kind = kind;
+    c.x = x;
+    c.y = y;
+    c.r = 20;
+    c.phase = 0;
+    c.alive = true;
+    c.value = 0;
+    this.collectibles.push(c);
+  }
+
+  /** A ring gate centred at (cx, cy) (THE BOARD's rank-slot stun rings). */
+  addRing(cx: number, cy: number): void {
+    const y = Math.min(Math.max(cy - 60, this.laneTop), Math.max(this.laneTop, this.laneBot - 120));
+    this.pushObs('ring', cx - 45, y, 90, 120, 0, 0);
+  }
+
   private spawnCollectible(W: number): void {
     const n = chance(0.3) ? 3 : 1;
     const top = this.laneTop + 20;
@@ -230,6 +265,7 @@ export class WorldSpawner {
       c.phase = i;
       c.alive = true;
       c.value = 25;
+      c.kind = 'shade';
       this.collectibles.push(c);
     }
   }

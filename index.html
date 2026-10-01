@@ -58,7 +58,11 @@
       <div id="donate" class="v4v-card" role="region" aria-labelledby="v4v-title" aria-hidden="true">
         <p class="v4v-title" id="v4v-title">VALUE FOR VALUE</p>
         <p class="v4v-msg" id="v4v-msg"></p>
-        <a id="donate-btn" class="hand-btn" href="#" target="_blank" rel="noopener" draggable="false">Open Venmo</a>
+        <div class="v4v-choices">
+          <button type="button" id="v4v-time" class="v4v-choice" draggable="false">TIME</button>
+          <button type="button" id="v4v-talent" class="v4v-choice" draggable="false">TALENT</button>
+          <a id="donate-btn" class="v4v-choice hand-btn" href="#" target="_blank" rel="noopener" draggable="false">TREASURE</a>
+        </div>
         <p class="donate-note" id="donate-note">Goes to @futuressobright888, the game's creator.</p>
       </div>
       <div id="diff-ctl" role="group" aria-label="Difficulty 1, points 0.6x">
@@ -106,6 +110,35 @@
         <button type="button" id="mute-btn" aria-label="Mute" draggable="false" style="touch-action:none">🔊</button>
       </div>
       <button type="button" id="quit-btn" aria-label="Quit run or change mode" title="Quit run / change mode" draggable="false" style="touch-action:none">QUIT</button>
+      <div id="v4v-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="v4v-modal-title">
+        <div class="v4v-panel">
+          <p class="v4v-kicker">VALUE FOR VALUE</p>
+          <h2 id="v4v-modal-title">TIME</h2>
+          <form id="v4v-time-form" novalidate>
+            <p class="v4v-sub">Got an idea, a bit, a bug? Send it to the Future's So Bright team.</p>
+            <label>Your suggestion <span class="v4v-count" id="v4v-count">0 / 1000</span>
+              <textarea id="v4v-msg-in" name="message" maxlength="1000" rows="5" required></textarea></label>
+            <label>Name or initials (optional)<input id="v4v-name-in" name="name" maxlength="40" autocomplete="nickname"></label>
+            <label>Email (optional, only if you want a reply)<input id="v4v-email-in" name="email" type="email" maxlength="254" autocomplete="email"></label>
+            <input class="v4v-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <p class="v4v-err" role="alert"></p>
+            <div class="v4v-actions"><button type="button" class="v4v-cancel">BACK</button><button type="submit" class="v4v-send">SEND</button></div>
+          </form>
+          <form id="v4v-talent-form" novalidate>
+            <p class="v4v-sub">Have skills? Send a resume. In the morning!</p>
+            <label>Name<input id="v4v-rname" name="name" maxlength="80" required autocomplete="name"></label>
+            <label>Email (so Dan can reply)<input id="v4v-remail" name="email" type="email" maxlength="254" required autocomplete="email"></label>
+            <label>Note (optional)<textarea id="v4v-rnote" name="note" maxlength="500" rows="2"></textarea></label>
+            <label>Resume (PDF, DOC or DOCX, up to 5 MB)<input id="v4v-rfile" name="file" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required></label>
+            <p class="v4v-consent">Your resume goes only to the Future's So Bright team.</p>
+            <input class="v4v-hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <p class="v4v-err" role="alert"></p>
+            <div class="v4v-actions"><button type="button" class="v4v-cancel">BACK</button><button type="submit" class="v4v-send">SEND</button></div>
+          </form>
+          <div id="v4v-done" class="v4v-done"><p id="v4v-done-text">THANK YOU FOR YOUR TIME</p><button type="button" class="v4v-cancel">CLOSE</button></div>
+        </div>
+      </div>
+      <div id="score-a11y" class="sr-only" role="status" aria-live="polite"></div>
       <div id="quit-confirm" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="quit-title">
         <div class="qc-card">
           <p id="quit-title">QUIT RUN?</p>

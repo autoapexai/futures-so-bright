@@ -15,9 +15,11 @@ export interface LeaderboardEntry {
   initials: string;
   /** 1-11; missing on old local entries (treated as 5). */
   difficulty?: number;
+  /** The level the run began on (1-11); missing on old rows (shown as a dash). */
+  start?: number;
 }
 
-const MAX_BOARD = 10;
+const MAX_BOARD = 11;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export function sanitizeInitials(raw: string): string {
@@ -73,7 +75,10 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
       if (!Number.isFinite(score) || score < 0) continue;
       const initials = sanitizeInitials(String((item as LeaderboardEntry).initials ?? 'AAA'));
       const d = Math.round(Number((item as LeaderboardEntry).difficulty));
-      out.push(d >= 1 && d <= 11 ? { score, initials, difficulty: d } : { score, initials });
+      const st = Math.round(Number((item as LeaderboardEntry).start));
+      const e: LeaderboardEntry = d >= 1 && d <= 111 ? { score, initials, difficulty: d } : { score, initials };
+      if (e.difficulty && st >= 1 && st <= e.difficulty) e.start = st;
+      out.push(e);
     }
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, MAX_BOARD);
@@ -108,6 +113,7 @@ export function saveLeaderboard(entries: LeaderboardEntry[]): void {
         score: Math.floor(Math.max(0, e.score)),
         initials: sanitizeInitials(e.initials),
         ...(e.difficulty ? { difficulty: e.difficulty } : {}),
+        ...(e.start ? { start: e.start } : {}),
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_BOARD);
@@ -130,14 +136,15 @@ export function qualifiesForBoard(score: number, board?: LeaderboardEntry[]): bo
   return s > list[list.length - 1].score;
 }
 
-/** Insert entry, keep top 10 descending. Returns new board + index of inserted row (−1 if dropped). */
+/** Insert entry, keep top 11 descending. Returns new board + index of inserted row (−1 if dropped). */
 export function addEntry(
   score: number,
   initials: string,
   board?: LeaderboardEntry[],
   difficulty?: number,
+  start?: number,
 ): { board: LeaderboardEntry[]; index: number } {
-  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty);
+  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty, start);
   saveLeaderboard(result.board);
   return result;
 }
@@ -148,12 +155,14 @@ export function insertEntry(
   initials: string,
   board: LeaderboardEntry[],
   difficulty?: number,
+  start?: number,
 ): { board: LeaderboardEntry[]; index: number } {
   const list = [...board];
   const entry: LeaderboardEntry = {
     score: Math.floor(Math.max(0, score)),
     initials: sanitizeInitials(initials),
     ...(difficulty ? { difficulty } : {}),
+    ...(difficulty && start && start <= difficulty ? { start } : {}),
   };
   list.push(entry);
   list.sort((a, b) => b.score - a.score);

@@ -1,13 +1,20 @@
 /**
- * Difficulty 1-11. 5 is the original game (all factors exactly 1).
+ * Levels 1-111. 5 is the original game (all factors exactly 1).
  * Must match the tables in supabase/fsb_leaderboard.sql (plausibility cap).
- * 11 is not in the selector (except for the current #1, as a perk); everyone reaches it through
- * the gold clone button or by beating level 10.
+ * The selector offers 1-10 (11 only for the current #1, as a perk); 11 is also the gold clone
+ * button's start level. Levels 11-111 are the gold "beyond 10" zone, earned by climbing:
+ * beating 10 promotes to 11, and so on up to 111 (clearing 111 is a victory).
  */
 export const MIN_DIFFICULTY = 1;
 export const MAX_PUBLIC_DIFFICULTY = 10;
 export const SECRET_DIFFICULTY = 11;
+/** First level of the gold zone (= SECRET_DIFFICULTY, the start level of the clone button). */
+export const FIRST_GOLD_LEVEL = 11;
+/** Top level: clearing it wins the run. */
+export const MAX_LEVEL = 111;
 export const DEFAULT_DIFFICULTY = 5;
+/** Highest score the shared board accepts (fsb_scores check + fsb_submit_score). */
+export const SCORE_CAP = 777_777_777;
 
 /** Speed factor per difficulty as the server's plausibility cap assumes it (see hazardSpeedFactor for play). */
 const SPEED = [0.7, 0.775, 0.85, 0.925, 1, 1.09, 1.18, 1.27, 1.36, 1.45, 1.55];
@@ -22,6 +29,13 @@ function idx(d: number): number {
 
 export function clampDifficulty(d: number): number {
   return idx(d) + 1;
+}
+
+/** Any playable level 1-111 (clampDifficulty stays 1-11: the selector / saved start level). */
+export function clampLevel(d: number): number {
+  const n = Math.round(Number(d));
+  if (!Number.isFinite(n)) return MIN_DIFFICULTY;
+  return Math.min(MAX_LEVEL, Math.max(MIN_DIFFICULTY, n));
 }
 
 export function speedFactor(d: number): number {
@@ -74,26 +88,56 @@ export interface HazardLevers {
   hitGraceMul: number;
 }
 
+/**
+ * Gold zone (levels 12-111): level 11's levers (original difficulty 5, strength 1) tightened
+ * further on every level with diminishing steps, x = sqrt((level - 11) / 100): 0 at 11, 0.1 at
+ * 12, 0.3 at 20, 0.62 at 50, 0.94 at 100, 1 at 111. Every level is strictly harder than the one
+ * before, the steps shrink as you climb, and x is bounded (1 at 111), so 111 is the hardest
+ * level but each lever stays within a fixed limit. Each lever moves from its level-11 value
+ * toward its 111 value:
+ */
+const GOLD = {
+  /** Hazard / scroll speed x (1 + SPEED x). Stays <= 1.55, the server's plausibility speed for 11+. */
+  speed: 0.4,
+  /** Spawn density x (1 + DENSITY x). */
+  density: 0.6,
+  /** Ramp to full density over 1 / (1 + RAMP x) of the distance. */
+  ramp: 0.5,
+  /** Shade drain x (1 + DRAIN x). */
+  drain: 0.5,
+  /** Shade lost per single-dog hit x (1 + DAMAGE x). */
+  damage: 0.4,
+  /** Post-hit grace / (1 + GRACE x). */
+  grace: 0.4,
+};
+
+/** 0 at level 11, rising strictly (with shrinking steps) to 1 at level 111. */
+export function goldProgress(d: number): number {
+  const n = clampLevel(d);
+  return n <= FIRST_GOLD_LEVEL ? 0 : Math.sqrt((n - FIRST_GOLD_LEVEL) / (MAX_LEVEL - FIRST_GOLD_LEVEL));
+}
+
 export function easeStrength(d: number): number {
   return EASE_STRENGTH[idx(d)];
 }
 
-/** Base speed / density before easing: original level 1 (0.7) for 1-10, original level 5 (1.0) for 11. */
+/** Base speed / density before easing: original level 1 (0.7) for 1-10, original level 5 (1.0) for 11-111. */
 export function hazardBaseFactor(d: number): number {
-  return clampDifficulty(d) === SECRET_DIFFICULTY ? SPEED[DEFAULT_DIFFICULTY - 1] : SPEED[0];
+  return clampLevel(d) >= FIRST_GOLD_LEVEL ? SPEED[DEFAULT_DIFFICULTY - 1] : SPEED[0];
 }
 
 /** All hazard levers for a level (strength override is for the calibration script). */
 export function hazardLevers(d: number, strength = easeStrength(d)): HazardLevers {
   const base = hazardBaseFactor(d);
   const e = Math.pow(strength, EASE_EXP);
+  const x = goldProgress(d);
   return {
-    speed: base * Math.pow(strength, -SPEED_EASE_EXP),
-    density: base / e,
-    rampMul: e,
-    drainMul: 1 / e,
-    hitDamageMul: 1 / e,
-    hitGraceMul: e,
+    speed: base * Math.pow(strength, -SPEED_EASE_EXP) * (1 + GOLD.speed * x),
+    density: (base / e) * (1 + GOLD.density * x),
+    rampMul: e / (1 + GOLD.ramp * x),
+    drainMul: (1 / e) * (1 + GOLD.drain * x),
+    hitDamageMul: (1 / e) * (1 + GOLD.damage * x),
+    hitGraceMul: e / (1 + GOLD.grace * x),
   };
 }
 

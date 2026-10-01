@@ -1,4 +1,6 @@
 import type { Player } from '../entities/Player';
+import { drawAppliance } from './silly';
+import { drawDuckText, duckWidth } from '../render/duckDigits';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
@@ -7,6 +9,12 @@ import type { Formation } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips, shipsLabel } from '../utils/cloneLevels';
 
 /** Clone level + ship count for the HUD (difficulty-11 runs only). */
+
+/** Score with thousands separators: 777777777 -> "777,777,777". */
+function fmtScore(n: number): string {
+  return Math.floor(Math.max(0, n)).toLocaleString('en-US');
+}
+
 export interface LevelInfo {
   level: number;
   /** Ships left (clone levels); 0 for levels 1-10, which show just "LVL n". */
@@ -214,7 +222,7 @@ export class Renderer {
   }
 
   /** Logical px size → boosted when touch canvas is shrunk. */
-  private u(px: number): number {
+  u(px: number): number {
     return this.touchUi ? px * this.uiBoost : px;
   }
 
@@ -559,6 +567,13 @@ export class Renderer {
 
   drawCollectibles(ctx: CanvasRenderingContext2D, items: Collectible[]): void {
     for (const c of items) {
+      if (c.kind !== 'shade') {
+        ctx.save();
+        ctx.translate(c.x, c.y + Math.sin(c.phase) * 3);
+        drawAppliance(ctx, c.kind, c.phase);
+        ctx.restore();
+        continue;
+      }
       const bob = Math.sin(c.phase) * 3;
       ctx.save();
       ctx.translate(c.x, c.y + bob);
@@ -615,26 +630,26 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       this.fitFont(
         ctx,
-        `SCORE  ${Math.floor(score)}`,
+        `SCORE  ${fmtScore(score)}`,
         '700',
         this.u(24),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(16),
       );
-      ctx.fillText(`SCORE  ${Math.floor(score)}`, left, top + this.u(24));
+      this.duckLine(ctx, 'SCORE  ', score, left, top + this.u(24), 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.88)';
       this.fitFont(
         ctx,
-        `BEST  ${Math.floor(high)}  ·  ${Math.floor(distance)}m`,
+        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
         '700',
         this.u(18),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(14),
       );
-      ctx.fillText(`BEST  ${Math.floor(high)}  ·  ${Math.floor(distance)}m`, left, top + this.u(50));
-      this.drawChargeBar(ctx, left, rightBound, top + this.u(60), charge);
+      ctx.fillText(`BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`, left, top + this.u(50));
+      this.drawChargeBar(ctx, left, rightBound, top + this.u(68), charge);
       if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(102), 'left', this.u(16), maxTw);
     } else if (big) {
       // Landscape / short: two-line HUD so mute/pause chrome never eats the score.
@@ -644,18 +659,18 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       this.fitFont(
         ctx,
-        `SCORE  ${Math.floor(score)}`,
+        `SCORE  ${fmtScore(score)}`,
         '700',
         this.u(18),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(14),
       );
-      ctx.fillText(`SCORE  ${Math.floor(score)}`, left, top + this.u(18));
+      this.duckLine(ctx, 'SCORE  ', score, left, top + this.u(18), 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.88)';
       this.fitFont(
         ctx,
-        `BEST  ${Math.floor(high)}  ·  ${Math.floor(distance)}m`,
+        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
         '700',
         this.u(15),
         "'Rajdhani', sans-serif",
@@ -663,7 +678,7 @@ export class Renderer {
         this.u(12),
       );
       ctx.fillText(
-        `BEST  ${Math.floor(high)}  ·  ${Math.floor(distance)}m`,
+        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
         left,
         top + this.u(38),
       );
@@ -674,12 +689,10 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.textAlign = 'left';
       const topY = this.padTop + this.u(32);
-      ctx.fillText(`SCORE  ${Math.floor(score)}`, left, topY);
+      this.duckLine(ctx, 'SCORE  ', score, left, topY, 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.85)';
-      ctx.fillText(`BEST  ${Math.floor(high)}`, left, this.padTop + this.u(54));
-      ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(255, 160, 220, 0.9)';
-      ctx.fillText(`${Math.floor(distance)}m`, W - this.u(20) - this.padRight, topY);
+      // Distance rides on the BEST line (the top-right corner belongs to QUIT / mute).
+      ctx.fillText(`BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`, left, this.padTop + this.u(54));
       const bw = this.u(180);
       this.drawChargeBar(ctx, W / 2 - bw / 2, W / 2 + bw / 2, this.padTop + this.u(18), charge);
       if (levelInfo) {
@@ -688,6 +701,14 @@ export class Renderer {
       }
     }
     ctx.restore();
+  }
+
+  /** Bottom of the HUD text block (the LVL line), so in-lane overlays like the boss title clear it. */
+  hudBottom(W: number, H: number): number {
+    const portrait = H > W * 1.1;
+    if (this.touchUi && portrait) return this.padTop + this.u(16 + 102 + 8);
+    if (this.touchUi) return this.padTop + this.u(10 + 82 + 8);
+    return this.padTop + this.u(86);
   }
 
   /** "LVL 12 · 2 SHIPS" in gold (HUD). */
@@ -1065,7 +1086,7 @@ export class Renderer {
       y = Math.min(y + this.u(portrait ? 30 : 22), floor - this.u(portrait ? 44 : 36));
       this.fillFitted(
         ctx,
-        `High Score  ${Math.floor(high)}`,
+        `High Score  ${fmtScore(high)}`,
         cx,
         y,
         '700',
@@ -1109,7 +1130,7 @@ export class Renderer {
       ctx.fillText('WASD / Arrows move  ·  SPACE boost  ·  P pause', W / 2, H * 0.53);
       ctx.font = `700 15px 'Rajdhani', sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillText(`High Score  ${Math.floor(high)}`, W / 2, H * 0.6);
+      ctx.fillText(`High Score  ${fmtScore(high)}`, W / 2, H * 0.6);
       const alpha = 0.55 + Math.sin(pulse * 4) * 0.35;
       ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
       ctx.font = `700 20px 'Orbitron', sans-serif`;
@@ -1155,7 +1176,7 @@ export class Renderer {
     }
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    this.fillFitted(ctx, `SCORE  ${Math.floor(score)}`, W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
+    this.fillFitted(ctx, `SCORE  ${fmtScore(score)}`, W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
     // Neon rule above and below, like the title card.
     const rw = Math.min(maxW, this.u(portrait ? 300 : 440));
     ctx.fillStyle = COL.magenta;
@@ -1168,6 +1189,51 @@ export class Renderer {
     const big = this.touchUi;
     ctx.fillStyle = 'rgba(5, 0, 18, 0.65)';
     ctx.fillRect(0, 0, this.W, this.H);
+    {
+      // Bathroom stall door, pushed slightly open, with crayon writing (silliness pack).
+      const dw = Math.min(this.W * 0.72, this.u(330));
+      const dh = Math.min(this.H * 0.62, this.u(300));
+      const dx = this.W / 2 - dw / 2;
+      const dy = Math.max(this.padTop + this.u(70), this.H * 0.42 - dh * 0.55);
+      ctx.save();
+      ctx.translate(dx, dy);
+      ctx.transform(0.94, -0.03, 0, 1, 0, 0);
+      const g = ctx.createLinearGradient(0, 0, dw, 0);
+      g.addColorStop(0, '#5f857f');
+      g.addColorStop(0.45, '#79a59d');
+      g.addColorStop(1, '#5c7f79');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, dw, dh);
+      ctx.strokeStyle = '#3f5b57';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, dw, dh);
+      ctx.fillStyle = '#c4cccc';
+      ctx.fillRect(-8, dh * 0.12, 7, dh * 0.12);
+      ctx.fillRect(-8, dh * 0.76, 7, dh * 0.12);
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(dw - this.u(74), this.u(8), this.u(64), this.u(16));
+      ctx.fillStyle = '#fff';
+      ctx.font = `700 ${this.u(10)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('OCCUPIED', dw - this.u(42), this.u(20));
+      const crayon = (t: string, x: number, y: number, size: number, col: string, rot: number): void => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.font = `900 ${size}px 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive`;
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.9;
+        ctx.fillText(t, 0, 0);
+        ctx.globalAlpha = 0.45;
+        ctx.fillText(t, 1.2, 0.8);
+        ctx.restore();
+      };
+      crayon('PAUSED', dw / 2, dh * 0.42, this.u(34), '#c81e1e', -0.04);
+      crayon(big ? 'tap ▶ to resume' : 'P / ESC to resume', dw / 2, dh * 0.62, this.u(big ? 18 : 15), '#1d4ed8', 0.03);
+      crayon('FSB WAS HERE', dw * 0.3, dh * 0.86, this.u(11), '#136c33', -0.1);
+      ctx.restore();
+      return;
+    }
     ctx.textAlign = 'center';
     ctx.fillStyle = COL.cyan;
     ctx.font = `900 ${this.u(36)}px 'Orbitron', sans-serif`;
@@ -1224,7 +1290,7 @@ export class Renderer {
     ctx.fillStyle = '#fff';
     this.fillFitted(
       ctx,
-      `Score  ${Math.floor(score)}`,
+      `Score  ${fmtScore(score)}`,
       cx,
       titleY + this.u(big ? (portrait ? 36 : 28) : 32),
       '700',
@@ -1303,7 +1369,7 @@ export class Renderer {
     isNew: boolean,
     board: LeaderboardEntry[] = [],
     highlightIndex = -1,
-    boardTitle = 'TOP 10',
+    boardTitle = 'TOP 11',
     headline = 'TOO BRIGHT!',
   ): void {
     const big = this.touchUi;
@@ -1337,35 +1403,33 @@ export class Renderer {
     );
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#fff';
-    this.fillFitted(
-      ctx,
-      `Score  ${Math.floor(score)}`,
-      cx,
-      overY + this.u(big ? (portrait ? 28 : 24) : 28),
-      '700',
-      this.u(big ? (portrait ? 20 : 16) : 18),
-      "'Rajdhani', sans-serif",
-      maxTw,
-      this.u(14),
-    );
+    this.fitFont(ctx, `Score  ${fmtScore(score)}`, '700', this.u(big ? (portrait ? 22 : 18) : 20), "'Rajdhani', sans-serif", maxTw, this.u(14));
+    this.duckLine(ctx, 'Score  ', score, cx, overY + this.u(big ? (portrait ? 28 : 24) : 28), 'center');
     ctx.fillStyle = isNew ? COL.cyan : 'rgba(200,180,255,0.85)';
     this.fillFitted(
       ctx,
-      isNew ? `NEW BEST  ${Math.floor(high)}!` : `Best  ${Math.floor(high)}`,
+      isNew ? `NEW BEST  ${fmtScore(high)}!` : `Best  ${fmtScore(high)}`,
       cx,
-      overY + this.u(big ? (portrait ? 52 : 44) : 50),
+      overY + this.u(big ? (portrait ? (this.cardTopY > 0 ? 48 : 52) : 42) : 50),
       '700',
-      this.u(big ? (portrait ? 18 : 14) : 16),
+      this.u(big ? (portrait ? (this.cardTopY > 0 ? 16 : 18) : 13) : 16),
       "'Rajdhani', sans-serif",
       maxTw,
       this.u(12),
     );
 
-    const boardTop = overY + this.u(big ? (portrait ? 72 : 60) : 68);
+    // Portrait with the VALUE FOR VALUE card up: all 11 rows fit above it (the RIDE button below
+    // the card is the cue, so the blinking ride hint steps aside to make room).
+    // Sideways phones: the board runs down to just above the difficulty control so all 11 rows
+    // fit; the big RIDE button is the cue there too.
+    const compact = portrait && this.cardTopY > 0;
+    const sideways = big && !portrait;
+    const boardTop = overY + this.u(big ? (portrait ? 64 : 60) : 68);
     let boardBottom = floor - this.u(big ? (portrait ? 36 : 32) : 40);
-    // Portrait with the VALUE FOR VALUE card up: the top 10 (and the ride hint) fit above it.
-    if (portrait && this.cardTopY > 0) boardBottom = Math.min(boardBottom, this.cardTopY - this.u(34));
-    this.drawLeaderboard(ctx, board, highlightIndex, boardTop, boardBottom, maxTw, boardTitle);
+    if (compact) boardBottom = Math.min(boardBottom, this.cardTopY - this.u(4));
+    if (sideways) boardBottom = H - this.padBottom - Math.max(this.u(64), H * 0.15);
+    this.drawLeaderboard(ctx, board, highlightIndex, boardTop, boardBottom, maxTw, boardTitle, compact || sideways ? 12.5 : 15);
+    if (compact || sideways) return;
 
     const alpha = 0.55 + Math.sin(this.time * 4) * 0.35;
     ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
@@ -1389,7 +1453,8 @@ export class Renderer {
     top: number,
     bottom: number,
     maxTw: number,
-    title = 'TOP 10',
+    title = 'TOP 11',
+    minRow = 15,
   ): void {
     const W = this.W;
     const cx = W / 2;
@@ -1398,22 +1463,29 @@ export class Renderer {
     const avail = Math.max(this.u(80), bottom - top);
     // Short screens (e.g. a phone with the VALUE FOR VALUE card up): fewer, readable rows rather
     // than ten tiny ones. The player's highlighted entry always stays visible (last row).
-    const rows = Math.max(3, Math.min(10, Math.floor(avail / this.u(15) - 2.2)));
-    if (rows < 10) title = title.replace('TOP 10', `TOP ${rows}`);
+    const rows = Math.max(3, Math.min(11, Math.floor(avail / this.u(minRow) - 2.2)));
+    if (rows < 11) title = title.replace('TOP 11', `TOP ${rows}`);
     const boardW = Math.min(maxTw, this.u(320));
     const rowFont = (fs: number, bold: boolean) => `${bold ? '700' : '600'} ${fs}px 'Rajdhani', monospace`;
     const titleFont = (fs: number) => `700 ${Math.max(11, fs * 0.95)}px 'Orbitron', sans-serif`;
+    let lvlHdr = 'START→END';
+    {
+      ctx.font = rowFont(Math.max(10, Math.min(this.u(16), this.u(22) * 0.85)), true);
+      const need = ctx.measureText('10WWW777,777,777').width + ctx.measureText('START→END').width + this.u(16) * 1.6;
+      if (need > boardW - 8) lvlHdr = 'LVL';
+    }
 
     // Column layout at a given row height, measured in the row font so it fits any width:
-    //   rank (right) | initials (left) | score (right) | LVL (right; gold shades mark for 11)
+    //   rank (right) | initials (left) | score (right) | LVL (right; gold shades mark for 11-111)
     const layout = (headerRow: boolean) => {
       const rowH = Math.min(this.u(22), avail / (rows + (headerRow ? 2.2 : 1.2)));
       const fs = Math.max(10, Math.min(this.u(16), rowH * 0.85));
       ctx.font = rowFont(fs, true);
-      const wRank = ctx.measureText('10').width;
+      const wRank = ctx.measureText('11').width;
       const wIni = ctx.measureText('WWW').width;
-      const wScore = ctx.measureText('0000000').width;
-      const wLvl = showLvl ? Math.max(ctx.measureText('LVL').width, ctx.measureText('11').width + fs * 1.15) : 0;
+      const wScore = ctx.measureText('000,000,000').width;
+      // START → END levels ("1→37"); old rows without a start show a dash.
+      const wLvl = showLvl ? Math.max(ctx.measureText(lvlHdr).width, ctx.measureText('11→111').width + fs * 1.15) : 0;
       const n = showLvl ? 3 : 2;
       const fixed = wRank + wIni + wScore + wLvl;
       const gap = Math.max(fs * 0.45, Math.min(fs * 1.1, (boardW - 8 - fixed) / n));
@@ -1425,7 +1497,7 @@ export class Renderer {
       ctx.font = titleFont(fs);
       const titleRight = cx + ctx.measureText(title).width / 2;
       ctx.font = rowFont(fs, false);
-      const hdrLeft = xLvl - ctx.measureText('LVL').width;
+      const hdrLeft = xLvl - ctx.measureText(lvlHdr).width;
       return { rowH, fs, xRank, xIni, xScore, xLvl, headerFitsTitleLine: hdrLeft > titleRight + fs * 0.8 };
     };
     // Prefer the LVL header on the title line (rows stay as large as before); else its own header row.
@@ -1446,10 +1518,10 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255, 157, 232, 0.9)';
       ctx.textAlign = 'right';
       if (headerRow) {
-        ctx.fillText('LVL', xLvl, startY);
+        ctx.fillText(lvlHdr, xLvl, startY);
         startY += rowH;
       } else {
-        ctx.fillText('LVL', xLvl, top);
+        ctx.fillText(lvlHdr, xLvl, top);
       }
     }
 
@@ -1478,15 +1550,15 @@ export class Renderer {
       ctx.textAlign = 'left';
       ctx.fillText(entry ? entry.initials : '---', cIni, y);
       ctx.textAlign = 'right';
-      ctx.fillText(entry ? String(Math.floor(entry.score)) : '------', cScore, y);
+      if (entry) drawDuckText(ctx, fmtScore(entry.score), cScore, y);
+      else ctx.fillText('------', cScore, y);
       if (showLvl) {
         const d = entry?.difficulty;
-        if (d === 11) {
-          // Gold 11 with a small shades mark
+        if (d !== undefined && d >= 11) {
+          // Gold zone (11-111): END in gold with a small shades mark; START (or a dash) before it.
           ctx.shadowBlur = 0;
           ctx.fillStyle = COL.sunCore;
-          ctx.fillText('11', xLvl, y);
-          const tw = ctx.measureText('11').width;
+          const tw = this.drawLvlCell(ctx, entry?.start, d, xLvl, y, COL.sunCore, hi ? String(rowColor) : 'rgba(255, 190, 240, 0.92)');
           const lw = fontSize * 0.46;
           const lh = fontSize * 0.34;
           const gx = xLvl - tw - fontSize * 0.2 - (lw * 2 + fontSize * 0.12);
@@ -1498,11 +1570,47 @@ export class Renderer {
           ctx.fillRect(gx - fontSize * 0.08, gy, lw * 2 + fontSize * 0.28, Math.max(1, lh * 0.22));
         } else {
           ctx.fillStyle = hi ? rowColor : entry ? 'rgba(255, 190, 240, 0.92)' : 'rgba(255,255,255,0.28)';
-          ctx.fillText(d ? String(d) : entry ? '' : '--', xLvl, y);
+          if (d) this.drawLvlCell(ctx, entry?.start, d, xLvl, y, String(ctx.fillStyle), String(ctx.fillStyle));
+          else ctx.fillText(entry ? '' : '--', xLvl, y);
         }
       }
       ctx.shadowBlur = 0;
     }
+  }
+
+  /** "label + duck-digit number" on one line, aligned like fillText; uses the current font. */
+  private duckLine(ctx: CanvasRenderingContext2D, label: string, n: number, x: number, y: number, align: 'left' | 'center' | 'right'): void {
+    const num = fmtScore(n);
+    const lw = ctx.measureText(label).width;
+    const nw = duckWidth(ctx, num);
+    const x0 = align === 'center' ? x - (lw + nw) / 2 : align === 'right' ? x - lw - nw : x;
+    const a = ctx.textAlign;
+    ctx.textAlign = 'left';
+    ctx.fillText(label, x0, y);
+    drawDuckText(ctx, num, x0 + lw, y);
+    ctx.textAlign = a;
+  }
+
+  /** Board LVL cell, right-aligned at x: START (duck digits, or a dash) → END (duck digits). Returns its width. */
+  private drawLvlCell(ctx: CanvasRenderingContext2D, start: number | undefined, end: number, x: number, y: number, endInk: string, startInk: string): number {
+    const a = ctx.textAlign;
+    const fill = ctx.fillStyle;
+    ctx.textAlign = 'right';
+    const ew = drawDuckText(ctx, String(end), x, y, endInk);
+    ctx.fillStyle = startInk;
+    const arrow = '→';
+    const aw = ctx.measureText(arrow).width;
+    ctx.fillText(arrow, x - ew, y);
+    const sx = x - ew - aw;
+    let sw: number;
+    if (start) sw = drawDuckText(ctx, String(start), sx, y, startInk);
+    else {
+      ctx.fillText('–', sx, y);
+      sw = ctx.measureText('–').width;
+    }
+    ctx.textAlign = a;
+    ctx.fillStyle = fill;
+    return ew + aw + sw;
   }
 
   drawFloaters(ctx: CanvasRenderingContext2D, items: { x: number; y: number; text: string; life: number; color: string }[]): void {

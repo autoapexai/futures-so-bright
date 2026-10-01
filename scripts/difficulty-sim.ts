@@ -18,6 +18,7 @@ import { Player } from '../src/entities/Player';
 import * as D from '../src/utils/difficulty';
 import { Formation } from '../src/entities/Formation';
 import { breedScale } from '../src/render/shipSprite';
+import { shipsForLevel, shipHitCost } from '../src/utils/cloneLevels';
 
 let seed = 1;
 Math.random = () => {
@@ -26,7 +27,12 @@ Math.random = () => {
 };
 
 const W = 960, H = 540, TOP = 60, BOT = 60, LEFT = 20;
-const REACT = 0.3, LOOK = 0.75, MISS = 0.3, NOISE = 22;
+let REACT = 0.3, LOOK = 0.75, MISS = 0.3, NOISE = 22;
+/** Bot profiles: 'new' = the calibration player above; 'skilled' = fast, attentive player. */
+function setBot(kind: 'new' | 'skilled'): void {
+  if (kind === 'skilled') { REACT = 0.18; LOOK = 1.1; MISS = 0.04; NOISE = 10; }
+  else { REACT = 0.3; LOOK = 0.75; MISS = 0.3; NOISE = 22; }
+}
 const MODE = process.argv[2] ?? 'after';
 
 /** Ring gates in the pack mode are pure boosts (never a hit); the 'before' / 'after' modes keep the old rim hit. */
@@ -38,7 +44,7 @@ function touchesRing(o: Obstacle, hb: { x: number; y: number; w: number; h: numb
 }
 
 function hits(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
-  if (o.kind === 'ring' && MODE === 'pack') return false;
+  if (o.kind === 'ring' && (MODE === 'pack' || MODE === 'l111')) return false;
   if (o.kind === 'ring') {
     const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
     const nx = (hb.x + hb.w / 2 - cx) / (o.w / 2), ny = (hb.y + hb.h / 2 - cy) / (o.h / 2);
@@ -219,6 +225,110 @@ function runPack(d: number, cap = 1200): number {
   return cap;
 }
 
+
+/**
+ * Gold zone (levels 11-111) with the game's clone rules: shipsForLevel(level) dogs (24 drawn,
+ * the rest a reserve), every hit on the lead dog or a drawn clone costs shipHitCost(level) dogs,
+ * running out of shade with dogs left costs the same and refills to 0.75, the last single dog
+ * takes shade damage per hit; gates (any touch) = full shade. Hazard levers = hazardLevers(level).
+ * Returns time to death, or `cap` if the bot survives.
+ */
+function runGold(d: number, cap = 1200): number {
+  const L = D.hazardLevers(d);
+  const world = new WorldSpawner();
+  const p = new Player();
+  const f = new Formation();
+  world.reset();
+  p.reset(H);
+  let ships = shipsForLevel(d);
+  const cost = shipHitCost(d);
+  f.fill(Math.min(ships - 1, f.capacity), p.x, p.y);
+  const fit = () => { while (f.occupiedCount > Math.max(0, Math.min(ships - 1, f.capacity))) f.dropOutermost(); };
+  const loseLead = () => { ships = Math.max(1, ships - cost); fit(); p.invuln = 1.0; };
+  const loseClone = (s: (typeof f.slots)[number]) => {
+    ships = Math.max(1, ships - cost);
+    const reserve = ships - 1 - (f.occupiedCount - 1);
+    if (reserve > 0) { s.x = p.x; s.y = p.y; s.invuln = 0.6; } else f.empty(s);
+    fit();
+  };
+  let distance = 0, charge = 1, t = 0, targetY = p.y, replan = 0;
+  const missed = new WeakSet<Obstacle>();
+  const seen = new WeakSet<Obstacle>();
+  const passed = new WeakSet<Obstacle>();
+  const dt = 1 / 60;
+  const m = L.speed;
+  const chb = { x: 0, y: 0, w: 0, h: 0 };
+  while (t < cap) {
+    t += dt;
+    const scroll = 240 * m + distance * 0.035 * m;
+    replan -= dt;
+    if (replan <= 0) {
+      replan = REACT;
+      const up = f.extUp + 16, dn = f.extDown + 16;
+      const blocked: [number, number][] = [];
+      for (const o of world.obstacles) {
+        if (!seen.has(o)) { seen.add(o); if (Math.random() < MISS) missed.add(o); }
+        if (missed.has(o)) continue;
+        if (o.x > p.x + scroll * LOOK || o.x + o.w < p.x - 40 - f.extLeft) continue;
+        if (o.kind === 'ring') continue;
+        blocked.push([o.y - dn, o.y + o.h + up]);
+      }
+      const free = (y: number) => blocked.every(([a, b]) => y < a || y > b);
+      let want = p.y;
+      if (charge < 0.6) {
+        let best: number | null = null;
+        for (const c of world.collectibles) if (c.x > p.x && c.x < p.x + scroll * LOOK * 1.5) best = best === null || Math.abs(c.y - p.y) < Math.abs(best - p.y) ? c.y : best;
+        if (best !== null) want = best;
+      }
+      if (!free(want)) {
+        let found = want;
+        for (let k = 1; k < 40; k++) {
+          const u = want - k * 10, w = want + k * 10;
+          if (u > TOP + f.extUp && free(u)) { found = u; break; }
+          if (w < H - BOT - f.extDown && free(w)) { found = w; break; }
+        }
+        want = found;
+      }
+      targetY = want + (Math.random() * 2 - 1) * NOISE;
+    }
+    const axis = { x: 0, y: Math.max(-1, Math.min(1, (targetY - p.y) / 30)) };
+    p.update(dt, axis, false, W, H, 1, TOP + f.extUp, BOT + f.extDown, LEFT + f.extLeft);
+    if (f.occupiedCount > 0) f.update(dt, p.x, p.y, t);
+    world.update(dt, scroll, W, H, distance, TOP, H - BOT, L.density, L.rampMul);
+    distance += scroll * dt * 0.35;
+    charge -= (0.048 + distance * 0.000003) * L.drainMul * dt;
+    if (charge <= 0 && ships > 1) { loseLead(); charge = 0.75; }
+    if (charge <= 0) return t;
+    const hb = p.hitbox;
+    for (const c of world.collectibles) if (c.alive && circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) { c.alive = false; charge = Math.min(1, charge + 0.22); }
+    for (const o of world.obstacles) {
+      if (o.kind !== 'ring' || !o.alive || passed.has(o)) continue;
+      let touched = touchesRing(o, hb);
+      for (const s of f.slots) {
+        if (touched) break;
+        if (!s.occupied) continue;
+        const w = 52 * s.scale * 0.7, h = 28 * s.scale * 0.7;
+        touched = touchesRing(o, { x: s.x - w / 2, y: s.y - h / 2, w, h });
+      }
+      if (touched) { passed.add(o); charge = 1; }
+    }
+    if (p.invuln <= 0) for (const o of world.obstacles) {
+      if (!o.alive || !hits(o, hb)) continue;
+      if (ships > 1) { loseLead(); break; }
+      charge -= 0.28 * L.hitDamageMul;
+      p.invuln = 0.85 * L.hitGraceMul;
+      if (charge <= 0) return t;
+      break;
+    }
+    for (const s of f.slots) {
+      if (!s.occupied || s.invuln > 0) continue;
+      chb.w = 52 * s.scale * 0.7; chb.h = 28 * s.scale * 0.7; chb.x = s.x - chb.w / 2; chb.y = s.y - chb.h / 2;
+      for (const o of world.obstacles) if (o.alive && hits(o, chb)) { loseClone(s); break; }
+    }
+  }
+  return cap;
+}
+
 const N = Number(process.argv[3] ?? 300);
 function mean(d: number, strength?: number): number {
   seed = 12345 + d;
@@ -227,7 +337,26 @@ function mean(d: number, strength?: number): number {
   return s / N;
 }
 
-if (MODE === 'calibrate') {
+if (MODE === 'l111') {
+  // Levels 1-111: 1-10 = dog pack (runPack), 11-111 = gold zone (runGold). Mean time-to-death of
+  // the 'new' bot, plus the 'skilled' bot's mean and its share of 30 s level clears.
+  const levels = (process.argv[4] ?? '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,20,30,50,75,100,111').split(',').map(Number);
+  const rows: Record<string, unknown>[] = [];
+  for (const d of levels) {
+    const one = (kind: 'new' | 'skilled') => {
+      setBot(kind);
+      seed = 777;
+      let sum = 0, clear = 0;
+      for (let i = 0; i < N; i++) { const t = d <= 10 ? runPack(d, 600) : runGold(d, 600); sum += t; if (t >= 30) clear++; }
+      return { mean: sum / N, clear: clear / N };
+    };
+    const a = one('new'), b = one('skilled');
+    const hz = D.hazardLevers(d);
+    const row = { level: d, newMean: +a.mean.toFixed(1), newClear: +(a.clear * 100).toFixed(0), skilledMean: +b.mean.toFixed(1), skilledClear: +(b.clear * 100).toFixed(0), speed: +hz.speed.toFixed(3), density: +hz.density.toFixed(3), ships: d <= 10 ? 4 : shipsForLevel(d), hitCost: d <= 10 ? 1 : shipHitCost(d) };
+    rows.push(row);
+    console.log(JSON.stringify(row));
+  }
+} else if (MODE === 'calibrate') {
   // Bisect strength S per level so mean time-to-death = EASE_TARGET x original level 1's.
   const target1 = Number(process.argv[4]);
   const out: number[] = [];
