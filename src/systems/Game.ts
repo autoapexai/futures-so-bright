@@ -2926,7 +2926,13 @@ export class Game {
     if (this.prizeT > 0) drawPrizeReveal(ctx, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse, PRIZE_SECONDS - this.prizeT);
     if (this.catT > 0) drawCatLoading(ctx, this.viewW, this.viewH, this.pulse, (n) => this.renderer.u(n));
     if (this.state === 'title') this.renderer.drawTitle(ctx, this.high, this.pulse);
-    if (this.state === 'paused') this.renderer.drawPause(ctx);
+    if (this.state === 'paused') {
+      // The QUIT pill menu is its own (DOM) stall door: just dim the game behind it, no second door.
+      if (this.quitOpen || this.modesOpen) {
+        ctx.fillStyle = 'rgba(5, 0, 18, 0.65)';
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
+      } else this.renderer.drawPause(ctx);
+    }
     if (this.state === 'initials') {
       this.renderer.drawInitialsEntry(
         ctx,
