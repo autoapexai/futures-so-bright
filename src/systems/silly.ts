@@ -320,13 +320,13 @@ export function drawDuchess(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.fill();
   // sash
   ctx.save();
-  ctx.rotate(-0.5);
+  ctx.rotate(-0.25);
   ctx.fillStyle = '#ff4ec8';
-  ctx.fillRect(-72, 8, 128, 15);
+  ctx.fillRect(-76, 12, 122, 15);
   ctx.fillStyle = '#fff';
   ctx.font = "900 7px 'Orbitron', sans-serif";
   ctx.textAlign = 'center';
-  ctx.fillText('DUCHESS OF PASADENA', -8, 18.5, 122);
+  ctx.fillText('DUCHESS OF PASADENA', -15, 22.5, 112);
   ctx.restore();
   // head
   ctx.fillStyle = coat;
@@ -424,8 +424,9 @@ export function drawPrizeReveal(ctx: CanvasRenderingContext2D, W: number, H: num
   fit('THE DUCHESS OF PASADENA', '900', u(portrait ? 26 : 30), W * 0.92);
   ctx.fillText('THE DUCHESS OF PASADENA', W / 2, H * (portrait ? 0.23 : 0.25));
   ctx.shadowBlur = 0;
-  const size = Math.min(W * (portrait ? 0.62 : 0.3), H * 0.42) * ease;
-  if (size > 1) drawDuchess(ctx, W / 2 - size * 0.08, H * (portrait ? 0.52 : 0.6), size, t);
+  // The drawing spans about -0.85..+0.75 of its size horizontally: keep it inside the screen.
+  const size = Math.min(W * (portrait ? 0.5 : 0.3), H * (portrait ? 0.34 : 0.42)) * ease;
+  if (size > 1) drawDuchess(ctx, W / 2 + size * 0.05, H * (portrait ? 0.52 : 0.6), size, t);
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
   ctx.font = `700 ${u(15)}px 'Rajdhani', sans-serif`;
   ctx.fillText('A chocolate Lab of impeccable breeding. Good girl.', W / 2, H * (portrait ? 0.8 : 0.9));
