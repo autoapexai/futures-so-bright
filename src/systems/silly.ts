@@ -4,6 +4,7 @@
  * THE BOARD group photo shown after the level 111 boss.
  */
 import type { BossDef } from './Boss';
+import { drawMimeMini } from './bossMime';
 
 export type Appliance = 'toaster' | 'blender' | 'microwave';
 export const APPLIANCES: readonly Appliance[] = ['toaster', 'blender', 'microwave'];
@@ -17,6 +18,16 @@ export const MICROWAVE_SECONDS = 6;
 
 /** Grocery lists per boss (read in a movie-trailer voice). */
 export const GROCERIES: Record<string, string[]> = {
+  mime: [
+    '(MIMES MILK, WEEPING)',
+    '(PULLS AN INVISIBLE ROPE FOR NINE SECONDS) ONE (1) ROPE',
+    '(TRAPPED IN AN INVISIBLE BOX) BOX OF CRACKERS',
+    'WHITE FACE PAINT, FORTY (40) GALLONS',
+    '(HONK HONK) TINY TRICYCLE OIL',
+    'A MIRROR, FOR SOME REASON',
+    '(SOBS INTO A WHITE GLOVE) BAGUETTE',
+    'CREAM PIES (FOR ART)',
+  ],
   mantzoukas: ['EGGS', 'MILK', 'ONE (1) REGRETTABLE MELON', 'A MIRROR, FOR SOME REASON', 'TWO OF EVERYTHING', 'ADJACENT CHEESE'],
   calvin: ['TWIN-PACK YOGURT', 'BOGO BANANAS', 'TWO (2) IDENTICAL HAMS', 'DOUBLE-STUFFED ANYTHING', 'MATCHING SOCKS'],
   decoy: ['DECOY DUCKS', 'FAKE MUSTACHE', 'IMITATION CRAB', 'ONE (1) SUSPICIOUS LEMON', 'TRENCH COAT (SNACK SIZE)'],
@@ -186,6 +197,15 @@ export function drawCatLoading(ctx: CanvasRenderingContext2D, W: number, H: numb
 }
 
 function mini(ctx: CanvasRenderingContext2D, d: BossDef, x: number, y: number, w: number, h: number, tilt: number): void {
+  if (d.signature === 'mirror') {
+    // MONSIEUR MIRROR poses on his tiny tricycle (no scoreboard).
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(tilt);
+    drawMimeMini(ctx, 0, -h * 0.1, w * 0.9, h * 1.25, performance.now() / 1000);
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);

@@ -18,6 +18,7 @@ import { mulberry32, shuffle, subSeed, type Rng } from '../utils/rng';
 import { MAX_LEVEL } from '../utils/difficulty';
 import { groceryTaunt } from './silly';
 import { drawBuckleBuster, drawCowboy, drawVJ } from './bossArt';
+import { drawMime, drawMimeShot } from './bossMime';
 
 /** Flat points for beating any boss (not multiplied; the score is still clamped to SCORE_CAP). */
 export const BOSS_BONUS = 1_000_000;
@@ -60,10 +61,11 @@ export interface BossDef {
 }
 
 const SIG: Record<string, { signature: Signature; blurb: string; patterns: Pattern[]; taunts: string[] }> = {
-  mantzoukas: {
+  // Level 10: MONSIEUR MIRROR, an original mime on a tiny tricycle (see bossMime.ts).
+  mime: {
     signature: 'mirror',
-    blurb: 'Mirror board: copies your moves upside down',
-    patterns: ['aimed', 'mirror', 'spray'],
+    blurb: 'MONSIEUR MIRROR: a mime on a tiny tricycle who copies your moves upside down; cream pies, flying gloves, balloon animals; hand-mirror weak spot',
+    patterns: ['mirror', 'aimed', 'spray'],
     taunts: ["I'M NOT COPYING YOU. YOU'RE COPYING ME.", 'ADJACENT TO GREATNESS.', 'MIRROR, MIRROR, ON THE BOARD.', 'NEXT DOOR AND NEXT LEVEL.'],
   },
   calvin: {
@@ -142,12 +144,13 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
 };
 
 /** The fixed boss order: modes sorted by starting dog count (2-dog modes, then TOO FAT...ITM). */
-const ORDER = ['mantzoukas', 'calvin', 'decoy', 'buckle', 'daly', 'toosuccessful', 'alw', 'slackerman', 'cbb', 'curry', 'dvorak', 'itm'];
+const ORDER = ['mime', 'calvin', 'decoy', 'buckle', 'daly', 'toosuccessful', 'alw', 'slackerman', 'cbb', 'curry', 'dvorak', 'itm'];
 export const BOSS_LEVELS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, MAX_LEVEL];
 
 /** Character bosses that are not a player mode (banner name, tint, style). */
 const CHARACTERS: Record<string, { name: string; tint: string; style: ModeStyle }> = {
   buckle: { name: 'BUCKLE BUSTER', tint: '#ff3b8d', style: 'solid' },
+  mime: { name: 'MONSIEUR MIRROR', tint: '#00f0ff', style: 'solid' },
 };
 
 export const BOSSES: readonly BossDef[] = ORDER.map((id, i) => {
@@ -155,6 +158,16 @@ export const BOSSES: readonly BossDef[] = ORDER.map((id, i) => {
   const s = SIG[id];
   return { level: BOSS_LEVELS[i], rank: i + 1, modeId: id, name: m.name, dogs: m.ships, tint: m.tint, style: m.style, ...s };
 });
+
+/** Redesigned character bosses: no scoreboard anywhere, banners use just the name. */
+export function isCharacterBoss(def: BossDef): boolean {
+  return def.signature === 'mirror';
+}
+
+/** Banner / HP-bar title. */
+export function bossTitle(def: BossDef): string {
+  return isCharacterBoss(def) ? def.name : `THE BOARD: ${def.name}`;
+}
 
 /** The boss at the end of this level, or null. */
 export function bossForLevel(level: number): BossDef | null {
@@ -233,7 +246,7 @@ export interface BossShot {
   vx: number;
   vy: number;
   r: number;
-  kind: 'orb' | 'dot' | 'coin' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
+  kind: 'orb' | 'dot' | 'coin' | 'pie' | 'glove' | 'balloon' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
   /** Label for countdown numbers. */
   n?: number;
   /** BANG BANG: shot age (s) at which a big shot bursts into three. */
@@ -269,7 +282,19 @@ export type BossEvent =
   | { type: 'phase'; phase: number }
   | { type: 'defeated' }
   | { type: 'bored' }
-  | { type: 'gone' };
+  | { type: 'gone' }
+  | { type: 'pop'; text: string; x: number; y: number; sfx: PopSfx };
+
+export type PopSfx = 'honk' | 'boing' | 'whistleUp' | 'whistleDown';
+
+/** Comic text burst ("BONK!") drawn by the boss. */
+export interface Pop {
+  text: string;
+  x: number;
+  y: number;
+  t: number;
+  color: string;
+}
 
 export interface BossInput {
   dt: number;
@@ -310,7 +335,13 @@ export class BossFight {
   slamT = 0;
   taunt = '';
   tauntT = 0;
-  private stateT = 0;
+  stateT = 0;
+  /** Entrance / exit lengths, s (the tricycle mime makes a longer entrance and a slow deflate). */
+  readonly enterS: number;
+  readonly exitS: number;
+  /** Comic text bursts on screen. */
+  pops: Pop[] = [];
+  private popCd = 0;
   private rng: Rng;
   private bag: Pattern[] = [];
   private fireT: number;
@@ -341,6 +372,8 @@ export class BossFight {
     this.tune = easedTuning(def);
     this.seed = subSeed(runSeed, def.level);
     this.rng = mulberry32(this.seed);
+    this.enterS = def.signature === 'mirror' ? 3 : ENTER_S;
+    this.exitS = def.signature === 'mirror' ? 2.4 : EXIT_S;
     this.maxHp = this.tune.hp;
     this.hp = this.maxHp;
     this.fireT = 0.6 + this.rng() * 0.6;
@@ -399,7 +432,21 @@ export class BossFight {
     this.shots.length = 0;
     this.slam = 0;
     this.events.push({ type: 'stunned' });
+    if (isCharacterBoss(this.def)) this.addPop('BOING!', this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
     return true;
+  }
+
+  /** A random slapstick burst on a weak-spot hit (throttled so the screen stays readable). */
+  private comicPop(x: number, y: number): void {
+    const words: [string, PopSfx][] = [['BONK!', 'honk'], ['BOING!', 'boing'], ['HONK!', 'honk'], ['SPLAT!', 'boing']];
+    const [text, sfx] = words[Math.floor(this.rng() * words.length)];
+    this.addPop(text, x, y - 18, sfx, '#ffe14d');
+  }
+
+  private addPop(text: string, x: number, y: number, sfx: PopSfx, color: string): void {
+    this.popCd = 0.7;
+    this.pops.push({ text, x, y, t: 0, color });
+    this.events.push({ type: 'pop', text, x, y, sfx });
   }
 
   /** The lead board (for banners / bars). */
@@ -437,6 +484,13 @@ export class BossFight {
     }
     if (sig === 'strut' && this.slam > 0) x -= this.slam * (this.W * 0.42);
     i.x = x + this.slideX * (w + margin * 2);
+    if (sig === 'mirror' && this.state === 'enter') {
+      // MONSIEUR MIRROR pedals in from the LEFT on his tiny tricycle, right across the lane,
+      // and skids to a stop at his spot (he can't hurt anyone until the fight starts).
+      const e = Math.min(1, this.stateT / (this.enterS * 0.8));
+      const k = 1 - (1 - e) * (1 - e);
+      i.x = -w + (x + w) * k;
+    }
     i.y = y;
   }
 
@@ -448,20 +502,29 @@ export class BossFight {
     this.stateT += dt;
     if (this.tauntT > 0) this.tauntT = Math.max(0, this.tauntT - dt);
     if (this.state === 'enter') {
-      this.slideX = Math.max(0, 1 - this.stateT / ENTER_S);
-      if (this.stateT >= ENTER_S) {
+      this.slideX = Math.max(0, 1 - this.stateT / (this.enterS * 0.8));
+      if (this.stateT >= this.enterS) {
         this.state = 'fight';
         this.stateT = 0;
         this.slideX = 0;
       }
     } else if (this.state === 'defeated' || this.state === 'bored') {
-      this.slideX = Math.min(1, this.stateT / EXIT_S);
-      if (this.stateT >= EXIT_S) {
+      // The mime deflates in place (drawn), everyone else slides off.
+      this.slideX = this.def.signature === 'mirror' && this.state === 'defeated' ? 0 : Math.min(1, this.stateT / this.exitS);
+      if (this.stateT >= this.exitS) {
         this.state = 'gone';
         this.events.push({ type: 'gone' });
       }
     }
     this.boards.forEach((b, i) => this.layout(b, i, this.stunT > 0 ? dt * 0.25 : dt, inp.py));
+    this.popCd = Math.max(0, this.popCd - dt);
+    for (const p of this.pops) p.t += dt;
+    this.pops = this.pops.filter((p) => p.t < 0.8);
+    if (this.state === 'enter' && isCharacterBoss(this.def) && this.stateT > 0.2 && this.popCd <= 0) {
+      this.popCd = 0.9;
+      this.pops.push({ text: 'HONK!', x: Math.max(60, Math.min(this.main.x, this.W - 60)), y: this.main.y + this.main.h * 0.25, t: 0, color: '#ffcc00' });
+      this.events.push({ type: 'pop', text: 'HONK!', x: this.main.x, y: this.main.y, sfx: 'honk' });
+    }
     this.updateShots(inp);
     if (this.state !== 'fight') return;
 
@@ -510,6 +573,7 @@ export class BossFight {
         this.hurtT = 0.35;
         if (this.def.signature === 'cowboy' && this.hatT <= 0 && this.rng() < 0.06) this.hatT = 1.2;
         this.events.push({ type: 'hit', x: k.x, y: k.y, crit: onSpot || this.stunT > 0, decoy: false });
+        if (isCharacterBoss(this.def) && onSpot && this.popCd <= 0) this.comicPop(k.x, k.y);
         break;
       }
     }
@@ -522,6 +586,7 @@ export class BossFight {
       this.barks.length = 0;
       this.slam = 0;
       this.events.push({ type: 'defeated' });
+      if (isCharacterBoss(this.def)) this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'whistleDown' });
       return;
     }
     const ph = this.hp <= this.maxHp / 3 ? 3 : this.hp <= (this.maxHp * 2) / 3 ? 2 : 1;
@@ -576,11 +641,15 @@ export class BossFight {
     return Math.max(1, Math.floor(v + this.rng()));
   }
 
+  private pattern: Pattern = 'aimed';
+
   private shot(x: number, y: number, vx: number, vy: number, r: number, kind: BossShot['kind'], life = 6): void {
+    if (this.def.signature === 'mirror' && kind === 'orb') kind = this.pattern === 'mirror' ? 'pie' : this.pattern === 'spray' ? 'balloon' : 'glove';
     this.shots.push({ x, y, vx, vy, r, kind, t: 0, life, alive: true });
   }
 
   private fire(p: Pattern, inp: BossInput): void {
+    this.pattern = p;
     const laneH = this.bottom - this.top;
     const sp = this.tune.shotSpeed * Math.max(0.75, Math.min(1.3, laneH / 420));
     const r = Math.max(7, laneH * 0.022);
@@ -872,6 +941,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   // Shots under the boards.
   for (const s of f.shots) {
     if (!s.alive) continue;
+    if (drawMimeShot(ctx, s)) continue;
     if (s.kind === 'warn') {
       ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 30);
       ctx.fillStyle = '#ff3355';
@@ -987,6 +1057,10 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     const x0 = b.x - b.w / 2;
     const y0 = b.y - b.h / 2;
     const stun = f.stunned;
+    if (d.signature === 'mirror') {
+      drawMime(ctx, f, b, time);
+      continue;
+    }
     if (d.signature === 'strut' || d.signature === 'cowboy' || d.signature === 'vj') {
       ctx.save();
       if (stun) ctx.filter = 'grayscale(0.8)';
@@ -1111,6 +1185,25 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     }
     ctx.globalAlpha = 1;
   }
+  // Comic text bursts (BONK! BOING! HONK!): pop in big, then float up and fade.
+  for (const p of f.pops) {
+    const k = p.t / 0.8;
+    const sc = k < 0.15 ? 0.5 + (k / 0.15) * 0.8 : 1.3 - (k - 0.15) * 0.4;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    ctx.translate(p.x, p.y - k * 30);
+    ctx.rotate(-0.12);
+    ctx.scale(sc, sc);
+    ctx.font = `900 ${u(18)}px 'Orbitron', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#140022';
+    ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, 0, 0);
+    ctx.restore();
+  }
   // Name + HP bar at the top-center of the lane.
   // Just inside the top of the play lane, clear of the HUD; centred on the open lane (left of the board).
   const m = f.main;
@@ -1120,7 +1213,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   const by = f.laneTop + u(26);
   ctx.textAlign = 'center';
   ctx.fillStyle = d.tint;
-  const title = `THE BOARD: ${d.name}`;
+  const title = bossTitle(d);
   let size = u(14);
   ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
   while (ctx.measureText(title).width > Math.max(barW, W * 0.6) && size > 8) {

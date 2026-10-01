@@ -36,7 +36,7 @@ import {
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { trackRunStart } from '../utils/track';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
-import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
+import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, isCharacterBoss, type BossDef } from './Boss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -2493,7 +2493,7 @@ export class Game {
     this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length), pinned);
     this.bossesFought.push(def);
     this.world.spawnObstacles = false;
-    this.bannerText = `THE BOARD  ·  ${def.name}`;
+    this.bannerText = isCharacterBoss(def) ? def.name : `THE BOARD  ·  ${def.name}`;
     this.bannerT = BANNER_SECONDS;
     this.audio.playPromote();
     console.info(`[fsb] boss L${def.level} ${def.modeId} seed ${this.boss.seed}`);
@@ -2511,6 +2511,9 @@ export class Game {
         case 'taunt':
           if (!this.audio.isMuted) speakTrailer(e.text);
           break;
+        case 'pop':
+          this.audio.playComic(e.sfx);
+          break;
         case 'hit':
           if (e.decoy) {
             if (Math.random() < 0.3) this.spawnFloater(e.x, e.y - 10, 'DECOY!', '#ffffff');
@@ -2520,7 +2523,7 @@ export class Game {
           break;
         case 'stunned':
           this.audio.playGate();
-          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, 'BOARD STUNNED!', '#ffe66d');
+          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, isCharacterBoss(bf.def) ? 'STUNNED!' : 'BOARD STUNNED!', '#ffe66d');
           this.renderer.bumpShake(6);
           break;
         case 'phase':
@@ -2536,11 +2539,11 @@ export class Game {
           this.renderer.bumpFlash(0.6);
           this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 24 : 60, 360);
           this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, '+1,000,000', '#ffe66d');
-          this.bannerText = `THE BOARD BEATEN  ·  +1,000,000`;
+          this.bannerText = `${isCharacterBoss(bf.def) ? bf.def.name : 'THE BOARD'} BEATEN  ·  +1,000,000`;
           this.bannerT = BANNER_SECONDS;
           break;
         case 'bored':
-          this.bannerText = 'THE BOARD GOT BORED  ·  NO BONUS';
+          this.bannerText = `${isCharacterBoss(bf.def) ? bf.def.name : 'THE BOARD'} GOT BORED  ·  NO BONUS`;
           this.bannerT = BANNER_SECONDS;
           break;
         case 'gone':

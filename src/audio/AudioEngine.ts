@@ -213,6 +213,26 @@ export class AudioEngine {
     });
   }
 
+  /** Slapstick SFX for the character bosses: bulb-horn HONK, spring BOING, slide whistle up / down. */
+  playComic(kind: 'honk' | 'boing' | 'whistleUp' | 'whistleDown'): void {
+    this.whenRunning(() => {
+      if (!this.master) return;
+      const m = this.master;
+      if (kind === 'honk') {
+        this.tone(330, 0.12, 'square', 0.12, m, 300);
+        this.tone(415, 0.12, 'sawtooth', 0.06, m, 380);
+        this.tone(330, 0.16, 'square', 0.12, m, 290, 0.16);
+      } else if (kind === 'boing') {
+        this.tone(160, 0.35, 'sine', 0.22, m, 620);
+        this.tone(620, 0.25, 'triangle', 0.08, m, 240, 0.12);
+      } else if (kind === 'whistleUp') {
+        this.tone(500, 0.45, 'sine', 0.16, m, 1800);
+      } else {
+        this.tone(1800, 1.1, 'sine', 0.16, m, 180);
+      }
+    });
+  }
+
   playUi(): void {
     this.whenRunning(() => {
       if (!this.master) return;
