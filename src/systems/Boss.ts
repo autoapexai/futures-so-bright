@@ -206,6 +206,27 @@ export function bossTuning(rank: number): BossTuning {
   };
 }
 
+/**
+ * Per-boss easing on top of the rank curve (Dan-approved, L60 and L90 only; every other boss
+ * uses the plain curve). TOO SUCCESSFUL: coin rain falls slanted (slant = sideways speed as a
+ * fraction of the fall speed) with one more coin per shower to keep the pressure. COMEDY BANG
+ * BANG: one BANG shell per volley instead of two or three, bursting about 40% of the way to the
+ * pack into slightly slower pieces (the final boss keeps the original BANG), plus less HP, a
+ * slower trigger and smaller aimed fans.
+ */
+const EASE: Record<string, { hp?: number; fire?: number; volley?: number; slant?: number; extra?: number; big?: number; bang?: boolean }> = {
+  toosuccessful: { slant: 0.4, extra: 1 },
+  cbb: { hp: 0.8, fire: 1.3, volley: 0.75, big: 1, bang: true },
+};
+const easeOf = (id: string) => EASE[id] ?? {};
+
+/** The rank curve plus this boss's easing (used by the fight). */
+export function easedTuning(def: BossDef): BossTuning {
+  const t = bossTuning(def.rank);
+  const e = easeOf(def.modeId);
+  return { ...t, hp: Math.round(t.hp * (e.hp ?? 1)), fireEvery: +(t.fireEvery * (e.fire ?? 1)).toFixed(3), volley: +(t.volley * (e.volley ?? 1)).toFixed(2) };
+}
+
 export interface BossShot {
   x: number;
   y: number;
@@ -215,6 +236,8 @@ export interface BossShot {
   kind: 'orb' | 'dot' | 'coin' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
   /** Label for countdown numbers. */
   n?: number;
+  /** BANG BANG: shot age (s) at which a big shot bursts into three. */
+  burst?: number;
   t: number;
   life: number;
   alive: boolean;
@@ -315,7 +338,7 @@ export class BossFight {
     this.jabs = jabs;
     this.pinnedScore = pinnedScore;
     this.def = def;
-    this.tune = bossTuning(def.rank);
+    this.tune = easedTuning(def);
     this.seed = subSeed(runSeed, def.level);
     this.rng = mulberry32(this.seed);
     this.maxHp = this.tune.hp;
@@ -616,9 +639,17 @@ export class BossFight {
         break;
       }
       case 'rain': {
-        for (let i = 0; i < n; i++) {
-          const x = inp.px - 40 + this.rng() * (this.W * 0.55);
-          this.shot(x, this.top - r - this.rng() * 90, -sp * 0.15, sp * 0.5, r, 'coin');
+        // Coins take about the same time to fall on every screen shape, and fall slanted (wind-blown)
+        // toward a spot around the pack's height, so each one crosses the pack's line in about half
+        // a second. On a tall portrait lane the old slow, nearly vertical fall hung coins over the
+        // pack for 4+ s: a curtain over the top of the lane that kept the dogs away from the upper
+        // rank slots (the weak spot) and doubled the fight.
+        const fall = Math.max(sp * 0.5, laneH / 2.3);
+        const slant = easeOf(this.def.modeId).slant ?? 0.5;
+        for (let i = 0; i < n + (easeOf(this.def.modeId).extra ?? 0); i++) {
+          const xl = inp.px - 40 + this.rng() * (this.W * 0.55);
+          const y0 = this.top - r - this.rng() * 90;
+          this.shot(xl + slant * (inp.py - y0), y0, -fall * slant, fall, r, 'coin');
         }
         break;
       }
@@ -632,10 +663,15 @@ export class BossFight {
         break;
       }
       case 'split': {
-        const k = Math.max(1, Math.ceil(n / 3));
+        const k = Math.max(1, Math.ceil(n / 3) - (easeOf(this.def.modeId).big ?? 0));
+        // COMEDY BANG BANG: burst about 40% of the way to the pack (never later than 0.65 s), so the
+        // three pieces have room to fan out; on a narrow lane a fixed 0.65 s burst went off point-blank.
+        const burst = easeOf(this.def.modeId).bang ? Math.max(0.3, Math.min(0.65, (0.4 * Math.hypot(inp.px - ox, inp.py - oy)) / (sp * 0.7))) : 0.65;
         for (let i = 0; i < k; i++) {
           const a = Math.atan2(inp.py - oy, inp.px - ox) + (i - (k - 1) / 2) * 0.35 + jit();
+          const s = this.shots.length;
           this.shot(ox, oy, Math.cos(a) * sp * 0.7, Math.sin(a) * sp * 0.7, r * 1.7, 'split');
+          this.shots[s].burst = burst;
         }
         break;
       }
@@ -749,11 +785,12 @@ export class BossFight {
       if (!s.alive) continue;
       s.t += dt;
       s.life -= dt;
-      if (s.kind === 'split' && s.t >= 0.65) {
+      if (s.kind === 'split' && s.t >= (s.burst ?? 0.65)) {
         s.alive = false;
+        const ps = easeOf(this.def.modeId).bang ? sp * 0.85 : sp;
         for (let i = -1; i <= 1; i++) {
           const a = Math.atan2(s.vy, s.vx) + i * 0.45;
-          add.push({ x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: s.r * 0.6, kind: 'orb', t: 0, life: 5, alive: true });
+          add.push({ x: s.x, y: s.y, vx: Math.cos(a) * ps, vy: Math.sin(a) * ps, r: s.r * 0.6, kind: 'orb', t: 0, life: 5, alive: true });
         }
         continue;
       }
