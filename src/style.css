@@ -2266,7 +2266,7 @@ html[lang='zh-Hans'] #quit-confirm .qc-card::after { content: '有人'; }
   }
 }
 
-/* —— ON A MISSION (hidden mode): 5 taps on the MODES title unlock it on this device —— */
+/* —— ON A MISSION (regular mode, listed for every player; scores on its own DEV BOARD) —— */
 #modes-title {
   -webkit-user-select: none;
   user-select: none;

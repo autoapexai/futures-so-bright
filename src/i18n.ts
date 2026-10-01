@@ -288,7 +288,7 @@ const en = {
   dom_quit_change: 'CHANGE MODE',
   dom_quit_yes: 'QUIT RUN',
   dom_quit_no: 'KEEP PLAYING',
-  // ON A MISSION (hidden mode) + DEV BOARD
+  // ON A MISSION (regular mode, own DEV BOARD); mis_unlocked is no longer shown
   mis_pop_hubcap: 'BOING! HUBCAP!',
   mis_pop_siren: 'WEE-OOO... OOPS!',
   mis_pop_door: 'CLANG! WHO NEEDS A DOOR?',

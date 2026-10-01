@@ -302,7 +302,7 @@ export function saveTutorialDone(): void {
   }
 }
 
-// --- ON A MISSION (hidden mode): unlock flag, best and board are kept apart from the normal ones ---
+// --- ON A MISSION: best and board are kept apart from the normal ones (the unlock flag is legacy, unused) ---
 const MISSION_UNLOCK_KEY = 'fsb_mission_unlocked';
 const MISSION_HIGH_KEY = 'fsb_mission_high';
 const MISSION_BOARD_KEY = 'fsb_mission_board';

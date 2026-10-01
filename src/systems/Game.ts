@@ -32,8 +32,6 @@ import {
   saveElevenRevealSeen,
   loadTutorialDone,
   saveTutorialDone,
-  loadMissionUnlocked,
-  saveMissionUnlocked,
   loadMissionBoard,
   loadMissionHigh,
   saveMissionHigh,
@@ -108,9 +106,6 @@ export function packScale(n: number): number {
   return Math.pow(PACK_S0, Math.log(n) / Math.log(PACK_START));
 }
 
-/** ON A MISSION: taps on the MODES title that unlock it, and the most time between two of them (ms). */
-const MISSION_TAPS = 5;
-const MISSION_TAP_GAP_MS = 2000;
 /**
  * ON A MISSION car. Art: MISSION_CAR_LEN view units long (64 car units; body + bumpers ~1.1x
  * that). Hitbox: a standard ship's at MISSION_HIT_SCALE (52 x 28 * scale, 70 % of it), so the
@@ -287,15 +282,13 @@ export class Game {
   private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
-  /** ON A MISSION is unlocked on this device (5 taps on the MODES title). */
-  private missionUnlocked = loadMissionUnlocked();
+  /** ON A MISSION is a regular mode: listed in MODES for every player (no unlock needed). */
+  private missionUnlocked = true;
   /** The current / last run is ON A MISSION: DEV BOARD only, never the public board. */
   private missionRun = false;
   /** The run that just ended (initials / game over) was ON A MISSION. */
   private pendingMission = false;
   private readonly car = new MissionCar();
-  private titleTaps = 0;
-  private titleTapAt = 0;
   /** Last DEV BOARD fetched (null = never / unavailable). */
   private devBoard: LeaderboardEntry[] | null = null;
   private devOpen = false;
@@ -577,8 +570,8 @@ export class Game {
         } else onLang(() => this.syncCalvinEntry(b));
       }
     }
-    // ON A MISSION (hidden): 5 quick taps on the MODES title unlock it on this device. Its entry
-    // and the DEV BOARD button then sit at the top of the list (never offered by CHANGE MODE).
+    // ON A MISSION: a regular mode for every player. Its entry and the DEV BOARD button sit at the
+    // top of the list (never offered by CHANGE MODE); its scores go only to the DEV BOARD.
     if (list) {
       const row = document.createElement('div');
       row.id = 'mission-row';
@@ -740,7 +733,6 @@ export class Game {
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
     // ON A MISSION runs stay ON A MISSION (no CHANGE MODE: the run's score belongs to the DEV BOARD).
     if (overRun && this.missionRun) return;
-    this.titleTaps = 0;
     const row = document.getElementById('mission-row');
     if (row) row.hidden = !this.missionUnlocked;
     this.modesOpen = true;
@@ -785,48 +777,14 @@ export class Game {
   }
 
   /**
-   * ON A MISSION unlock: MISSION_TAPS taps on the MODES title, each within MISSION_TAP_GAP_MS of
-   * the last. Remembered on this device; a siren, a red / blue title flash and a toast confirm it.
+   * Taps on the MODES title. ON A MISSION used to unlock after 5 quick taps here; it is now a
+   * regular mode for every player, so a title tap does nothing (the handler stays harmless).
    */
   private tapModesTitle(): void {
-    if (!this.modesOpen || this.devOpen || this.modesGhostTap()) return;
-    const now = performance.now();
-    this.titleTaps = now - this.titleTapAt <= MISSION_TAP_GAP_MS ? this.titleTaps + 1 : 1;
-    this.titleTapAt = now;
-    if (this.titleTaps < MISSION_TAPS) return;
-    this.titleTaps = 0;
-    this.missionUnlocked = true;
-    saveMissionUnlocked();
-    const row = document.getElementById('mission-row');
-    if (row) {
-      row.hidden = false;
-      row.classList.remove('egg');
-      void row.offsetWidth; // restart the CSS animation
-      row.classList.add('egg');
-      window.setTimeout(() => row.classList.remove('egg'), 1600);
-    }
-    void this.audio.unlock();
-    this.audio.playMission('siren');
-    const title = document.getElementById('modes-title');
-    if (title) {
-      title.classList.remove('mission-flash');
-      void title.offsetWidth;
-      title.classList.add('mission-flash');
-      window.setTimeout(() => title.classList.remove('mission-flash'), 1800);
-    }
-    const toast = document.getElementById('mission-toast');
-    if (toast) {
-      toast.textContent = tr('mis_unlocked');
-      toast.classList.add('show');
-      window.setTimeout(() => {
-        toast.classList.remove('show');
-        toast.textContent = '';
-      }, 2600);
-    }
-    console.info('[fsb] ON A MISSION unlocked on this device');
+    /* no-op */
   }
 
-  /** DEV BOARD (over the MODES menu, unlocked devices only): ON A MISSION's own top 11. */
+  /** DEV BOARD (over the MODES menu): ON A MISSION's own top 11. */
   private devStatus: 'ok' | 'loading' | 'local' = 'loading';
   private devRows: LeaderboardEntry[] = [];
   private openDevBoard(): void {
