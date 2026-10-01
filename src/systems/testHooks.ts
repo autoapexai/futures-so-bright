@@ -8,7 +8,7 @@ import { CLONE_SLOTS } from '../entities/Formation';
 import { bossPilot, makeSkill, type PilotSkill } from './bossAutopilot';
 import { BOSSES, bossTuning } from './Boss';
 import { mulberry32 } from '../utils/rng';
-import { MODES } from '../utils/modes';
+import { MODES, MISSION_MODE } from '../utils/modes';
 
 let pilotOn = false;
 let pilotKeep = false;
@@ -59,6 +59,14 @@ export function installTestHooks(game: unknown): void {
       cloneOpen: g.cloneOpen,
       ticketPending: g.ticketPending,
       mode: g.mode ? g.mode.id : null,
+      missionRun: g.missionRun,
+      missionUnlocked: g.missionUnlocked,
+      car: g.missionRun
+        ? { partsLeft: g.car.partsLeft, lost: g.car.lost, hits: g.car.hits, debris: g.car.debris.length, pops: g.car.pops.map((p: any) => p.text) }
+        : null,
+      devOpen: g.devOpen,
+      boardIsRemote: g.boardIsRemote,
+      pendingMission: g.pendingMission,
       modeName: g.mode ? g.mode.name : null,
       modesUsed: [...g.modesUsed],
       runSeed: g.runSeed,
@@ -105,6 +113,15 @@ export function installTestHooks(game: unknown): void {
         g.boss.stunT = 2;
         g.boss.barks.push({ x: g.boss.main.x, y: g.boss.main.y, alive: true });
       }
+    },
+    /** ON A MISSION: start a run directly (same path as the MODES entry). */
+    startMission: () => {
+      g.missionUnlocked = true;
+      g.startRun(1, null, false, MISSION_MODE);
+    },
+    /** ON A MISSION: one hit on the car, exactly as an obstacle would. */
+    missionHit: () => {
+      if (g.missionRun) g.missionHit(1, 0.85, 0.12);
     },
     /** Pin the next run's seed. */
     seed: (n: number) => {

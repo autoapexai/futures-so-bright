@@ -106,9 +106,19 @@
             <button type="button" class="lang-opt" data-lang="zh" lang="zh-Hans" draggable="false" style="touch-action:none">简体中文</button>
           </div>
           <p id="modes-title">MODES</p>
+          <p id="mission-toast" role="status" aria-live="polite"></p>
           <div id="modes-list"></div>
           <div class="cg-hint">Fan nods only · not affiliated with or endorsed by anyone named</div>
           <button type="button" id="modes-back" class="hand-btn" draggable="false">BACK</button>
+        </div>
+      </div>
+      <div id="dev-board" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="dev-title">
+        <div class="cg-card">
+          <p class="dev-head"><span id="dev-badge" class="dev-badge">DEV</span><span id="dev-title">DEV BOARD</span></p>
+          <p id="dev-sub">ON A MISSION scores only. Never on the public leaderboard.</p>
+          <ol id="dev-rows"></ol>
+          <p id="dev-status" aria-live="polite"></p>
+          <button type="button" id="dev-back" class="hand-btn" draggable="false">BACK</button>
         </div>
       </div>
       <button type="button" id="tut-skip" class="hand-btn" aria-label="Skip How to Play" title="Skip (Esc)" draggable="false" style="touch-action:none">SKIP</button>

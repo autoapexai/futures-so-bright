@@ -9,7 +9,9 @@ import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipHitCost, shipsForLevel } from '..
 import { clamp } from '../utils/math';
 import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
-import { MODES, CALVIN_TRIPLETS, modeBreeds, type ModeDef } from '../utils/modes';
+import { MODES, CALVIN_TRIPLETS, MISSION_MODE, isMission, modeBreeds, type ModeDef } from '../utils/modes';
+import { MissionCar, PARTS as MISSION_PART_LIST, type MissionSfx } from './missionCar';
+import { fetchDevBoard, submitDevScore } from '../utils/devBoard';
 import {
   loadHighScore,
   saveHighScore,
@@ -30,6 +32,12 @@ import {
   saveElevenRevealSeen,
   loadTutorialDone,
   saveTutorialDone,
+  loadMissionUnlocked,
+  saveMissionUnlocked,
+  loadMissionBoard,
+  loadMissionHigh,
+  saveMissionHigh,
+  addMissionEntry,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
@@ -99,6 +107,16 @@ export function packScale(n: number): number {
   if (n <= 1) return 1;
   return Math.pow(PACK_S0, Math.log(n) / Math.log(PACK_START));
 }
+
+/** ON A MISSION: taps on the MODES title that unlock it, and the most time between two of them (ms). */
+const MISSION_TAPS = 5;
+const MISSION_TAP_GAP_MS = 2000;
+/** ON A MISSION car: linear scale vs a standard ship (sprite length 52 * scale; hitbox 70 %). */
+const MISSION_CAR_SCALE = 1.4;
+/** ON A MISSION: shade a hit costs (x the level's hit damage). A hit never takes shade below the floor. */
+const MISSION_HIT_SHADE = 0.12;
+const MISSION_SHADE_FLOOR = 0.05;
+const MISSION_PARTS = MISSION_PART_LIST.length;
 
 /** Promotion interstitial ("LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!") duration (s). */
 const PROMO_SECONDS = 2.0;
@@ -260,6 +278,19 @@ export class Game {
   private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
+  /** ON A MISSION is unlocked on this device (5 taps on the MODES title). */
+  private missionUnlocked = loadMissionUnlocked();
+  /** The current / last run is ON A MISSION: DEV BOARD only, never the public board. */
+  private missionRun = false;
+  /** The run that just ended (initials / game over) was ON A MISSION. */
+  private pendingMission = false;
+  private readonly car = new MissionCar();
+  private titleTaps = 0;
+  private titleTapAt = 0;
+  /** Last DEV BOARD fetched (null = never / unavailable). */
+  private devBoard: LeaderboardEntry[] | null = null;
+  private devOpen = false;
+  private devSeq = 0;
   private dpr = 1;
   private viewW = LANDSCAPE_W;
   private viewH = LANDSCAPE_H;
@@ -537,6 +568,67 @@ export class Game {
         } else onLang(() => this.syncCalvinEntry(b));
       }
     }
+    // ON A MISSION (hidden): 5 quick taps on the MODES title unlock it on this device. Its entry
+    // and the DEV BOARD button then sit at the top of the list (never offered by CHANGE MODE).
+    if (list) {
+      const row = document.createElement('div');
+      row.id = 'mission-row';
+      row.hidden = !this.missionUnlocked;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'mission-pick';
+      b.className = 'hand-btn mode-pick mission-pick';
+      b.draggable = false;
+      const name = document.createElement('span');
+      name.className = 'mode-name';
+      name.textContent = MISSION_MODE.name;
+      const sub = document.createElement('span');
+      sub.className = 'mode-ships';
+      b.append(name, sub);
+      bindTap(b, () => this.pickMode(MISSION_MODE));
+      const dev = document.createElement('button');
+      dev.type = 'button';
+      dev.id = 'devboard-btn';
+      dev.className = 'hand-btn mode-pick devboard-btn';
+      dev.draggable = false;
+      const badge = document.createElement('span');
+      badge.className = 'dev-badge';
+      const devName = document.createElement('span');
+      devName.className = 'mode-name';
+      dev.append(badge, devName);
+      bindTap(dev, () => {
+        if (!this.modesGhostTap()) this.openDevBoard();
+      });
+      const syncMissionText = (): void => {
+        sub.textContent = tr('mis_sub');
+        b.setAttribute('aria-label', tr('mis_aria'));
+        badge.textContent = tr('dev_badge');
+        devName.textContent = tr('dev_btn');
+        dev.setAttribute('aria-label', tr('dev_btn_aria'));
+        if (this.devOpen) this.renderDevRows();
+      };
+      syncMissionText();
+      onLang(syncMissionText);
+      row.append(b, dev);
+      list.prepend(row);
+    }
+    const modesTitle = document.getElementById('modes-title');
+    if (modesTitle) {
+      // A plain text title (not a button): pointerup is reliable on iOS where click on a <p> isn't.
+      modesTitle.addEventListener('pointerdown', (e) => e.stopPropagation());
+      // A click listener also marks the title as a tap target, so Android Chrome's touch
+      // adjustment doesn't retarget a title tap onto the mode button just below it.
+      modesTitle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      });
+      modesTitle.addEventListener('pointerup', (e) => {
+        e.stopPropagation();
+        if (e.button !== undefined && e.button !== 0) return;
+        this.tapModesTitle();
+      });
+    }
+    bindTap(document.getElementById('dev-back'), () => this.closeDevBoard());
     // LANGUAGE row (top of MODES): English / Español / Tiếng Việt / 简体中文, remembered on this device.
     document.querySelectorAll<HTMLElement>('#lang-row .lang-opt').forEach((b) => {
       bindTap(b, () => {
@@ -637,6 +729,11 @@ export class Game {
     const overRun = this.quitOpen && this.state === 'paused';
     if (this.state !== 'title' && this.state !== 'gameover' && !overRun) return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
+    // ON A MISSION runs stay ON A MISSION (no CHANGE MODE: the run's score belongs to the DEV BOARD).
+    if (overRun && this.missionRun) return;
+    this.titleTaps = 0;
+    const row = document.getElementById('mission-row');
+    if (row) row.hidden = !this.missionUnlocked;
     this.modesOpen = true;
     this.modesOpenedAt = performance.now();
     const el = document.getElementById('modes-menu');
@@ -657,6 +754,7 @@ export class Game {
 
   private closeModes(): void {
     if (!this.modesOpen) return;
+    this.closeDevBoard();
     this.modesOpen = false;
     if (this.calvinPickTimer) {
       window.clearTimeout(this.calvinPickTimer);
@@ -669,6 +767,129 @@ export class Game {
     document.body.classList.remove('modes-open');
     this.input.clearTouch();
     this.input.clearJustPressed();
+  }
+
+  /** Esc on the MODES menu: closes the DEV BOARD first if it's up, else the menu. */
+  private escapeModes(): void {
+    if (this.devOpen) this.closeDevBoard();
+    else this.closeModes();
+  }
+
+  /**
+   * ON A MISSION unlock: MISSION_TAPS taps on the MODES title, each within MISSION_TAP_GAP_MS of
+   * the last. Remembered on this device; a siren, a red / blue title flash and a toast confirm it.
+   */
+  private tapModesTitle(): void {
+    if (!this.modesOpen || this.devOpen || this.modesGhostTap()) return;
+    const now = performance.now();
+    this.titleTaps = now - this.titleTapAt <= MISSION_TAP_GAP_MS ? this.titleTaps + 1 : 1;
+    this.titleTapAt = now;
+    if (this.titleTaps < MISSION_TAPS) return;
+    this.titleTaps = 0;
+    this.missionUnlocked = true;
+    saveMissionUnlocked();
+    const row = document.getElementById('mission-row');
+    if (row) {
+      row.hidden = false;
+      row.classList.remove('egg');
+      void row.offsetWidth; // restart the CSS animation
+      row.classList.add('egg');
+      window.setTimeout(() => row.classList.remove('egg'), 1600);
+    }
+    void this.audio.unlock();
+    this.audio.playMission('siren');
+    const title = document.getElementById('modes-title');
+    if (title) {
+      title.classList.remove('mission-flash');
+      void title.offsetWidth;
+      title.classList.add('mission-flash');
+      window.setTimeout(() => title.classList.remove('mission-flash'), 1800);
+    }
+    const toast = document.getElementById('mission-toast');
+    if (toast) {
+      toast.textContent = tr('mis_unlocked');
+      toast.classList.add('show');
+      window.setTimeout(() => {
+        toast.classList.remove('show');
+        toast.textContent = '';
+      }, 2600);
+    }
+    console.info('[fsb] ON A MISSION unlocked on this device');
+  }
+
+  /** DEV BOARD (over the MODES menu, unlocked devices only): ON A MISSION's own top 11. */
+  private devStatus: 'ok' | 'loading' | 'local' = 'loading';
+  private devRows: LeaderboardEntry[] = [];
+  private openDevBoard(): void {
+    if (!this.modesOpen || !this.missionUnlocked || this.devOpen) return;
+    this.devOpen = true;
+    const el = document.getElementById('dev-board');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('dev-open');
+    this.audio.playUi();
+    this.devRows = this.devBoard ?? [];
+    this.devStatus = this.devBoard ? 'ok' : 'loading';
+    this.renderDevRows();
+    const seq = ++this.devSeq;
+    void fetchDevBoard().then((b) => {
+      if (seq !== this.devSeq || !this.devOpen) return;
+      if (b) {
+        this.devBoard = b;
+        this.devRows = b;
+        this.devStatus = 'ok';
+      } else {
+        this.devRows = loadMissionBoard();
+        this.devStatus = 'local';
+      }
+      this.renderDevRows();
+    });
+  }
+
+  private closeDevBoard(): void {
+    if (!this.devOpen) return;
+    this.devOpen = false;
+    this.devSeq++;
+    const el = document.getElementById('dev-board');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('dev-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+  }
+
+  private renderDevRows(): void {
+    const ol = document.getElementById('dev-rows');
+    const st = document.getElementById('dev-status');
+    if (!ol || !st) return;
+    ol.textContent = '';
+    this.devRows.forEach((e, i) => {
+      const li = document.createElement('li');
+      const cells: [string, string][] = [
+        ['dev-rank', String(i + 1)],
+        ['dev-ini', e.initials],
+        ['dev-score', fmtNum(e.score)],
+        ['dev-lvl', e.difficulty ? `${tr('lb_lvl')} ${e.start && e.start !== e.difficulty ? `${e.start}→${e.difficulty}` : e.difficulty}` : ''],
+      ];
+      for (const [c, v] of cells) {
+        const sp = document.createElement('span');
+        sp.className = c;
+        sp.textContent = v;
+        li.appendChild(sp);
+      }
+      ol.appendChild(li);
+    });
+    const empty = this.devRows.length === 0;
+    st.textContent =
+      this.devStatus === 'loading'
+        ? tr('dev_loading')
+        : this.devStatus === 'local'
+          ? empty
+            ? `${tr('dev_local')} · ${tr('dev_empty')}`
+            : tr('dev_local')
+          : empty
+            ? tr('dev_empty')
+            : '';
   }
 
   /**
@@ -719,7 +940,9 @@ export class Game {
 
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
   private pickMode(m: ModeDef): void {
-    if (!this.modesOpen || this.modesGhostTap()) return;
+    if (!this.modesOpen || this.modesGhostTap() || this.devOpen) return;
+    // CHANGE MODE never switches into or out of ON A MISSION (its score is DEV BOARD only).
+    if (this.quitOpen && (isMission(m) || this.missionRun)) return;
     this.closeModes();
     void this.audio.unlock();
     if (this.quitOpen) {
@@ -798,6 +1021,16 @@ export class Game {
     this.continueT = 0;
     this.score = 0;
     this.mode = null;
+    if (this.missionRun) {
+      // Back to the normal title: the Border Collie and the normal best.
+      this.missionRun = false;
+      this.car.reset();
+      this.player.breed = PLAYER_BREED;
+      this.player.scale = breedScale(PLAYER_BREED);
+      this.player.w = 52 * this.player.scale;
+      this.player.h = 28 * this.player.scale;
+      this.high = loadHighScore();
+    }
     this.boss = null;
     this.bossDone = false;
     this.world.spawnObstacles = true;
@@ -1332,6 +1565,7 @@ export class Game {
     document.body.classList.toggle('initials', this.state === 'initials');
     document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
     document.body.classList.toggle('quit-open', this.quitOpen);
+    document.body.classList.toggle('mission-run', this.missionRun && (this.state === 'playing' || this.state === 'paused'));
     this.syncWakeLock();
     // Title-screen demo loop plays only while the title is up.
     const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
@@ -1440,6 +1674,16 @@ export class Game {
 
   private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null, localOnly = false, mode: ModeDef | null = null): void {
     this.awaitingTopAfterSubmit = false;
+    // ON A MISSION: DEV BOARD only (never a public submit / ticket); its own best on the HUD.
+    this.missionRun = isMission(mode);
+    this.pendingMission = false;
+    this.high = this.missionRun ? loadMissionHigh() : loadHighScore();
+    if (this.missionRun) {
+      ticket = null;
+      localOnly = true;
+      this.car.reset();
+      void this.refreshDevBoard();
+    }
     this.runLocalOnly = localOnly;
     this.audio.playStart();
     this.state = 'playing';
@@ -1541,6 +1785,14 @@ export class Game {
     return p;
   }
 
+  /** Fetch the DEV BOARD in the background (ON A MISSION runs). Resolves null on failure. */
+  private refreshDevBoard(): Promise<LeaderboardEntry[] | null> {
+    return fetchDevBoard().then((b) => {
+      if (b) this.devBoard = b;
+      return b;
+    });
+  }
+
   private enterInitials(): void {
     this.initialsChars = ['A', 'A', 'A'];
     this.initialsSlot = 0;
@@ -1569,6 +1821,11 @@ export class Game {
       this.audio.startSadTrombone();
     }
     this.boss = null;
+    this.pendingMission = this.missionRun;
+    if (this.pendingMission) {
+      this.endMissionRun();
+      return;
+    }
     // Load (and, for legacy saves, migrate) the local board before touching the high-score key.
     const localBoard = loadLeaderboard();
     if (this.pendingScore > this.high) {
@@ -1606,8 +1863,79 @@ export class Game {
     }).then(() => this.checkTop());
   }
 
+  /**
+   * ON A MISSION game over: only the mission best and the DEV BOARD (or this device's mission
+   * board) are touched. The public board, the normal TOP 11 and the normal best never see it.
+   */
+  private endMissionRun(): void {
+    const best = loadMissionHigh();
+    this.newBest = this.pendingScore > best;
+    saveMissionHigh(this.pendingScore);
+    this.high = loadMissionHigh();
+    const localBoard = loadMissionBoard();
+    this.boardIsRemote = this.devBoard !== null;
+    this.leaderboard = this.devBoard ? [...this.devBoard] : localBoard;
+    this.highlightIndex = -1;
+    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) this.enterInitials();
+    else {
+      this.state = 'gameover';
+      this.setBodyFlags();
+    }
+    const id = this.runId;
+    const hadRemote = this.boardIsRemote;
+    void this.refreshDevBoard().then((board) => {
+      if (!board || id !== this.runId || this.state !== 'gameover' || this.highlightIndex !== -1) return;
+      this.leaderboard = [...board];
+      this.boardIsRemote = true;
+      if (!hadRemote && qualifiesForBoard(this.pendingScore, board)) this.enterInitials();
+    });
+  }
+
+  /** ON A MISSION initials: this device's mission board + the DEV BOARD (fsb_dev_submit). */
+  private confirmMissionInitials(initials: string): void {
+    const score = this.pendingScore;
+    const runMs = this.pendingRunMs;
+    const level = this.pendingDifficulty;
+    const start = this.pendingStart;
+    const id = this.runId;
+    const local = addMissionEntry(score, initials, level, start);
+    if (this.devBoard) {
+      const optimistic = insertEntry(score, initials, this.devBoard, level, start);
+      this.leaderboard = optimistic.board;
+      this.highlightIndex = optimistic.index;
+      this.boardIsRemote = true;
+    } else {
+      this.leaderboard = local.board;
+      this.highlightIndex = local.index;
+      this.boardIsRemote = false;
+    }
+    this.high = loadMissionHigh();
+    this.audio.playUi();
+    this.state = 'gameover';
+    this.setBodyFlags();
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    void submitDevScore(initials, score, runMs, level, start).then((res) => {
+      if (res) this.devBoard = res.board;
+      if (id !== this.runId || this.state !== 'gameover') return;
+      if (res) {
+        this.leaderboard = res.board;
+        this.highlightIndex = res.index;
+        this.boardIsRemote = true;
+      } else {
+        this.leaderboard = local.board;
+        this.highlightIndex = local.index;
+        this.boardIsRemote = false;
+      }
+    });
+  }
+
   private confirmInitials(): void {
     if (this.state !== 'initials') return;
+    if (this.pendingMission) {
+      this.confirmMissionInitials(this.initialsChars.join(''));
+      return;
+    }
     const initials = this.initialsChars.join('');
     const score = this.pendingScore;
     const runMs = this.pendingRunMs;
@@ -1756,7 +2084,7 @@ export class Game {
         return;
       }
       if (this.modesOpen) {
-        if (this.input.consume('escape')) this.closeModes();
+        if (this.input.consume('escape')) this.escapeModes();
         this.input.clearJustPressed();
         return;
       }
@@ -1790,7 +2118,7 @@ export class Game {
         return;
       }
       if (this.modesOpen) {
-        if (this.input.consume('escape')) this.closeModes();
+        if (this.input.consume('escape')) this.escapeModes();
         this.input.clearJustPressed();
         return;
       }
@@ -1802,7 +2130,7 @@ export class Game {
     if (this.quitOpen) {
       // QUIT RUN? confirm: Esc closes MODES back to it, else Esc / P keep playing.
       if (this.modesOpen) {
-        if (this.input.consume('escape')) this.closeModes();
+        if (this.input.consume('escape')) this.escapeModes();
       } else if (this.input.consume('escape') || this.input.consume('p')) {
         this.keepPlaying();
       }
@@ -1988,6 +2316,7 @@ export class Game {
       this.bossEvents();
     }
     this.particles.update(dt);
+    if (this.missionRun) this.car.update(dt, this.scrollSpeed, this.viewH);
     this.renderer.update(dt, this.scrollSpeed);
     {
       const fs = this.floaters;
@@ -2066,6 +2395,11 @@ export class Game {
         if (this.hitsObstacle(o, hb)) {
           if (this.shieldT > 0) {
             this.pizzaAbsorb();
+            break;
+          }
+          if (this.missionRun) {
+            // ON A MISSION: a part flies off; the car is never destroyed (see missionHit).
+            this.missionHit(hz.hitDamageMul, 0.85 * hz.hitGraceMul, MISSION_HIT_SHADE);
             break;
           }
           if (this.ships > 1) {
@@ -2335,7 +2669,7 @@ export class Game {
     if (cleared === MAX_PUBLIC_DIFFICULTY) {
       // Beat level 10: straight into the gold zone (level 11) for everyone.
       this.climbTicket =
-        remoteEnabled && !this.runLocalOnly ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
+        remoteEnabled && !this.runLocalOnly && !this.missionRun ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
     }
     const title = cleared === MAX_PUBLIC_DIFFICULTY ? tr('promo_beat10') : tr('promo_done', { n: cleared });
     this.showPromotion(title, tr('promo_promoted'), () => {
@@ -2343,6 +2677,12 @@ export class Game {
       this.runDifficulty = next;
       if (cleared === MAX_PUBLIC_DIFFICULTY) this.runTicket = this.climbTicket;
       this.freshStage();
+      if (this.missionRun) {
+        // ON A MISSION stays the car all the way to 111 (no random mode swap).
+        this.bannerText = tr('banner_level', { n: next, m: MISSION_MODE.name });
+        this.bannerT = BANNER_SECONDS;
+        return;
+      }
       // Every level change switches to a random mode (never the one just played; the Calvin
       // Triplets egg is not in the pool) with a fresh pack of its starting dogs.
       const m = this.randomMode();
@@ -2639,6 +2979,10 @@ export class Game {
    */
   private bossHit(damageMul: number): boolean {
     this.boss?.clearNear(this.player.x, this.player.y, BOSS_MERCY_R);
+    if (this.missionRun) {
+      this.missionHit(damageMul, BOSS_HIT_GRACE, 0.2);
+      return false;
+    }
     this.charge = clamp(this.charge - 0.2 * damageMul, 0, 1);
     this.player.invuln = BOSS_HIT_GRACE;
     this.hitFx(this.player.x, this.player.y, true);
@@ -2677,6 +3021,8 @@ export class Game {
       const f = this.floaters.pop();
       if (f) this.floaterPool.push(f);
     }
+    // ON A MISSION: a new level, a duct-tape pit stop (every part back on).
+    if (this.missionRun && this.car.repair(this.player.x, this.player.y, this.carScale)) this.audio.playMission('pop');
   }
 
   /** HUD icons: the player's dog first, then the pack dogs still running. */
@@ -2831,7 +3177,7 @@ export class Game {
     const sumB2 = breeds.reduce((a, b) => a + breedScale(b) ** 2, 0);
     const k = Math.sqrt((n * scale * scale) / sumB2);
     this.player.breed = breeds[0];
-    this.player.scale = k * breedScale(breeds[0]);
+    this.player.scale = isMission(m) ? MISSION_CAR_SCALE : k * breedScale(breeds[0]);
     this.player.w = 52 * this.player.scale;
     this.player.h = 28 * this.player.scale;
     const sp = m.spacing;
@@ -2854,6 +3200,26 @@ export class Game {
       s.y = clamp(top + bottom - this.player.y, top, bottom);
       break;
     }
+  }
+
+  /** Car length in px / 64 car units (the car painter's scale). */
+  private get carScale(): number {
+    return this.player.w / 64;
+  }
+
+  /**
+   * ON A MISSION hit: one part flies off (or, with none left, a sputter / honk / smoke gag), a
+   * little shade is lost, never below MISSION_SHADE_FLOOR: a hit can't end the run or wreck the car.
+   */
+  private missionHit(damageMul: number, grace: number, shade: number): void {
+    if (this.charge > MISSION_SHADE_FLOOR) this.charge = Math.max(MISSION_SHADE_FLOOR, this.charge - shade * damageMul);
+    this.player.invuln = grace;
+    const sfx: MissionSfx = this.car.hit(this.player.x, this.player.y, this.carScale, this.scrollSpeed);
+    if (sfx === 'honk' || sfx === 'boing' || sfx === 'whistleUp' || sfx === 'whistleDown') this.audio.playComic(sfx);
+    else this.audio.playMission(sfx);
+    this.particles.burst(this.player.x, this.player.y, '#ffffff', this.touchPrimary ? 6 : 12, 200);
+    this.renderer.bumpShake(8);
+    this.renderer.bumpFlash(0.2);
   }
 
   private hitFx(x: number, y: number, lead: boolean): void {
@@ -2967,12 +3333,18 @@ export class Game {
       this.particles.draw(ctx);
       if ((this.level > 0 || (this.formation.occupiedCount > 0 && !this.mode)) && (this.state === 'playing' || this.state === 'paused')) {
         this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
-      } else if (this.mode && (this.state === 'playing' || this.state === 'paused')) {
+      } else if (this.mode && !this.missionRun && (this.state === 'playing' || this.state === 'paused')) {
         const m = this.mode;
         const hidden = this.decoyHiddenT > 0 ? this.decoySlot : null;
         this.renderer.drawSwarm(ctx, this.formation, m.tint, m.style, this.ships, this.player.x, this.player.y, hidden);
       }
-      this.renderer.drawPlayer(ctx, this.player, this.charge);
+      if (this.missionRun) {
+        const p = this.player;
+        const blink = p.invuln > 0 && Math.floor(this.pulse * 20) % 2 === 0;
+        const lens = this.charge > 0.3 ? 'rgba(0, 255, 220, 0.95)' : 'rgba(255, 200, 50, 0.95)';
+        this.car.draw(ctx, p.x, p.y, clamp(p.vy / 500, -0.3, 0.3), this.carScale, this.pulse, this.renderer.lite, lens, blink ? 0.45 : 1);
+        this.car.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite);
+      } else this.renderer.drawPlayer(ctx, this.player, this.charge);
       if (this.shieldT > 0) drawPizzaShield(ctx, this.player.x, this.player.y, Math.max(this.player.w, this.player.h) * 0.75 + 14, this.pulse, this.shieldT);
       this.renderer.drawFloaters(ctx, this.floaters);
     } else {
@@ -2994,7 +3366,9 @@ export class Game {
           ? null
           : this.level > 0
             ? { level: this.level, ships: this.ships }
-            : this.mode
+            : this.missionRun
+              ? { level: this.runDifficulty, ships: 0, label: tr('hud_parts', { n: this.car.partsLeft, t: MISSION_PARTS }) }
+              : this.mode
               ? { level: this.runDifficulty, ships: this.ships }
               : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
       );
@@ -3041,8 +3415,8 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.boardIsRemote ? tr('lb_global') : tr('lb_top'),
-        this.victory ? tr('go_victory', { n: MAX_LEVEL }) : tr('go_headline'),
+        this.pendingMission ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local')) : this.boardIsRemote ? tr('lb_global') : tr('lb_top'),
+        this.victory ? tr('go_victory', { n: MAX_LEVEL }) : this.pendingMission ? tr('go_mission') : tr('go_headline'),
       );
     }
   }

@@ -5,6 +5,7 @@
  */
 import type { LeaderboardEntry } from './storage';
 import { SCORE_CAP } from './difficulty';
+import { MISSION_MODE } from './modes';
 
 const MAX_BOARD = 11;
 const FETCH_TIMEOUT_MS = 2500;
@@ -106,6 +107,8 @@ export async function submitRemoteScore(
   startLevel: number | null = null,
 ): Promise<{ board: LeaderboardEntry[]; index: number; claimToken: string | null } | null> {
   if (!remoteEnabled) return null;
+  // ON A MISSION scores never go to the public board (they go to the DEV BOARD, utils/devBoard.ts).
+  if (endMode === MISSION_MODE.id) return null;
   try {
     const body: Record<string, unknown> = {
       p_initials: initials,

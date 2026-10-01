@@ -10,7 +10,7 @@
  */
 import { BREEDS, PLAYER_BREED, breedById, randomBreed, type Breed } from '../render/shipSprite';
 
-export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy';
+export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy' | 'mission';
 export type ModeStyle = 'solid' | 'outline' | 'dot';
 
 export interface ModeDef {
@@ -63,6 +63,27 @@ export const CALVIN_TRIPLETS: ModeDef = {
   spacing: 1,
 };
 
+/**
+ * ON A MISSION (hidden): tap the MODES title 5 times to unlock it on this device. One beat-up
+ * black-and-white cop car instead of a dog swarm. Hits knock parts off; the car is never
+ * destroyed (see systems/missionCar.ts). Not in MODES, so never in the random level-change pool
+ * and never offered by CHANGE MODE. Its scores go only to the DEV BOARD (utils/devBoard.ts),
+ * never to the public leaderboard.
+ */
+export const MISSION_MODE: ModeDef = {
+  id: 'mission',
+  name: 'ON A MISSION',
+  ships: 1,
+  scale: 1,
+  tint: '#f2f2f2',
+  style: 'solid',
+  behavior: 'mission',
+  spacing: 1,
+};
+
+export function isMission(m: ModeDef | null | undefined): boolean {
+  return !!m && m.behavior === 'mission';
+}
 
 export function modeById(id: string): ModeDef | null {
   return MODES.find((m) => m.id === id) ?? null;

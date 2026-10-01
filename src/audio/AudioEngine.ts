@@ -233,6 +233,40 @@ export class AudioEngine {
     });
   }
 
+  /**
+   * ON A MISSION slapstick: CLANG (a panel hits the road), TINKLE (a mirror), the siren's sad
+   * WEE-OOO, a SPUTTERing engine and a cork POP (the trunk lid). Respects mute like every SFX.
+   */
+  playMission(kind: 'clang' | 'tinkle' | 'siren' | 'sputter' | 'pop'): void {
+    this.whenRunning(() => {
+      if (!this.master) return;
+      const m = this.master;
+      if (kind === 'clang') {
+        this.tone(880, 0.09, 'square', 0.12, m, 760);
+        this.tone(1320, 0.35, 'triangle', 0.1, m, 1180);
+        this.tone(523, 0.45, 'sine', 0.12, m, 500, 0.02);
+        this.tone(180, 0.12, 'sawtooth', 0.1, m, 90, 0.05);
+      } else if (kind === 'tinkle') {
+        this.tone(2637, 0.12, 'sine', 0.1, m);
+        this.tone(3136, 0.12, 'sine', 0.08, m, undefined, 0.07);
+        this.tone(2349, 0.16, 'sine', 0.08, m, undefined, 0.14);
+        this.tone(3520, 0.2, 'triangle', 0.05, m, undefined, 0.2);
+      } else if (kind === 'siren') {
+        this.tone(960, 0.28, 'sine', 0.14, m, 640);
+        this.tone(640, 0.28, 'sine', 0.14, m, 960, 0.3);
+        this.tone(900, 0.7, 'sine', 0.12, m, 200, 0.6);
+      } else if (kind === 'sputter') {
+        for (let i = 0; i < 5; i++) {
+          this.tone(70 + (i % 2) * 18, 0.07, 'square', 0.14, m, 50, i * 0.11);
+        }
+        this.tone(1400, 0.06, 'triangle', 0.05, m, 900, 0.58);
+      } else {
+        this.tone(920, 0.09, 'sine', 0.2, m, 220);
+        this.tone(2200, 0.05, 'triangle', 0.06, m, 1500, 0.02);
+      }
+    });
+  }
+
   playUi(): void {
     this.whenRunning(() => {
       if (!this.master) return;

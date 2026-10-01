@@ -1304,7 +1304,7 @@ body.modes-open #menu-btns {
 
 body.modes-open #diff-ctl,
 body.modes-open #donate,
-body.modes-open .hand-btn:not(.mode-pick):not(#modes-back),
+body.modes-open .hand-btn:not(.mode-pick):not(#modes-back):not(#dev-back),
 body.modes-open .touch-action,
 body.modes-open #touch-hint,
 body.modes-open .joy-zone {
@@ -2264,4 +2264,225 @@ html[lang='zh-Hans'] #quit-confirm .qc-card::after { content: '有人'; }
     padding: 3px 7px;
     font-size: 12px;
   }
+}
+
+/* —— ON A MISSION (hidden mode): 5 taps on the MODES title unlock it on this device —— */
+#modes-title {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: default;
+}
+#modes-title.mission-flash {
+  animation: mission-flash 1.8s ease-out;
+}
+@keyframes mission-flash {
+  0%, 100% { color: #ffe66d; text-shadow: 0 0 12px rgba(255, 180, 60, 0.75); transform: scale(1); }
+  8%, 32%, 56% { color: #ff3355; text-shadow: 0 0 20px #ff2244; transform: scale(1.12); }
+  20%, 44%, 68% { color: #6f9bff; text-shadow: 0 0 20px #2266ff; transform: scale(1.06); }
+}
+#mission-toast {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+#mission-toast.show {
+  height: auto;
+  margin: -0.2em 0 0.6em;
+  opacity: 1;
+  animation: mission-toast 2.6s ease-out forwards;
+}
+@keyframes mission-toast {
+  0% { transform: scale(0.6) rotate(-4deg); opacity: 0; }
+  12% { transform: scale(1.15) rotate(-2deg); opacity: 1; }
+  24% { transform: scale(1) rotate(-1deg); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+#mission-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+#mission-row[hidden],
+body.quit-open #mission-row {
+  display: none !important;
+}
+#mission-row.egg {
+  animation: calvin-egg 1s ease-out;
+}
+#mission-row .hand-btn::before {
+  inset: 0;
+}
+#modes-menu #mission-row .mission-pick {
+  flex: 2 1 0;
+  border-color: #f2f2f2;
+  /* black-and-white cruiser with a red / blue light bar along the top */
+  background: linear-gradient(90deg, #ff2244 0 50%, #2266ff 50% 100%) top / 100% 4px no-repeat,
+    linear-gradient(180deg, #23232b, #0d0d12);
+  color: #ffffff;
+  box-shadow: inset 6px 0 0 -2px #ff2244, inset -6px 0 0 -2px #2266ff;
+}
+#modes-menu #mission-row .mission-pick .mode-ships {
+  color: #ffe66d;
+}
+#modes-menu #mission-row .devboard-btn {
+  flex: 1 1 0;
+  border-color: rgba(255, 34, 68, 0.75);
+  color: #ffd1dc;
+}
+.dev-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 6px 2px 0;
+  border-radius: 4px;
+  background: #ff2244;
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+body.mission-run #quit-change {
+  display: none !important;
+}
+
+/* DEV BOARD (over MODES): ON A MISSION's own top 11, clearly labelled DEV. */
+#dev-board {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 32;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(8, 0, 20, 0.94);
+  pointer-events: auto;
+  animation: cg-in 0.3s ease-out;
+}
+#dev-board.open {
+  display: flex;
+}
+#dev-board .cg-card {
+  position: relative;
+  width: min(480px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: clamp(12px, 3vmin, 24px) clamp(12px, 3vmin, 24px);
+  border: 2px dashed rgba(255, 34, 68, 0.8);
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 34, 68, 0.16), rgba(20, 5, 35, 0.95) 70%);
+  box-shadow: 0 0 30px rgba(255, 34, 68, 0.3);
+  text-align: center;
+}
+#dev-board .dev-head {
+  margin: 0 0 0.3em;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: clamp(17px, 3.6vmin, 26px);
+  color: #ffe66d;
+  text-shadow: 0 0 12px rgba(255, 180, 60, 0.6);
+}
+#dev-board .dev-head .dev-badge {
+  font-size: 0.7em;
+}
+#dev-sub {
+  margin: 0 0 0.8em;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(255, 220, 160, 0.8);
+}
+#dev-rows {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 420px;
+}
+#dev-rows li {
+  display: grid;
+  grid-template-columns: 2em 3.4em 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border-bottom: 1px dashed rgba(255, 220, 110, 0.18);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  text-align: left;
+}
+#dev-rows .dev-rank { color: #ff4ec8; }
+#dev-rows .dev-ini { color: #7fffff; }
+#dev-rows .dev-score { color: #ffe66d; text-align: right; }
+#dev-rows .dev-lvl {
+  min-width: 4.4em;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  color: rgba(255, 240, 200, 0.75);
+  text-align: right;
+}
+#dev-status {
+  min-height: 1em;
+  margin: 0.7em 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  color: rgba(255, 220, 160, 0.65);
+}
+#dev-board .hand-btn {
+  display: block;
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  min-width: 140px;
+  min-height: 44px;
+  margin: 0 auto;
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #dev-board {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  #dev-board .cg-card {
+    padding: 8px 12px;
+  }
+  #dev-rows li {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+  #dev-sub,
+  #dev-status {
+    margin: 0.3em 0;
+  }
+  #dev-board .hand-btn {
+    min-height: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #modes-title.mission-flash,
+  #mission-toast.show,
+  #mission-row.egg {
+    animation: none;
+  }
+}
+html[lang='vi'] #dev-board .dev-head,
+html[lang='vi'] #dev-board .dev-head *,
+html[lang='vi'] #mission-toast,
+html[lang='vi'] #dev-rows li span:not(.dev-lvl) {
+  font-family: 'Exo 2', 'Be Vietnam Pro', 'Segoe UI', Roboto, 'Noto Sans', Arial, sans-serif !important;
 }

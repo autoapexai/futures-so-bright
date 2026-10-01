@@ -301,3 +301,65 @@ export function saveTutorialDone(): void {
     /* ignore */
   }
 }
+
+// --- ON A MISSION (hidden mode): unlock flag, best and board are kept apart from the normal ones ---
+const MISSION_UNLOCK_KEY = 'fsb_mission_unlocked';
+const MISSION_HIGH_KEY = 'fsb_mission_high';
+const MISSION_BOARD_KEY = 'fsb_mission_board';
+
+/** This device tapped the MODES title 5 times (ON A MISSION + DEV BOARD showing). */
+export function loadMissionUnlocked(): boolean {
+  try {
+    return localStorage.getItem(MISSION_UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveMissionUnlocked(): void {
+  try {
+    localStorage.setItem(MISSION_UNLOCK_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** ON A MISSION runs on this device (never mixed into the normal TOP 11 or personal best). */
+export function loadMissionBoard(): LeaderboardEntry[] {
+  try {
+    return parseBoard(localStorage.getItem(MISSION_BOARD_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Best ON A MISSION score on this device (separate from the normal high score). */
+export function loadMissionHigh(): number {
+  try {
+    const stored = Math.max(0, parseInt(localStorage.getItem(MISSION_HIGH_KEY) ?? '0', 10) || 0);
+    const board = loadMissionBoard();
+    return Math.max(stored, board.length > 0 ? board[0].score : 0);
+  } catch {
+    return 0;
+  }
+}
+
+export function saveMissionHigh(score: number): void {
+  try {
+    if (score > loadMissionHigh()) localStorage.setItem(MISSION_HIGH_KEY, String(Math.floor(score)));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Insert an ON A MISSION run into this device's mission board (top 11). */
+export function addMissionEntry(score: number, initials: string, level?: number, start?: number): { board: LeaderboardEntry[]; index: number } {
+  const result = insertEntry(score, initials, loadMissionBoard(), level, start);
+  try {
+    localStorage.setItem(MISSION_BOARD_KEY, JSON.stringify(result.board));
+  } catch {
+    /* ignore */
+  }
+  saveMissionHigh(score);
+  return result;
+}

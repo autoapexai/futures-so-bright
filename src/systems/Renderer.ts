@@ -30,6 +30,8 @@ export interface LevelInfo {
   dogs?: Breed[];
   /** Icon size multiplier: grows as the pack shrinks (1 = four dogs). */
   dogIconScale?: number;
+  /** Replaces the ship count after "LVL n" (ON A MISSION: "PARTS 7/10"). */
+  label?: string;
 }
 
 /** Gate-boost ring glow duration (s); Game sets Obstacle.boostT to this. */
@@ -732,9 +734,9 @@ export class Renderer {
   ): void {
     // "LVL 10  ·  1 dog": the count and the word are drawn apart (count in Orbitron, word in a
     // different face, size and colour), so "1 DOG" can never read as "100G" in Orbitron.
-    const lvl = info.ships > 0 ? `${tr('hud_lvl', { n: info.level })}  ·  ` : tr('hud_lvl', { n: info.level });
-    const count = info.ships > 0 ? formatShips(info.ships) : '';
-    const word = info.ships > 0 ? (info.ships === 1 ? tr('hud_dog') : tr('hud_dogs')) : '';
+    const lvl = info.ships > 0 || info.label ? `${tr('hud_lvl', { n: info.level })}  ·  ` : tr('hud_lvl', { n: info.level });
+    const count = info.label ? '' : info.ships > 0 ? formatShips(info.ships) : '';
+    const word = info.label ?? (info.ships > 0 ? (info.ships === 1 ? tr('hud_dog') : tr('hud_dogs')) : '');
     ctx.textAlign = 'left';
     const orb = "'Orbitron', sans-serif";
     const raj = "'Rajdhani', 'Segoe UI', sans-serif";
