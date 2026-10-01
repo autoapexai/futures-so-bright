@@ -10,7 +10,7 @@ import { clamp } from '../utils/math';
 import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
 import { MODES, CALVIN_TRIPLETS, MISSION_MODE, isMission, modeBreeds, type ModeDef } from '../utils/modes';
-import { MissionCar, PARTS as MISSION_PART_LIST, type MissionSfx } from './missionCar';
+import { MissionCar, PARTS as MISSION_PART_LIST, CAR_UP, CAR_DOWN, CAR_HALF, type MissionSfx } from './missionCar';
 import { fetchDevBoard, submitDevScore } from '../utils/devBoard';
 import {
   loadHighScore,
@@ -116,13 +116,13 @@ export function packScale(n: number): number {
  * ON A MISSION car. Art: MISSION_CAR_LEN view units long (64 car units; body + bumpers ~1.1x
  * that). Hitbox: a standard ship's at MISSION_HIT_SCALE (52 x 28 * scale, 70 % of it), so the
  * hitbox grows about half as much as the art did (art 1.4 -> 1.8, hitbox 1.4 -> 1.6) and stays
- * inside the body: obstacles have to touch the car itself, not its glow or light bar.
+ * inside the body: obstacles have to touch the car itself, not its glow, light bar or loudspeaker.
  */
 const MISSION_CAR_LEN = 52 * 1.8;
 const MISSION_HIT_SCALE = 1.6;
-/** The car's top above its centre (light bar), and below it (wheels + hover glow), car units. */
-const MISSION_CAR_UP = 25;
-const MISSION_CAR_DOWN = 19;
+/** The car's top above its centre (roof loudspeaker), and below it (wheels + hover glow), car units. */
+const MISSION_CAR_UP = CAR_UP;
+const MISSION_CAR_DOWN = CAR_DOWN;
 /** ON A MISSION: shade a hit costs (x the level's hit damage). A hit never takes shade below the floor. */
 const MISSION_HIT_SHADE = 0.12;
 const MISSION_SHADE_FLOOR = 0.05;
@@ -3783,7 +3783,7 @@ export class Game {
   private keepCarClearOfControls(dt: number): void {
     const p = this.player;
     const s = this.carScale;
-    const half = 36 * s;
+    const half = CAR_HALF * s;
     const top = p.y - MISSION_CAR_UP * s;
     const bottom = p.y + MISSION_CAR_DOWN * s;
     const maxX = this.viewW * 0.55;
@@ -3826,7 +3826,7 @@ export class Game {
   }
 
   /**
-   * ON A MISSION: the car's centre limits so the whole car (light bar to wheels) stays under the
+   * ON A MISSION: the car's centre limits so the whole car (roof loudspeaker to wheels) stays under the
    * HUD and inside the lane on every layout; touch layouts keep their stick / BOOST reserve.
    */
   private missionReserves(pr: { top: number; bottom: number }): { top: number; bottom: number } {

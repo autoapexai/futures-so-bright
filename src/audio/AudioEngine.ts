@@ -237,7 +237,7 @@ export class AudioEngine {
    * ON A MISSION slapstick: CLANG (a panel hits the road), TINKLE (a mirror), the siren's sad
    * WEE-OOO, a SPUTTERing engine and a cork POP (the trunk lid). Respects mute like every SFX.
    */
-  playMission(kind: 'clang' | 'tinkle' | 'siren' | 'sputter' | 'pop'): void {
+  playMission(kind: 'clang' | 'tinkle' | 'siren' | 'sputter' | 'pop' | 'squeal'): void {
     this.whenRunning(() => {
       if (!this.master) return;
       const m = this.master;
@@ -255,6 +255,12 @@ export class AudioEngine {
         this.tone(960, 0.28, 'sine', 0.14, m, 640);
         this.tone(640, 0.28, 'sine', 0.14, m, 960, 0.3);
         this.tone(900, 0.7, 'sine', 0.12, m, 200, 0.6);
+      } else if (kind === 'squeal') {
+        // PA feedback: a thin whine that climbs and wobbles, then a dull clunk.
+        this.tone(1800, 0.42, 'sine', 0.07, m, 3400);
+        this.tone(1830, 0.42, 'triangle', 0.035, m, 3300, 0.02);
+        this.tone(3300, 0.12, 'sine', 0.05, m, 2600, 0.42);
+        this.tone(160, 0.1, 'square', 0.08, m, 90, 0.5);
       } else if (kind === 'sputter') {
         for (let i = 0; i < 5; i++) {
           this.tone(70 + (i % 2) * 18, 0.07, 'square', 0.14, m, 50, i * 0.11);

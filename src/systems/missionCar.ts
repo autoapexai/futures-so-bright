@@ -11,9 +11,18 @@
  */
 import { t as tr, type Key } from '../i18n';
 
-export type MissionSfx = 'clang' | 'tinkle' | 'siren' | 'sputter' | 'pop' | 'honk' | 'boing' | 'whistleUp' | 'whistleDown';
+export type MissionSfx = 'clang' | 'tinkle' | 'siren' | 'squeal' | 'sputter' | 'pop' | 'honk' | 'boing' | 'whistleUp' | 'whistleDown';
 
-export type PartId = 'siren' | 'antenna' | 'mirror' | 'hood' | 'trunk' | 'door' | 'bumperF' | 'bumperR' | 'hubcapF' | 'hubcapR';
+/**
+ * The car's extents around its centre in car units (x the painter's scale): CAR_UP to the top of
+ * the roof loudspeaker (+ its halo), CAR_DOWN to the wheels + hover glow, CAR_HALF to either end.
+ * Decorative only: the hitbox is the player's (Game.ts), not these.
+ */
+export const CAR_UP = 35;
+export const CAR_DOWN = 19;
+export const CAR_HALF = 36;
+
+export type PartId = 'speaker' | 'siren' | 'antenna' | 'mirror' | 'hood' | 'trunk' | 'door' | 'bumperF' | 'bumperR' | 'hubcapF' | 'hubcapR';
 
 interface PartInfo {
   id: PartId;
@@ -27,6 +36,8 @@ interface PartInfo {
 
 export const PARTS: readonly PartInfo[] = [
   { id: 'hubcapR', cx: -20, cy: 7, pop: 'mis_pop_hubcap', sfx: 'boing', color: '#7fffff' },
+  // Drawn before the light bar so the bar covers the speaker's mounting post.
+  { id: 'speaker', cx: 1, cy: -27.5, pop: 'mis_pop_speaker', sfx: 'squeal', color: '#ffffff' },
   { id: 'siren', cx: 0, cy: -20.2, pop: 'mis_pop_siren', sfx: 'siren', color: '#ff4ec8' },
   { id: 'door', cx: -0.2, cy: -0.9, pop: 'mis_pop_door', sfx: 'clang', color: '#ffe66d' },
   { id: 'mirror', cx: 14.5, cy: -11, pop: 'mis_pop_mirror', sfx: 'tinkle', color: '#7fffff' },
@@ -276,7 +287,7 @@ export class MissionCar {
     // Lay the bursts out newest first, so a fresh one sits by the car and older ones step aside
     // (never over the HUD, the touch controls, the car or each other), then draw oldest first.
     const s0 = this.ls;
-    const car = { x: this.lx - 36 * s0, y: this.ly - 25 * s0, w: 72 * s0, h: 44 * s0 };
+    const car = { x: this.lx - CAR_HALF * s0, y: this.ly - CAR_UP * s0, w: 2 * CAR_HALF * s0, h: (CAR_UP + CAR_DOWN) * s0 };
     const placed: { x: number; y: number; w: number; h: number }[] = [];
     const lay: { p: Pop; cx: number; cy: number; fs: number; rx: number; ry: number; sc: number; k: number }[] = [];
     for (let n = this.pops.length - 1; n >= 0; n--) {
@@ -621,11 +632,95 @@ function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, 
   }
 
   for (const p of PARTS) if (on.has(p.id)) paintPart(ctx, p.id, time, wheelA, lite);
+  if (on.has('speaker')) paintSoundWaves(ctx, time);
+}
+
+/** The roof loudspeaker's horn transform (car units): on a post above the light bar, aimed ahead. */
+function hornFrame(ctx: CanvasRenderingContext2D): void {
+  ctx.translate(0.6, -28.2);
+  ctx.rotate(-0.1);
+}
+
+/** Pulsing ")))" ahead of the horn's mouth while the speaker is on (only on the car). */
+function paintSoundWaves(ctx: CanvasRenderingContext2D, time: number): void {
+  ctx.save();
+  hornFrame(ctx);
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const ph = (time * 1.6 + i / 3) % 1;
+    ctx.globalAlpha = 0.85 * (1 - ph);
+    ctx.strokeStyle = i % 2 === 0 ? '#ffffff' : '#7fffff';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(7.6, 0, 2.4 + ph * 6, -0.75, 0.75);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** One removable part, in car units (the same drawing on the car and tumbling away). */
 function paintPart(ctx: CanvasRenderingContext2D, id: PartId, time: number, spin: number, lite: boolean): void {
   switch (id) {
+    case 'speaker': {
+      // Classic PA horn: a chrome post through the light bar, a driver can and a white flared
+      // cone with a dark mouth; a soft halo + dark edge keep it crisp on the purple lanes.
+      ctx.fillStyle = CHROME;
+      ctx.fillRect(-0.1, -26.4, 1.4, 10);
+      ctx.save();
+      hornFrame(ctx);
+      const horn = (): void => {
+        ctx.beginPath();
+        ctx.moveTo(-6.4, -2.3);
+        ctx.lineTo(-2.6, -2.3);
+        ctx.lineTo(7.4, -4.9);
+        ctx.lineTo(7.4, 4.9);
+        ctx.lineTo(-2.6, 2.3);
+        ctx.lineTo(-6.4, 2.3);
+        ctx.closePath();
+      };
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = HALO;
+      ctx.lineWidth = 3;
+      horn();
+      ctx.stroke();
+      if (!lite) {
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(140, 230, 255, 0.9)';
+      }
+      ctx.fillStyle = WHITE;
+      horn();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Shading: the cone's lower half and the driver can.
+      ctx.fillStyle = WHITE_SH;
+      ctx.beginPath();
+      ctx.moveTo(-2.6, 0.6);
+      ctx.lineTo(7.4, 1.4);
+      ctx.lineTo(7.4, 4.9);
+      ctx.lineTo(-2.6, 2.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c4cad6';
+      ctx.fillRect(-6.4, -2.3, 3.8, 4.6);
+      ctx.strokeStyle = '#0c0c12';
+      ctx.lineWidth = 0.55;
+      horn();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-2.6, -2.3);
+      ctx.lineTo(-2.6, 2.3);
+      ctx.stroke();
+      // Mouth: dark inside, white lip.
+      ctx.fillStyle = '#1a1a26';
+      ctx.beginPath();
+      ctx.ellipse(7.4, 0, 1.5, 4.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = WHITE;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
     case 'siren': {
       // Red / blue light bar: both halves lit, alternating bright, with a fake glow (works on lite).
       const phase = Math.floor(time * 7) % 2 === 0;

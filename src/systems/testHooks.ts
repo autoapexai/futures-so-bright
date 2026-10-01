@@ -12,6 +12,9 @@ import { MODES, MISSION_MODE } from '../utils/modes';
 import { scalePoints } from '../utils/speed';
 import { TAUNTS, pickTauntIndex, SEARCH_MS } from './desertSearch';
 import { setBroadcastForTest, broadcastOn, TAUNT_BROADCAST } from '../utils/tauntFeed';
+import { CAR_HALF, CAR_DOWN, CAR_UP, PARTS as MISSION_PART_LIST } from './missionCar';
+
+const MISSION_PARTS_TOTAL = MISSION_PART_LIST.length;
 
 let pilotOn = false;
 let pilotKeep = false;
@@ -68,7 +71,8 @@ export function installTestHooks(game: unknown): void {
         ? { partsLeft: g.car.partsLeft, lost: g.car.lost, hits: g.car.hits, debris: g.car.debris.length, pops: g.car.pops.map((p: any) => p.text),
             popRects: g.car.popRects.map((r: any) => ({ ...r })),
             carScale: g.carScale,
-            carRect: { x: g.player.x - 36 * g.carScale, y: g.player.y - 25 * g.carScale, w: 72 * g.carScale, h: 44 * g.carScale },
+            carRect: { x: g.player.x - CAR_HALF * g.carScale, y: g.player.y - CAR_UP * g.carScale, w: 2 * CAR_HALF * g.carScale, h: (CAR_UP + CAR_DOWN) * g.carScale },
+            partsTotal: MISSION_PARTS_TOTAL,
             hitbox: { ...g.player.hitbox },
             hudBottom: g.renderer.hudBottom(g.viewW, g.viewH),
             controls: g.touchPrimary ? g.touchControlRects() : [],
