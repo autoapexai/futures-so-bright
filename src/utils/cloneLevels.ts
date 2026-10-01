@@ -27,16 +27,20 @@ export const MAX_DRAWN_SHIPS = 24;
  *
  * i.e. levels 11-14 give (level - 10) ships, level 15 gives 16, and every level
  * after 15 doubles the previous one: ships = 16 * 2^(level - 15).
- * Levels below 11 return 1. Returned as a JS number: exact up to level 64
- * (2^53); beyond that it is a (huge) floating-point approximation, and
- * Infinity past ~level 1038 — far beyond any run the server accepts (1 h).
+ * Levels below 11 return 1. Capped at MAX_SHIPS (1,048,576, level 31 onward).
  */
 export function shipsForLevel(level: number): number {
   const n = Math.floor(level);
   if (!Number.isFinite(n) || n <= FIRST_CLONE_LEVEL) return 1;
   if (n <= 14) return n - 10;
-  return 16 * Math.pow(2, n - 15);
+  return Math.min(MAX_SHIPS, 16 * Math.pow(2, n - 15));
 }
+
+/**
+ * The doubling stops here (reached at level 31): 16 * 2^16 = 1,048,576 dogs. Without it level 111
+ * would be 16 * 2^96 ~ 1.3e30, shown in 'e' notation. The hit cost stays a quarter of the swarm.
+ */
+export const MAX_SHIPS = 1_048_576;
 
 /** Dogs a gold-zone swarm can lose before only the lead dog is left (levels 15+). */
 export const SWARM_LIVES = 4;
@@ -54,11 +58,10 @@ export function shipHitCost(level: number): number {
   return Math.max(1, Math.ceil(shipsForLevel(n) / SWARM_LIVES));
 }
 
-/** Compact ship count for HUD / banner text: 16384 -> "16,384", 1.2e18 -> "1.2e18". */
+/** Ship count for HUD / banner / formation text, always with thousands separators: 16384 -> "16,384". */
 export function formatShips(n: number): string {
-  if (!Number.isFinite(n)) return '∞';
-  if (n < 1e15) return Math.round(n).toLocaleString('en-US');
-  return n.toExponential(1).replace('e+', 'e');
+  const v = Number.isFinite(n) ? Math.min(MAX_SHIPS, Math.max(0, Math.round(n))) : MAX_SHIPS;
+  return v.toLocaleString('en-US');
 }
 
 export function shipsLabel(n: number): string {

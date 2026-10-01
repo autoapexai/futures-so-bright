@@ -427,8 +427,15 @@ export function drawPrizeReveal(ctx: CanvasRenderingContext2D, W: number, H: num
   // The drawing spans about -0.85..+0.75 of its size horizontally: keep it inside the screen.
   const size = Math.min(W * (portrait ? 0.5 : 0.3), H * (portrait ? 0.34 : 0.42)) * ease;
   if (size > 1) drawDuchess(ctx, W / 2 + size * 0.05, H * (portrait ? 0.52 : 0.6), size, t);
+  // Caption just under her paws (upright phones: two lines, clear of the BOOST / stick controls).
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
   ctx.font = `700 ${u(15)}px 'Rajdhani', sans-serif`;
-  ctx.fillText('A chocolate Lab of impeccable breeding. Good girl.', W / 2, H * (portrait ? 0.8 : 0.9));
+  if (portrait) {
+    const cy = H * 0.52 + Math.max(size, 1) * 0.72 + u(18);
+    ctx.fillText('A chocolate Lab of impeccable breeding.', W / 2, cy, W * 0.92);
+    ctx.fillText('Good girl.', W / 2, cy + u(19));
+  } else {
+    ctx.fillText('A chocolate Lab of impeccable breeding. Good girl.', W / 2, H * 0.9, W * 0.6);
+  }
   ctx.restore();
 }
