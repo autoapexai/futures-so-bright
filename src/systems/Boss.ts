@@ -19,6 +19,7 @@ import { MODES, type ModeDef, type ModeStyle } from '../utils/modes';
 import { mulberry32, shuffle, subSeed, type Rng } from '../utils/rng';
 import { MAX_LEVEL } from '../utils/difficulty';
 import { groceryTaunt } from './silly';
+import { hasCjk, t as tr, tp } from '../i18n';
 import { TOON_POPS, TOON_SKINS, drawToon, drawToonShot, hasToon } from './bossToons';
 import { drawMime, drawMimeShot } from './bossMime';
 
@@ -534,7 +535,7 @@ export class BossFight {
 
   private addPop(text: string, x: number, y: number, sfx: PopSfx, color: string): void {
     this.popCd = 0.7;
-    this.pops.push({ text, x, y, t: 0, color });
+    this.pops.push({ text: tp(text), x, y, t: 0, color });
     this.events.push({ type: 'pop', text, x, y, sfx });
   }
 
@@ -645,7 +646,7 @@ export class BossFight {
       this.stateT = 0;
       this.endT = this.t;
       this.shots.length = 0;
-      this.sayTaunt('BORED NOW. BYE.');
+      this.sayTaunt(tr('taunt_bored'));
       this.events.push({ type: 'bored' });
       return;
     }
@@ -909,7 +910,7 @@ export class BossFight {
         }
         if (this.rng() < 0.25) {
           this.tangleT = 1.1;
-          this.events.push({ type: 'taunt', text: 'IN A WORLD... ROPE. MORE ROPE. ONE (1) KNOT.' });
+          this.events.push({ type: 'taunt', text: tr('taunt_lasso') });
         }
         break;
       }
@@ -1279,11 +1280,27 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     // Wrapped and sized to fit inside the safe area between the left edge and the boss, below the
     // name, the HP bar and any banner, and beside (never under) the on-screen touch controls.
     ctx.globalAlpha = Math.min(1, f.tauntT / 0.4, (3.6 - f.tauntT) / 0.3 + 0.2);
-    const kicker = f.taunt.startsWith('IN A WORLD...') ? 'IN A WORLD...' : '';
+    const kickerText = tr('taunt_kicker');
+    const kicker = f.taunt.startsWith(kickerText) ? kickerText : '';
     const body = kicker ? f.taunt.slice(kicker.length).trim() : f.taunt;
     const pad = u(10);
     const serif = "'Trajan Pro', 'Times New Roman', Georgia, serif";
     const words = body.split(' ');
+    // Chinese has no spaces: wrap between characters (closing punctuation stays on its line, an
+    // opening bracket stays with the next character). `glue[i]` is the text put before token i.
+    let glue: string[] | null = null;
+    if (hasCjk(body)) {
+      const toks: string[] = [];
+      glue = [];
+      for (const w of words) {
+        const parts = w.match(/[（「『“(]*[\u2E80-\u9FFF\uF900-\uFAFF][。，、！？：；）」』”…)]*|[（「『“(]*[^\u2E80-\u9FFF\uF900-\uFAFF（「『“]+/g) ?? [w];
+        parts.forEach((p, i) => {
+          glue!.push(i === 0 ? ' ' : '');
+          toks.push(p);
+        });
+      }
+      words.splice(0, words.length, ...toks);
+    }
     const fit = (L: number, R: number, minTs: number): { ts: number; ls: string[]; bandH: number } => {
       const maxW = Math.max(60, R - L - pad * 2);
       let ts = u(14);
@@ -1291,8 +1308,9 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
       const lines = (): string[] => {
         const out: string[] = [];
         let cur = '';
-        for (const w of words) {
-          const t = cur ? cur + ' ' + w : w;
+        for (let i = 0; i < words.length; i++) {
+          const w = words[i];
+          const t = cur ? cur + (glue ? glue[i] : ' ') + w : w;
           if (ctx.measureText(t).width > maxW && cur) {
             out.push(cur);
             cur = w;
@@ -1354,7 +1372,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8c25a';
     ctx.font = `700 ${Math.max(8, ts * 0.72)}px ${serif}`;
-    ctx.fillText(kicker || 'COMING SOON', ccx, bandY + ts * 1.15);
+    ctx.fillText(kicker || tr('taunt_soon'), ccx, bandY + ts * 1.15);
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${ts}px ${serif}`;
     ls.forEach((l, i) => ctx.fillText(l, ccx, bandY + ts * (2.35 + i * 1.25)));

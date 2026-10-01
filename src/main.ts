@@ -1,6 +1,12 @@
 import { Game } from './systems/Game';
 import { applyHandPreference } from './utils/storage';
 import { trackPageView } from './utils/track';
+import { applyDomStrings, installCanvasFonts, loadLangFonts } from './i18n';
+
+// Language: canvas font fallbacks (Vietnamese / Chinese only), static page text, web fonts.
+installCanvasFonts();
+applyDomStrings();
+loadLangFonts();
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 if (!canvas) throw new Error('#game canvas missing');

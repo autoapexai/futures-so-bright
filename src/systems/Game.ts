@@ -36,6 +36,7 @@ import {
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { trackRunStart } from '../utils/track';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
+import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
@@ -447,11 +448,11 @@ export class Game {
     const syncHandBtn = (hand: HandPreference): void => {
       if (!handBtn) return;
       if (hand === 'left') {
-        handBtn.textContent = 'LEFT HAND';
-        handBtn.setAttribute('aria-label', 'Left-hand controls — tap for right hand');
+        handBtn.textContent = tr('hand_btn_left');
+        handBtn.setAttribute('aria-label', tr('hand_aria_left'));
       } else {
-        handBtn.textContent = 'RIGHT HAND';
-        handBtn.setAttribute('aria-label', 'Right-hand controls — tap for left hand');
+        handBtn.textContent = tr('hand_btn_right');
+        handBtn.setAttribute('aria-label', tr('hand_aria_right'));
       }
     };
     syncHandBtn(loadHandPreference());
@@ -487,9 +488,13 @@ export class Game {
     if (donate && DONATE_URL) {
       donate.href = DONATE_URL;
       const msg = document.getElementById('v4v-msg');
-      if (msg) msg.textContent = V4V_MESSAGE;
       const note = document.getElementById('donate-note');
-      if (note) note.textContent = `Goes to @${VENMO_HANDLE}, the game's creator.`;
+      const syncDonate = (): void => {
+        if (msg) msg.textContent = lang() === 'en' ? V4V_MESSAGE : tr('v4v_message');
+        if (note) note.textContent = tr('donate_note', { h: VENMO_HANDLE });
+      };
+      syncDonate();
+      onLang(syncDonate);
       document.body.classList.add('has-donate');
       document.getElementById('donate')?.setAttribute('aria-hidden', 'false');
       donate.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -513,10 +518,10 @@ export class Game {
         name.textContent = m.name;
         const ships = document.createElement('span');
         ships.className = 'mode-ships';
-        ships.textContent = `${m.ships.toLocaleString('en-US')} DOGS`;
+        ships.textContent = tr('mode_dogs', { n: fmtNum(m.ships) });
         ships.style.color = m.tint;
         b.append(name, ships);
-        b.setAttribute('aria-label', `${m.name}, ${m.ships} dogs`);
+        b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
         if (m.behavior === 'calvin') {
           b.id = 'calvin-pick';
           bindTap(b, () => this.tapCalvin(b));
@@ -524,8 +529,30 @@ export class Game {
           bindTap(b, () => this.pickMode(m));
         }
         list.appendChild(b);
+        if (m.behavior !== 'calvin') {
+          onLang(() => {
+            ships.textContent = tr('mode_dogs', { n: fmtNum(m.ships) });
+            b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
+          });
+        } else onLang(() => this.syncCalvinEntry(b));
       }
     }
+    // LANGUAGE row (top of MODES): English / Español / Tiếng Việt / 简体中文, remembered on this device.
+    document.querySelectorAll<HTMLElement>('#lang-row .lang-opt').forEach((b) => {
+      bindTap(b, () => {
+        if (this.modesGhostTap()) return;
+        const id = b.dataset.lang as Lang;
+        if (LANGS.some((l) => l.id === id)) setLang(id);
+        this.audio.playUi();
+      });
+    });
+    onLang(() => {
+      applyDomStrings();
+      loadLangFonts();
+      syncHandBtn(loadHandPreference());
+      this.syncDifficultyUi();
+      this.setBodyFlags();
+    });
     bindTap(document.getElementById('modes-btn'), () => {
       void this.audio.unlock();
       this.openModes();
@@ -680,8 +707,8 @@ export class Game {
     const name = b.querySelector('.mode-name');
     const ships = b.querySelector('.mode-ships');
     if (name) name.textContent = m.name;
-    if (ships) ships.textContent = `${m.ships} DOGS`;
-    b.setAttribute('aria-label', `${m.name}, ${m.ships} dogs`);
+    if (ships) ships.textContent = tr('mode_dogs', { n: m.ships });
+    b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
     if (flourish) {
       b.classList.remove('egg');
       void b.offsetWidth; // restart the CSS animation
@@ -700,7 +727,7 @@ export class Game {
       // boss fight carry on; the pack keeps its health fraction in the new mode's dogs.
       this.closeQuitConfirm();
       this.switchMode(m, true);
-      this.bannerText = `MODE  ·  ${m.name}`;
+      this.bannerText = tr('banner_mode', { m: m.name });
       this.bannerT = BANNER_SECONDS;
       if (this.state === 'paused') this.togglePause();
       this.input.clearTouch();
@@ -800,7 +827,7 @@ export class Game {
     if (main) main.textContent = label.slice(0, cut);
     if (mult) mult.textContent = label.slice(cut + 3);
     ctl?.classList.toggle('eleven', d === SECRET_DIFFICULTY);
-    ctl?.setAttribute('aria-label', `Difficulty ${d}, points ${pointMultiplier(d).toFixed(1)}x`);
+    ctl?.setAttribute('aria-label', tr('diff_aria', { d, m: pointMultiplier(d).toFixed(1) }));
     const minus = document.getElementById('diff-minus') as HTMLButtonElement | null;
     const plus = document.getElementById('diff-plus') as HTMLButtonElement | null;
     const max = this.elevenUnlocked ? SECRET_DIFFICULTY : MAX_PUBLIC_DIFFICULTY;
@@ -1315,31 +1342,31 @@ export class Game {
     const pauseBtn = document.getElementById('pause-btn');
     if (pauseBtn) {
       pauseBtn.textContent = this.state === 'paused' ? '▶' : '⏸';
-      pauseBtn.setAttribute('aria-label', this.state === 'paused' ? 'Resume' : 'Pause');
+      pauseBtn.setAttribute('aria-label', this.state === 'paused' ? tr('aria_resume') : tr('aria_pause'));
     }
     const boost = document.querySelector<HTMLButtonElement>('[data-action="boost"]');
     if (boost) {
       if (this.state === 'title') {
-        boost.textContent = 'START';
-        boost.setAttribute('aria-label', 'Start');
+        boost.textContent = tr('btn_start');
+        boost.setAttribute('aria-label', tr('aria_start'));
       } else if (this.state === 'initials') {
-        boost.textContent = 'OK';
-        boost.setAttribute('aria-label', 'Confirm initials');
+        boost.textContent = tr('btn_ok');
+        boost.setAttribute('aria-label', tr('aria_ok'));
       } else if (this.state === 'gameover') {
-        boost.textContent = 'RIDE';
-        boost.setAttribute('aria-label', 'Ride again');
+        boost.textContent = tr('btn_ride');
+        boost.setAttribute('aria-label', tr('aria_ride'));
       } else {
-        boost.textContent = 'BOOST';
-        boost.setAttribute('aria-label', 'Boost');
+        boost.textContent = tr('btn_boost');
+        boost.setAttribute('aria-label', tr('aria_boost'));
       }
     }
     const hint = document.getElementById('touch-hint');
     if (hint) {
-      const hand = loadHandPreference() === 'left' ? 'Left hand' : 'Right hand';
-      if (this.state === 'title') hint.textContent = `Tap to start · ${hand}`;
-      else if (this.state === 'initials') hint.textContent = 'Stick · letters · OK';
-      else if (this.state === 'gameover') hint.textContent = 'Tap · RIDE AGAIN';
-      else hint.textContent = 'Stick · BOOST';
+      const hand = loadHandPreference() === 'left' ? tr('hand_left') : tr('hand_right');
+      if (this.state === 'title') hint.textContent = tr('hint_title', { hand });
+      else if (this.state === 'initials') hint.textContent = tr('hint_initials');
+      else if (this.state === 'gameover') hint.textContent = tr('hint_gameover');
+      else hint.textContent = tr('hint_play');
     }
   }
 
@@ -1535,7 +1562,7 @@ export class Game {
     this.pendingModes = Math.max(1, this.modesUsed.size);
     this.pendingStart = this.runStartLevel;
     stopSpeech();
-    this.announce(`${this.victory ? 'Victory' : 'Game over'}. Score ${this.pendingScore.toLocaleString('en-US')}, level ${this.pendingDifficulty}.`);
+    this.announce(tr('sr_end', { v: this.victory ? tr('sr_victory') : tr('sr_gameover'), s: fmtNum(this.pendingScore), d: this.pendingDifficulty }));
     if (!this.victory) {
       // Sad trombone, looping until any button, key or tap (respects mute).
       this.tromboneAt = performance.now();
@@ -1873,7 +1900,7 @@ export class Game {
     this.a11yT -= dt;
     if (this.a11yT <= 0) {
       this.a11yT = 3;
-      this.announce(`Score ${Math.floor(this.score).toLocaleString('en-US')}, level ${this.runDifficulty}`);
+      this.announce(tr('sr_score', { s: fmtNum(this.score), d: this.runDifficulty }));
     }
 
     this.runTime += dt;
@@ -2026,7 +2053,7 @@ export class Game {
         if (this.score > SCORE_CAP) this.score = SCORE_CAP;
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
-        this.spawnFloater(c.x, c.y, '+SHADE', '#00f0ff');
+        this.spawnFloater(c.x, c.y, tr('fl_shade'), '#00f0ff');
       }
     }
 
@@ -2198,7 +2225,7 @@ export class Game {
         this.charge = clamp(this.charge + 0.22, 0, 1);
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
-        this.spawnFloater(c.x, c.y, '+SHADE', '#00f0ff');
+        this.spawnFloater(c.x, c.y, tr('fl_shade'), '#00f0ff');
         if (this.tutStep === 2) this.tutProgress++;
       }
     }
@@ -2253,26 +2280,26 @@ export class Game {
     const touch = this.touchPrimary;
     switch (this.tutStep) {
       case 0:
-        return { title: 'MOVE YOUR DOG', lines: [touch ? 'Drag the stick to fly' : 'WASD / Arrows to fly'] };
+        return { title: tr('tut0_title'), lines: [touch ? tr('tut0_touch') : tr('tut0_keys')] };
       case 1:
         return {
-          title: 'DODGE THE GLARE',
-          lines: ['Beams, flares and neon bars cost a dog', 'Fly into any ring gate: GATE BOOST, FULL POWER'],
+          title: tr('tut1_title'),
+          lines: [tr('tut1_a'), tr('tut1_b')],
         };
       case 2:
         return {
-          title: 'GRAB THE CIRCLES',
-          lines: ['Glowing circles refill your shades', 'SHADE CHARGE runs out = you lose a dog'],
+          title: tr('tut2_title'),
+          lines: [tr('tut2_a'), tr('tut2_b')],
         };
       default:
         return {
-          title: 'SURVIVE 30 SECONDS',
+          title: tr('tut3_title'),
           lines: [
-            'Survive 30 seconds to pass a level',
-            'Levels 1 to 111 get harder as you go',
-            'You start with 4 dogs: lose them all = game over',
-            `Circles refill shade, gates fill it; ${touch ? 'BOOST' : 'SPACE (boost)'} burns it`,
-            touch ? 'Tap to ride' : 'ENTER or click to ride',
+            tr('tut3_a'),
+            tr('tut3_b'),
+            tr('tut3_c'),
+            tr('tut3_d', { b: touch ? tr('tut3_boost_touch') : tr('tut3_boost_keys') }),
+            touch ? tr('tut3_touch') : tr('tut3_keys'),
           ],
         };
     }
@@ -2299,7 +2326,7 @@ export class Game {
       return true;
     }
     if (cleared < MAX_PUBLIC_DIFFICULTY) {
-      this.showPromotion(`LEVEL ${cleared} COMPLETED`, "YOU'VE BEEN PROMOTED!", () => {
+      this.showPromotion(tr('promo_done', { n: cleared }), tr('promo_promoted'), () => {
         this.runDifficulty = cleared + 1;
         this.freshStage();
       });
@@ -2310,8 +2337,8 @@ export class Game {
       this.climbTicket =
         remoteEnabled && !this.runLocalOnly ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
     }
-    const title = cleared === MAX_PUBLIC_DIFFICULTY ? 'YOU BEAT LEVEL 10' : `LEVEL ${cleared} COMPLETED`;
-    this.showPromotion(title, "YOU'VE BEEN PROMOTED!", () => {
+    const title = cleared === MAX_PUBLIC_DIFFICULTY ? tr('promo_beat10') : tr('promo_done', { n: cleared });
+    this.showPromotion(title, tr('promo_promoted'), () => {
       const next = cleared + 1;
       this.runDifficulty = next;
       if (cleared === MAX_PUBLIC_DIFFICULTY) this.runTicket = this.climbTicket;
@@ -2320,7 +2347,7 @@ export class Game {
       // Triplets egg is not in the pool) with a fresh pack of its starting dogs.
       const m = this.randomMode();
       this.switchMode(m, false);
-      this.bannerText = `LEVEL ${next}  ·  ${m.name}`;
+      this.bannerText = tr('banner_level', { n: next, m: m.name });
       this.bannerT = BANNER_SECONDS;
     });
     return false;
@@ -2336,7 +2363,7 @@ export class Game {
     const errs = (): NodeListOf<HTMLElement> => modal.querySelectorAll('.v4v-err');
     const open = (view: 'time' | 'talent'): void => {
       modal.dataset.view = view;
-      if (title) title.textContent = view === 'time' ? 'TIME' : 'TALENT';
+      if (title) title.textContent = view === 'time' ? tr('v4v_time') : tr('v4v_talent');
       errs().forEach((e) => (e.textContent = ''));
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
@@ -2352,7 +2379,7 @@ export class Game {
     const done = (text: string): void => {
       const t = document.getElementById('v4v-done-text');
       if (t) t.textContent = text;
-      if (title) title.textContent = modal.dataset.view === 'time' ? 'TIME' : 'TALENT';
+      if (title) title.textContent = modal.dataset.view === 'time' ? tr('v4v_time') : tr('v4v_talent');
       modal.dataset.view = 'done';
     };
     modal.addEventListener('keydown', (e) => {
@@ -2376,7 +2403,7 @@ export class Game {
       if (count) count.textContent = `${msg.value.length} / ${SUGGEST_MAX}`;
     });
     const val = (sel: string): string => (modal.querySelector(sel) as HTMLInputElement | null)?.value ?? '';
-    const submit = (formId: string, run: () => Promise<void>, thanks: string): void => {
+    const submit = (formId: string, run: () => Promise<void>, thanks: () => string): void => {
       const form = document.getElementById(formId) as HTMLFormElement | null;
       form?.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -2389,18 +2416,18 @@ export class Game {
           .then(() => {
             form.reset();
             if (count) count.textContent = `0 / ${SUGGEST_MAX}`;
-            done(thanks);
+            done(thanks());
           })
           .catch((x: unknown) => {
             const m = x instanceof Error ? x.message : String(x);
-            if (err) err.textContent = /HTTP 429|too many/i.test(m) ? 'Easy there. Try again in an hour.' : m.replace(/^fsb_\w+ HTTP \d+ (fsb: )?/, '');
+            if (err) err.textContent = /HTTP 429|too many/i.test(m) ? tr('v4v_slow') : m.replace(/^fsb_\w+ HTTP \d+ (fsb: )?/, '');
           })
           .finally(() => {
             if (send) send.disabled = false;
           });
       });
     };
-    submit('v4v-time-form', () => sendSuggestion(val('#v4v-msg-in'), val('#v4v-name-in'), val('#v4v-email-in'), val('#v4v-time-form .v4v-hp')), 'THANK YOU FOR YOUR TIME');
+    submit('v4v-time-form', () => sendSuggestion(val('#v4v-msg-in'), val('#v4v-name-in'), val('#v4v-email-in'), val('#v4v-time-form .v4v-hp')), () => tr('v4v_thanks_time'));
     const file = document.getElementById('v4v-rfile') as HTMLInputElement | null;
     file?.addEventListener('change', () => {
       const r = checkResume(file.files?.[0]);
@@ -2412,10 +2439,10 @@ export class Game {
       () => {
         const f = file?.files?.[0];
         const r = checkResume(f);
-        if (typeof r === 'string' || !f) return Promise.reject(new Error(typeof r === 'string' ? r : 'Pick a file.'));
+        if (typeof r === 'string' || !f) return Promise.reject(new Error(typeof r === 'string' ? r : tr('v4v_pick')));
         return sendResume(val('#v4v-rname'), val('#v4v-remail'), val('#v4v-rnote'), f, val('#v4v-talent-form .v4v-hp'));
       },
-      'TALENT RECEIVED',
+      () => tr('v4v_thanks_talent'),
     );
   }
 
@@ -2430,14 +2457,14 @@ export class Game {
       this.player.invuln = Math.max(this.player.invuln, 1.5);
       this.score += TOASTER_POINTS * pts;
       if (this.score > SCORE_CAP) this.score = SCORE_CAP;
-      this.spawnFloater(x, y - 24, `TOASTED! +${Math.round(TOASTER_POINTS * pts)}`, '#ffb347');
+      this.spawnFloater(x, y - 24, tr('fl_toasted', { n: Math.round(TOASTER_POINTS * pts) }), '#ffb347');
       this.particles.burst(x, y, '#ffb347', this.touchPrimary ? 10 : 22, 260);
     } else if (kind === 'blender') {
       this.spinT = BLENDER_SECONDS;
-      this.spawnFloater(x, y - 24, 'BLENDED!', '#7fffff');
+      this.spawnFloater(x, y - 24, tr('fl_blended'), '#7fffff');
     } else {
       this.shieldT = MICROWAVE_SECONDS;
-      this.spawnFloater(x, y - 24, 'LEFTOVER PIZZA SHIELD!', '#f4c542');
+      this.spawnFloater(x, y - 24, tr('fl_pizza'), '#f4c542');
     }
   }
 
@@ -2563,14 +2590,14 @@ export class Game {
           break;
         case 'hit':
           if (e.decoy) {
-            if (Math.random() < 0.3) this.spawnFloater(e.x, e.y - 10, 'DECOY!', '#ffffff');
+            if (Math.random() < 0.3) this.spawnFloater(e.x, e.y - 10, tr('fl_decoy'), '#ffffff');
           } else {
             this.particles.burst(e.x, e.y, e.crit ? '#ffe66d' : bf.def.tint, this.touchPrimary ? 3 : 6, 140);
           }
           break;
         case 'stunned':
           this.audio.playGate();
-          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, 'STUNNED!', '#ffe66d');
+          this.spawnFloater(bf.main.x, bf.main.y - bf.main.h / 2 - 10, tr('fl_stunned'), '#ffe66d');
           this.renderer.bumpShake(6);
           break;
         case 'phase':
@@ -2585,12 +2612,12 @@ export class Game {
           this.renderer.bumpShake(16);
           this.renderer.bumpFlash(0.6);
           this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 24 : 60, 360);
-          this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, '+1,000,000', '#ffe66d');
-          this.bannerText = `${bf.def.name} BEATEN  ·  +1,000,000`;
+          this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, tr('fl_million'), '#ffe66d');
+          this.bannerText = tr('banner_beaten', { b: bf.def.name });
           this.bannerT = BANNER_SECONDS;
           break;
         case 'bored':
-          this.bannerText = `${bf.def.name} GOT BORED  ·  NO BONUS`;
+          this.bannerText = tr('banner_bored', { b: bf.def.name });
           this.bannerT = BANNER_SECONDS;
           break;
         case 'gone':
@@ -2711,7 +2738,7 @@ export class Game {
     // The whole pack gets the hit grace, so one hazard can't eat several dogs at once.
     for (const sl of this.formation.slots) if (sl.occupied) sl.invuln = Math.max(sl.invuln, grace);
     this.player.invuln = Math.max(this.player.invuln, grace);
-    this.spawnFloater(this.player.x, this.player.y - 30, 'SHADES EATEN! PACK GROWS', '#ffe66d');
+    this.spawnFloater(this.player.x, this.player.y - 30, tr('fl_eaten'), '#ffe66d');
     this.particles.burst(this.player.x, this.player.y, '#ffe66d', this.touchPrimary ? 6 : 12, 140);
   }
 
@@ -2774,7 +2801,7 @@ export class Game {
       s.invuln = 2.2;
       this.particles.burst(s.x, s.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
       this.hitFx(s.x, s.y, true);
-      this.spawnFloater(s.x, s.y - 20, 'DECOY!', '#ffe66d');
+      this.spawnFloater(s.x, s.y - 20, tr('fl_decoy'), '#ffe66d');
       return;
     }
     this.hitFx(s.x, s.y, false);
@@ -2877,7 +2904,7 @@ export class Game {
       o.boostT = GATE_GLOW_SECONDS;
       this.audio.playGate();
       this.particles.burst(cx, cy, '#ffe66d', this.touchPrimary ? 10 : 18, 200);
-      this.spawnFloater(cx, o.y - 6, 'GATE BOOST · FULL POWER', '#ffe66d');
+      this.spawnFloater(cx, o.y - 6, tr('fl_gate'), '#ffe66d');
       this.boss?.stunHit();
     }
   }
@@ -2979,7 +3006,7 @@ export class Game {
         this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS, this.bossBannerY, this.boss.headerX, this.boss.headerW);
       } else if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
       if (this.continueT > 0) {
-        this.renderer.drawPromotion(ctx, 'CONTINUE?', `${Math.ceil(this.continueT)}  ·  ${this.touchPrimary ? 'TAP BOOST' : 'PRESS ANY KEY'} TO KEEP GOING`, this.continueT, CONTINUE_SECONDS, this.score);
+        this.renderer.drawPromotion(ctx, tr('cont_title'), tr(this.touchPrimary ? 'cont_touch' : 'cont_keys', { n: Math.ceil(this.continueT) }), this.continueT, CONTINUE_SECONDS, this.score);
       }
       if (this.promoT > 0) {
         this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, PROMO_SECONDS, this.score);
@@ -3014,8 +3041,8 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.boardIsRemote ? 'GLOBAL TOP 11' : 'TOP 11',
-        this.victory ? `YOU BEAT LEVEL ${MAX_LEVEL} · PRIZE: THE DUCHESS` : 'TOO BRIGHT!',
+        this.boardIsRemote ? tr('lb_global') : tr('lb_top'),
+        this.victory ? tr('go_victory', { n: MAX_LEVEL }) : tr('go_headline'),
       );
     }
   }

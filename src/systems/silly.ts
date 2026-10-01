@@ -6,6 +6,7 @@
 import type { BossDef } from './Boss';
 import { drawMimeMini } from './bossMime';
 import { drawToonMini } from './bossToons';
+import { GROCERIES_I18N, fmtNum, nonEnglish, lang, t as tr } from '../i18n';
 
 export type Appliance = 'toaster' | 'blender' | 'microwave';
 export const APPLIANCES: readonly Appliance[] = ['toaster', 'blender', 'microwave'];
@@ -123,21 +124,23 @@ export const GROCERIES: Record<string, string[]> = {
 
 /** Build one trailer taunt: "IN A WORLD... EGGS. MILK. ONE (1) REGRETTABLE MELON." */
 export function groceryTaunt(modeId: string, rng: () => number, jabs: string[]): string {
-  const pool = [...(GROCERIES[modeId] ?? GROCERIES.itm)];
+  const l = lang();
+  const lists = l === 'en' ? GROCERIES : GROCERIES_I18N[l];
+  const pool = [...(lists[modeId] ?? lists.itm)];
   const items: string[] = [];
   const n = 3;
   for (let i = 0; i < n && pool.length; i++) items.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
   if (jabs.length && rng() < 0.55) items.splice(1 + Math.floor(rng() * 2), 1, jabs[Math.floor(rng() * jabs.length)]);
-  return `IN A WORLD... ${items.map((x) => (/[.?!]$/.test(x) ? x : `${x}.`)).join(' ')}`;
+  if (l === 'zh') return `${tr('taunt_kicker')} ${items.map((x) => (/[。？！.?!]$/.test(x) ? x : `${x}。`)).join('')}`;
+  return `${tr('taunt_kicker')} ${items.map((x) => (/[.?!]$/.test(x) ? x : `${x}.`)).join(' ')}`;
 }
 
 /** Player-history jabs as list items, from local data only. */
 export function historyJabs(high: number, bestLevel: number, entries: number): string[] {
-  const f = (n: number) => Math.floor(n).toLocaleString('en-US');
   const out: string[] = [];
-  if (high > 0) out.push(`BREAD. YOUR ${f(high)}`);
-  if (bestLevel > 1) out.push(`SOUR CREAM. YOUR LEVEL ${bestLevel} "PEAK"`);
-  if (entries > 0) out.push(`TISSUES FOR YOUR ${entries} BOARD ENTR${entries === 1 ? 'Y' : 'IES'}`);
+  if (high > 0) out.push(tr('jab_bread', { s: fmtNum(high) }));
+  if (bestLevel > 1) out.push(tr('jab_peak', { n: bestLevel }));
+  if (entries > 0) out.push(tr(entries === 1 ? 'jab_tissue1' : 'jab_tissues', { n: entries }));
   return out;
 }
 
@@ -147,11 +150,11 @@ export function speakTrailer(text: string): void {
     const synth = window.speechSynthesis;
     if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
     synth.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/\((\d+)\)/g, '').replace(/\s+/g, ' '));
+    const u = new SpeechSynthesisUtterance(text.replace(/\((\d+)\)|（\d+）/g, '').replace(/\s+/g, ' '));
     u.pitch = 0.1;
     u.rate = 0.72;
     u.volume = 0.9;
-    u.lang = 'en-US';
+    u.lang = ({ en: 'en-US', es: 'es-MX', vi: 'vi-VN', zh: 'zh-CN' } as const)[lang()];
     synth.speak(u);
   } catch {
     /* unsupported: skip */
@@ -270,7 +273,8 @@ export function drawCatLoading(ctx: CanvasRenderingContext2D, W: number, H: numb
   ctx.fillStyle = '#cfcfcf';
   ctx.textAlign = 'center';
   ctx.font = `400 ${u(15)}px ui-monospace, Menlo, Consolas, monospace`;
-  ctx.fillText('the cat is walking on the keyboard', 0, u(52));
+  if (nonEnglish()) ctx.fillText(tr('cat'), 0, u(52), W * 0.92);
+  else ctx.fillText(tr('cat'), 0, u(52));
   ctx.restore();
 }
 
@@ -383,7 +387,9 @@ export function drawGroupPhoto(ctx: CanvasRenderingContext2D, defs: BossDef[], W
   ctx.fillStyle = '#222';
   ctx.textAlign = 'center';
   ctx.font = `700 ${u(portrait ? 16 : 15)}px 'Comic Sans MS', 'Marker Felt', cursive`;
-  ctx.fillText(`CLASS OF LEVEL 111 (${list.length} BOSS${list.length === 1 ? '' : 'ES'})`, 0, ph / 2 - ph * 0.07);
+  const cls = tr(list.length === 1 ? 'photo_class1' : 'photo_class', { n: list.length });
+  if (nonEnglish()) ctx.fillText(cls, 0, ph / 2 - ph * 0.07, pw * 0.9);
+  else ctx.fillText(cls, 0, ph / 2 - ph * 0.07);
   ctx.restore();
 }
 
@@ -520,8 +526,8 @@ export function drawPrizeReveal(ctx: CanvasRenderingContext2D, W: number, H: num
       ctx.font = `${weight} ${s}px 'Orbitron', sans-serif`;
     }
   };
-  fit('YOUR PRIZE:', '800', u(portrait ? 20 : 18), W * 0.9);
-  ctx.fillText('YOUR PRIZE:', W / 2, H * (portrait ? 0.17 : 0.14));
+  fit(tr('prize_your'), '800', u(portrait ? 20 : 18), W * 0.9);
+  ctx.fillText(tr('prize_your'), W / 2, H * (portrait ? 0.17 : 0.14));
   ctx.fillStyle = '#ff9de8';
   fit('THE DUCHESS OF PASADENA', '900', u(portrait ? 26 : 30), W * 0.92);
   ctx.fillText('THE DUCHESS OF PASADENA', W / 2, H * (portrait ? 0.23 : 0.25));
@@ -534,10 +540,10 @@ export function drawPrizeReveal(ctx: CanvasRenderingContext2D, W: number, H: num
   ctx.font = `700 ${u(15)}px 'Rajdhani', sans-serif`;
   if (portrait) {
     const cy = H * 0.52 + Math.max(size, 1) * 0.72 + u(18);
-    ctx.fillText('A chocolate Lab of impeccable breeding.', W / 2, cy, W * 0.92);
-    ctx.fillText('Good girl.', W / 2, cy + u(19));
+    ctx.fillText(tr('prize_lab'), W / 2, cy, W * 0.92);
+    ctx.fillText(tr('prize_good'), W / 2, cy + u(19));
   } else {
-    ctx.fillText('A chocolate Lab of impeccable breeding. Good girl.', W / 2, H * 0.9, W * 0.6);
+    ctx.fillText(`${tr('prize_lab')} ${tr('prize_good')}`, W / 2, H * 0.9, W * (nonEnglish() ? 0.8 : 0.6));
   }
   ctx.restore();
 }

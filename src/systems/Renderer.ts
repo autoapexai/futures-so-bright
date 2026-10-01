@@ -7,12 +7,19 @@ import { clamp } from '../utils/math';
 import { paintShip, shipSprite, dogGlyph, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, GLYPH_W, GLYPH_H, GLYPH_AX, GLYPH_AY, type Breed } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips } from '../utils/cloneLevels';
+import { fmtNum, nonEnglish, t as tr } from '../i18n';
+
+/** fillText that, in non-English languages only, squeezes text wider than maxW (English draws exactly as before). */
+function fillMax(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number): void {
+  if (nonEnglish()) ctx.fillText(text, x, y, Math.max(1, maxW));
+  else ctx.fillText(text, x, y);
+}
 
 /** Clone level + ship count for the HUD (difficulty-11 runs only). */
 
 /** Score with thousands separators: 777777777 -> "777,777,777". */
 function fmtScore(n: number): string {
-  return Math.floor(Math.max(0, n)).toLocaleString('en-US');
+  return fmtNum(Math.max(0, n));
 }
 
 export interface LevelInfo {
@@ -258,7 +265,9 @@ export class Renderer {
     minSize = 12,
   ): number {
     const s = this.fitFont(ctx, text, weight, size, family, maxWidth, minSize);
-    ctx.fillText(text, x, y);
+    // Translations run longer: squeeze rather than spill past the edge if even the smallest size is too wide.
+    if (nonEnglish()) ctx.fillText(text, x, y, maxWidth);
+    else ctx.fillText(text, x, y);
     return s;
   }
 
@@ -630,25 +639,25 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       this.fitFont(
         ctx,
-        `SCORE  ${fmtScore(score)}`,
+        `${tr('hud_score')}${fmtScore(score)}`,
         '700',
         this.u(24),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(16),
       );
-      this.duckLine(ctx, 'SCORE  ', score, left, top + this.u(24), 'left');
+      this.duckLine(ctx, tr('hud_score'), score, left, top + this.u(24), 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.88)';
       this.fitFont(
         ctx,
-        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
+        tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }),
         '700',
         this.u(18),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(14),
       );
-      ctx.fillText(`BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`, left, top + this.u(50));
+      ctx.fillText(tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }), left, top + this.u(50));
       this.drawChargeBar(ctx, left, rightBound, top + this.u(68), charge);
       if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(102), 'left', this.u(16), maxTw);
     } else if (big) {
@@ -659,18 +668,18 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       this.fitFont(
         ctx,
-        `SCORE  ${fmtScore(score)}`,
+        `${tr('hud_score')}${fmtScore(score)}`,
         '700',
         this.u(18),
         "'Rajdhani', sans-serif",
         maxTw,
         this.u(14),
       );
-      this.duckLine(ctx, 'SCORE  ', score, left, top + this.u(18), 'left');
+      this.duckLine(ctx, tr('hud_score'), score, left, top + this.u(18), 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.88)';
       this.fitFont(
         ctx,
-        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
+        tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }),
         '700',
         this.u(15),
         "'Rajdhani', sans-serif",
@@ -678,7 +687,7 @@ export class Renderer {
         this.u(12),
       );
       ctx.fillText(
-        `BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`,
+        tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }),
         left,
         top + this.u(38),
       );
@@ -689,10 +698,10 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.textAlign = 'left';
       const topY = this.padTop + this.u(32);
-      this.duckLine(ctx, 'SCORE  ', score, left, topY, 'left');
+      this.duckLine(ctx, tr('hud_score'), score, left, topY, 'left');
       ctx.fillStyle = 'rgba(0, 240, 255, 0.85)';
       // Distance rides on the BEST line (the top-right corner belongs to QUIT / mute).
-      ctx.fillText(`BEST  ${fmtScore(high)}  ·  ${Math.floor(distance)}m`, left, this.padTop + this.u(54));
+      ctx.fillText(tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }), left, this.padTop + this.u(54));
       const bw = this.u(180);
       this.drawChargeBar(ctx, W / 2 - bw / 2, W / 2 + bw / 2, this.padTop + this.u(18), charge);
       if (levelInfo) {
@@ -723,9 +732,9 @@ export class Renderer {
   ): void {
     // "LVL 10  ·  1 dog": the count and the word are drawn apart (count in Orbitron, word in a
     // different face, size and colour), so "1 DOG" can never read as "100G" in Orbitron.
-    const lvl = info.ships > 0 ? `LVL ${info.level}  ·  ` : `LVL ${info.level}`;
+    const lvl = info.ships > 0 ? `${tr('hud_lvl', { n: info.level })}  ·  ` : tr('hud_lvl', { n: info.level });
     const count = info.ships > 0 ? formatShips(info.ships) : '';
-    const word = info.ships > 0 ? (info.ships === 1 ? 'dog' : 'dogs') : '';
+    const word = info.ships > 0 ? (info.ships === 1 ? tr('hud_dog') : tr('hud_dogs')) : '';
     ctx.textAlign = 'left';
     const orb = "'Orbitron', sans-serif";
     const raj = "'Rajdhani', 'Segoe UI', sans-serif";
@@ -821,7 +830,7 @@ export class Renderer {
     ctx.textBaseline = 'middle';
     const maxW = W * (portrait ? 0.88 : 0.7);
     ctx.fillStyle = 'rgba(0, 240, 255, 0.85)';
-    this.fillFitted(ctx, `HOW TO PLAY  ·  ${step}/${total}`, W / 2, cy - this.u(portrait ? 40 : 36), '700', this.u(13), "'Orbitron', sans-serif", maxW, 10);
+    this.fillFitted(ctx, tr('tut_head', { s: step, t: total }), W / 2, cy - this.u(portrait ? 40 : 36), '700', this.u(13), "'Orbitron', sans-serif", maxW, 10);
     if (lines.length) {
       const fs = this.u(portrait ? 18 : 17);
       const lh = fs * 1.3;
@@ -945,7 +954,7 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.font = `600 ${this.u(this.touchUi ? 13 : 12)}px 'Orbitron', sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('SHADE CHARGE', bx + bw / 2, by - 2);
+    ctx.fillText(tr('shade_charge'), bx + bw / 2, by - 2);
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     roundRect(ctx, bx, by + 4, bw, bh, 7);
     ctx.fill();
@@ -1060,7 +1069,7 @@ export class Renderer {
       y = Math.min(y + this.u(portrait ? 30 : 22) + bob, floor - this.u(portrait ? 150 : 96));
       this.fillFitted(
         ctx,
-        '… gotta wear shades!',
+        tr('title_tag'),
         cx,
         y,
         '700',
@@ -1075,7 +1084,7 @@ export class Renderer {
       y = Math.min(y + this.u(portrait ? 34 : 24), floor - this.u(portrait ? 120 : 78));
       this.fillFitted(
         ctx,
-        portrait ? 'Dodge the glare. Keep shades charged.' : 'Dodge glare · keep shades charged',
+        portrait ? tr('title_dodge_p') : tr('title_dodge_l'),
         cx,
         y,
         '700',
@@ -1087,12 +1096,12 @@ export class Renderer {
 
       ctx.fillStyle = 'rgba(210, 190, 255, 0.92)';
       y = Math.min(y + this.u(portrait ? 28 : 20), floor - this.u(portrait ? 94 : 58));
-      const handLabel = document.body.classList.contains('hand-left') ? 'Left hand' : 'Right hand';
+      const handLabel = document.body.classList.contains('hand-left') ? tr('hand_left') : tr('hand_right');
       this.fillFitted(
         ctx,
         portrait
-          ? `Stick · BOOST  ·  ${handLabel}`
-          : `Stick · BOOST · ${handLabel}`,
+          ? tr('title_stick_p', { hand: handLabel })
+          : tr('title_stick_l', { hand: handLabel }),
         cx,
         y,
         '600',
@@ -1106,7 +1115,7 @@ export class Renderer {
         y = Math.min(y + this.u(24), floor - this.u(72));
         this.fillFitted(
           ctx,
-          'Collect shades — keep Shade charged',
+          tr('title_collect'),
           cx,
           y,
           '600',
@@ -1121,7 +1130,7 @@ export class Renderer {
       y = Math.min(y + this.u(portrait ? 30 : 22), floor - this.u(portrait ? 44 : 36));
       this.fillFitted(
         ctx,
-        `High Score  ${fmtScore(high)}`,
+        tr('title_high', { s: fmtScore(high) }),
         cx,
         y,
         '700',
@@ -1136,7 +1145,7 @@ export class Renderer {
       y = Math.min(y + this.u(portrait ? 32 : 24), floor - this.u(10));
       this.fillFitted(
         ctx,
-        'Tap or swipe to start',
+        tr('title_tap'),
         cx,
         y,
         '700',
@@ -1155,21 +1164,21 @@ export class Renderer {
       ctx.fillStyle = COL.cyan;
       ctx.font = `700 28px 'Orbitron', sans-serif`;
       const bob = Math.sin(pulse * 3) * 4;
-      ctx.fillText('… gotta wear shades!', W / 2, titleY + titleSize * 1.05 + 48 + bob);
+      fillMax(ctx, tr('title_tag'), W / 2, titleY + titleSize * 1.05 + 48 + bob, W * 0.94);
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       ctx.font = `700 18px 'Rajdhani', sans-serif`;
-      ctx.fillText('Dodge the glare. Keep your shades charged.', W / 2, H * 0.46);
+      fillMax(ctx, tr('desk_dodge'), W / 2, H * 0.46, W * 0.94);
       ctx.fillStyle = 'rgba(200, 180, 255, 0.88)';
       ctx.font = `600 15px 'Rajdhani', sans-serif`;
-      ctx.fillText('WASD / Arrows move  ·  SPACE boost  ·  P pause', W / 2, H * 0.53);
+      fillMax(ctx, tr('desk_keys'), W / 2, H * 0.53, W * 0.94);
       ctx.font = `700 15px 'Rajdhani', sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillText(`High Score  ${fmtScore(high)}`, W / 2, H * 0.6);
+      fillMax(ctx, tr('title_high', { s: fmtScore(high) }), W / 2, H * 0.6, W * 0.94);
       const alpha = 0.55 + Math.sin(pulse * 4) * 0.35;
       ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
       ctx.font = `700 20px 'Orbitron', sans-serif`;
-      ctx.fillText('Press any key to start', W / 2, H * 0.72);
+      fillMax(ctx, tr('desk_press'), W / 2, H * 0.72, W * 0.94);
     }
   }
 
@@ -1199,7 +1208,7 @@ export class Renderer {
       ctx.shadowColor = 'rgba(255, 180, 60, 0.95)';
     }
     const ts = this.fitFont(ctx, title, '900', this.u(portrait ? 34 : 40), "'Orbitron', sans-serif", maxW, this.u(16));
-    ctx.fillText(title, W / 2, cy);
+    fillMax(ctx, title, W / 2, cy, maxW);
     // Subtitle pops in a beat later and blinks like an arcade attract line.
     if (age > 0.35) {
       const blink = Math.floor(age * 6) % 2 === 0 || age > 0.85;
@@ -1211,7 +1220,7 @@ export class Renderer {
     }
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    this.fillFitted(ctx, `SCORE  ${fmtScore(score)}`, W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
+    this.fillFitted(ctx, tr('promo_score', { s: fmtScore(score) }), W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
     // Neon rule above and below, like the title card.
     const rw = Math.min(maxW, this.u(portrait ? 300 : 440));
     ctx.fillStyle = COL.magenta;
@@ -1250,22 +1259,22 @@ export class Renderer {
       ctx.fillStyle = '#fff';
       ctx.font = `700 ${this.u(10)}px sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText('OCCUPIED', dw - this.u(42), this.u(20));
-      const crayon = (t: string, x: number, y: number, size: number, col: string, rot: number): void => {
+      fillMax(ctx, tr('door_occupied'), dw - this.u(42), this.u(20), this.u(60));
+      const crayon = (txt: string, x: number, y: number, size: number, col: string, rot: number): void => {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(rot);
         ctx.font = `900 ${size}px 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive`;
         ctx.fillStyle = col;
         ctx.globalAlpha = 0.9;
-        ctx.fillText(t, 0, 0);
+        fillMax(ctx, txt, 0, 0, dw * 0.9);
         ctx.globalAlpha = 0.45;
-        ctx.fillText(t, 1.2, 0.8);
+        fillMax(ctx, txt, 1.2, 0.8, dw * 0.9);
         ctx.restore();
       };
-      crayon('PAUSED', dw / 2, dh * 0.42, this.u(34), '#c81e1e', -0.04);
-      crayon(big ? 'tap ▶ to resume' : 'P / ESC to resume', dw / 2, dh * 0.62, this.u(big ? 18 : 15), '#1d4ed8', 0.03);
-      crayon('FSB WAS HERE', dw * 0.3, dh * 0.86, this.u(11), '#136c33', -0.1);
+      crayon(tr('door_paused'), dw / 2, dh * 0.42, this.u(34), '#c81e1e', -0.04);
+      crayon(big ? tr('door_tap') : tr('door_keys'), dw / 2, dh * 0.62, this.u(big ? 18 : 15), '#1d4ed8', 0.03);
+      crayon(tr('door_fsb'), dw * 0.3, dh * 0.86, this.u(11), '#136c33', -0.1);
       ctx.restore();
       return;
     }
@@ -1275,12 +1284,12 @@ export class Renderer {
     ctx.shadowBlur = this.lite ? 0 : 20;
     ctx.shadowColor = COL.cyan;
     const pauseY = Math.max(this.padTop + this.u(80), this.H * 0.42);
-    ctx.fillText('PAUSED', this.W / 2, pauseY);
+    ctx.fillText(tr('door_paused'), this.W / 2, pauseY);
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.font = `600 ${this.u(big ? 20 : 16)}px 'Rajdhani', sans-serif`;
     ctx.fillText(
-      big ? 'Tap ▶ to resume' : 'P / ESC to resume',
+      big ? tr('pause_tap') : tr('door_keys'),
       this.W / 2,
       pauseY + this.u(40),
     );
@@ -1312,7 +1321,7 @@ export class Renderer {
     const titleY = this.padTop + H * (big ? (portrait ? 0.12 : 0.14) : 0.18);
     this.fillFitted(
       ctx,
-      'NEW HIGH SCORE!',
+      tr('ini_new'),
       cx,
       titleY,
       '900',
@@ -1325,7 +1334,7 @@ export class Renderer {
     ctx.fillStyle = '#fff';
     this.fillFitted(
       ctx,
-      `Score  ${fmtScore(score)}`,
+      tr('ini_score', { s: fmtScore(score) }),
       cx,
       titleY + this.u(big ? (portrait ? 36 : 28) : 32),
       '700',
@@ -1337,7 +1346,7 @@ export class Renderer {
     ctx.fillStyle = 'rgba(255, 180, 230, 0.9)';
     this.fillFitted(
       ctx,
-      'ENTER INITIALS',
+      tr('ini_enter'),
       cx,
       titleY + this.u(big ? (portrait ? 64 : 50) : 56),
       '700',
@@ -1382,8 +1391,8 @@ export class Renderer {
     ctx.fillStyle = `rgba(200, 180, 255, ${alpha})`;
     const help =
       big
-        ? 'Stick ↕ letter  ·  ↔ slot  ·  OK'
-        : '↑↓ letter  ·  ←→ slot  ·  ENTER / SPACE';
+        ? tr('ini_help_touch')
+        : tr('ini_help_keys');
     this.fillFitted(
       ctx,
       help,
@@ -1438,12 +1447,12 @@ export class Renderer {
     );
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#fff';
-    this.fitFont(ctx, `Score  ${fmtScore(score)}`, '700', this.u(big ? (portrait ? 22 : 18) : 20), "'Rajdhani', sans-serif", maxTw, this.u(14));
-    this.duckLine(ctx, 'Score  ', score, cx, overY + this.u(big ? (portrait ? 28 : 24) : 28), 'center');
+    this.fitFont(ctx, `${tr('go_score')}${fmtScore(score)}`, '700', this.u(big ? (portrait ? 22 : 18) : 20), "'Rajdhani', sans-serif", maxTw, this.u(14));
+    this.duckLine(ctx, tr('go_score'), score, cx, overY + this.u(big ? (portrait ? 28 : 24) : 28), 'center');
     ctx.fillStyle = isNew ? COL.cyan : 'rgba(200,180,255,0.85)';
     this.fillFitted(
       ctx,
-      isNew ? `NEW BEST  ${fmtScore(high)}!` : `Best  ${fmtScore(high)}`,
+      isNew ? tr('go_newbest', { s: fmtScore(high) }) : tr('go_best', { s: fmtScore(high) }),
       cx,
       overY + this.u(big ? (portrait ? (this.cardTopY > 0 ? 48 : 52) : 42) : 50),
       '700',
@@ -1470,7 +1479,7 @@ export class Renderer {
     ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
     this.fillFitted(
       ctx,
-      big ? 'TAP  —  or hit RIDE' : 'ENTER / SPACE  —  RIDE AGAIN',
+      big ? tr('go_tap') : tr('go_keys'),
       cx,
       Math.min(floor - this.u(4), boardBottom + this.u(28)),
       '700',
@@ -1503,11 +1512,11 @@ export class Renderer {
     const boardW = Math.min(maxTw, this.u(320));
     const rowFont = (fs: number, bold: boolean) => `${bold ? '700' : '600'} ${fs}px 'Rajdhani', monospace`;
     const titleFont = (fs: number) => `700 ${Math.max(11, fs * 0.95)}px 'Orbitron', sans-serif`;
-    let lvlHdr = 'START→END';
+    let lvlHdr = tr('lb_start_end');
     {
       ctx.font = rowFont(Math.max(10, Math.min(this.u(16), this.u(22) * 0.85)), true);
-      const need = ctx.measureText('10WWW777,777,777').width + ctx.measureText('START→END').width + this.u(16) * 1.6;
-      if (need > boardW - 8) lvlHdr = 'LVL';
+      const need = ctx.measureText('10WWW777,777,777').width + ctx.measureText(lvlHdr).width + this.u(16) * 1.6;
+      if (need > boardW - 8) lvlHdr = tr('lb_lvl');
     }
 
     // Column layout at a given row height, measured in the row font so it fits any width:
@@ -1657,7 +1666,11 @@ export class Renderer {
       ctx.shadowBlur = this.lite ? 0 : 12;
       ctx.shadowColor = f.color;
       ctx.fillStyle = f.color;
-      ctx.fillText(f.text, f.x, f.y);
+      if (nonEnglish()) {
+        // Translated floaters can run longer: keep them on screen.
+        const half = ctx.measureText(f.text).width / 2;
+        ctx.fillText(f.text, Math.max(half + 4, Math.min(this.W - half - 4, f.x)), f.y);
+      } else ctx.fillText(f.text, f.x, f.y);
     }
     ctx.restore();
   }

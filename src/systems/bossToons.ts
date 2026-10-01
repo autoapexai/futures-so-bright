@@ -19,6 +19,7 @@
  */
 import type { Board, BossFight, BossShot } from './Boss';
 import { drawDuchess } from './silly';
+import { nonEnglish, tp } from '../i18n';
 
 type Ctx = CanvasRenderingContext2D;
 const TAU = Math.PI * 2;
@@ -242,6 +243,17 @@ function duck(ctx: Ctx, x: number, y: number, r: number, rot = 0): void {
 function speech(ctx: Ctx, text: string, x: number, y: number, size: number, color = '#ffffff'): void {
   ctx.save();
   ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
+  if (nonEnglish()) {
+    // Translated bubbles can run longer than the English: keep them on screen.
+    text = tp(text);
+    const m = ctx.getTransform();
+    if (m.b === 0 && m.c === 0 && m.a > 0) {
+      // Clamp in device pixels (the bubble may be drawn inside a translated / scaled frame).
+      const half = (ctx.measureText(text).width / 2 + size * 0.3) * m.a;
+      const sx = Math.max(half + 4, Math.min(ctx.canvas.width - half - 4, m.a * x + m.e));
+      x = (sx - m.e) / m.a;
+    }
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = Math.max(3, size * 0.22);
@@ -1839,7 +1851,7 @@ function defeatFx(ctx: Ctx, id: string, k: number, cx: number, cy: number, w: nu
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#fff';
-        ctx.fillText('The End', cx, cy + 1);
+        ctx.fillText(tp('The End'), cx, cy + 1);
         ctx.restore();
       }
       break;

@@ -9,6 +9,7 @@
  * - Points stay those of level 11; the run is submitted as the level it ended on (11-111).
  *   Clearing 111 wins the run.
  */
+import { fmtNum } from '../i18n';
 
 /** Play-time seconds needed to pass a level. */
 export const LEVEL_SECONDS = 30;
@@ -61,7 +62,7 @@ export function shipHitCost(level: number): number {
 /** Ship count for HUD / banner / formation text, always with thousands separators: 16384 -> "16,384". */
 export function formatShips(n: number): string {
   const v = Number.isFinite(n) ? Math.min(MAX_SHIPS, Math.max(0, Math.round(n))) : MAX_SHIPS;
-  return v.toLocaleString('en-US');
+  return fmtNum(v);
 }
 
 export function shipsLabel(n: number): string {

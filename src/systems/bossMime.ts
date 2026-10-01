@@ -9,6 +9,7 @@
  * The board rect (b.x, b.y, b.w, b.h, rows, spot) stays the hit area.
  */
 import type { Board, BossFight, BossShot } from './Boss';
+import { t as tr } from '../i18n';
 
 interface Wobble {
   t: number;
@@ -390,7 +391,7 @@ export function drawMime(ctx: CanvasRenderingContext2D, f: BossFight, b: Board, 
   if (f.stunned && f.state === 'fight') {
     ctx.fillStyle = '#ffe66d';
     ctx.font = `900 ${fs}px 'Orbitron', sans-serif`;
-    ctx.fillText('STUNNED', b.x - b.w * 1.1, b.y - b.h * 0.25);
+    ctx.fillText(tr('mime_stunned'), b.x - b.w * 1.1, b.y - b.h * 0.25);
   }
   if (beaten && k < 0.95) {
     ctx.fillStyle = '#ffffff';

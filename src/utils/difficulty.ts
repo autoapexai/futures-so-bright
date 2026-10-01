@@ -5,6 +5,7 @@
  * button's start level. Levels 11-111 are the gold "beyond 10" zone, earned by climbing:
  * beating 10 promotes to 11, and so on up to 111 (clearing 111 is a victory).
  */
+import { t } from '../i18n';
 export const MIN_DIFFICULTY = 1;
 export const MAX_PUBLIC_DIFFICULTY = 10;
 export const SECRET_DIFFICULTY = 11;
@@ -144,5 +145,5 @@ export function hazardLevers(d: number, strength = easeStrength(d)): HazardLever
 export function difficultyLabel(d: number): string {
   const c = clampDifficulty(d);
   const mult = `${pointMultiplier(c).toFixed(1)}x`;
-  return c === SECRET_DIFFICULTY ? `11 · SHADES ON · ${mult}` : `DIFFICULTY ${c} · ${mult}`;
+  return c === SECRET_DIFFICULTY ? t('diff_eleven', { m: mult }) : t('diff_label', { c, m: mult });
 }
