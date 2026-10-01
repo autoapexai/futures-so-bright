@@ -1,5 +1,6 @@
 import { Game } from './systems/Game';
 import { applyHandPreference } from './utils/storage';
+import { trackPageView } from './utils/track';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 if (!canvas) throw new Error('#game canvas missing');
@@ -87,4 +88,5 @@ window.visualViewport?.addEventListener('resize', syncVvh);
 window.visualViewport?.addEventListener('scroll', syncVvh);
 
 const game = new Game(canvas, { touchPrimary });
+trackPageView();
 game.start();

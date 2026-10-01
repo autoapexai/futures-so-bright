@@ -34,6 +34,7 @@ import {
   type LeaderboardEntry,
 } from '../utils/storage';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
+import { trackRunStart } from '../utils/track';
 import {
   MIN_DIFFICULTY,
   MAX_PUBLIC_DIFFICULTY,
@@ -1355,6 +1356,7 @@ export class Game {
     this.runTime = 0;
     this.runId++;
     this.runDifficulty = difficulty;
+    trackRunStart(mode ? mode.name : null, difficulty);
     this.victory = false;
     this.runTicket = difficulty === SECRET_DIFFICULTY ? ticket : null;
     // Levels 1-10 are 30 s stages; clearing 10 carries on into 11 (any player). Its run ticket
