@@ -43,7 +43,10 @@ export function bossPilot(f: BossFight, v: PilotView, sk?: PilotSkill, dt = 1 / 
     sk.t = sk.lag;
     sk.off = (sk.rnd() - 0.5) * 2 * sk.noise * rowH;
   }
-  let target = (f.stunned ? b.y : spotY) + (sk ? sk.off : 0);
+  // A telegraphed hop (the next slot glows): head there early, like a player would.
+  const next = f.nextSpots?.[f.boards.indexOf(b)];
+  const aimY = next !== undefined ? b.y - b.h / 2 + rowH * (next + 0.5) : spotY;
+  let target = (f.stunned ? b.y : aimY) + (sk ? sk.off : 0);
   const ring = v.rings.find((r) => r.x > v.px + 20 && r.x < v.px + 420);
   if (ring && !f.stunned && f.state === 'fight') target = ring.y;
   let best = v.py;

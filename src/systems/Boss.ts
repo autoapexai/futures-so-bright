@@ -232,25 +232,76 @@ export function bossTuning(rank: number): BossTuning {
   };
 }
 
+/** Per-boss easing knobs (multipliers on the rank curve unless noted). */
+export interface BossEase {
+  hp?: number;
+  fire?: number;
+  volley?: number;
+  /** Coin rain: sideways speed as a fraction of the fall speed, and extra coins per shower. */
+  slant?: number;
+  extra?: number;
+  /** Fewer split shells per volley. */
+  big?: number;
+  /** Split shells burst part-way to the pack (at `burst` of the distance, default 0.4). */
+  bang?: boolean;
+  burst?: number;
+  /** Weak-spot dwell multiplier (longer = more weak-spot uptime). */
+  spot?: number;
+  /** The weak spot hops at most this many slots at a time (shorter re-line). */
+  near?: number;
+  /** Stun-length multiplier. */
+  stun?: number;
+  /** Seconds the next weak-spot slot glows before the hop (telegraph). */
+  tele?: number;
+  /** Weak-spot hops are capped at about this many px (tall lanes only). */
+  hopPx?: number;
+  /** Cap on the lane-height shot-speed scale (tall portrait lanes scale shots up to 1.3x). */
+  spdCap?: number;
+  /** Wall/tack-storm gap at least this fraction of the lane. */
+  gap?: number;
+  /** Homing shots stop steering within this many px of the pack (dodge with a sidestep). */
+  lock?: number;
+  /** Stun rings turn up within this many px of the pack's height. */
+  ringNear?: number;
+  /** Stun-length multiplier on tall (portrait) lanes only. */
+  tallStun?: number;
+}
+
 /**
  * Per-boss easing on top of the rank curve (Dan-approved, L60 and L90 only; every other boss
  * uses the plain curve). TOO SUCCESSFUL: coin rain falls slanted (slant = sideways speed as a
  * fraction of the fall speed) with one more coin per shower to keep the pressure. COMEDY BANG
  * BANG: one BANG shell per volley instead of two or three, bursting about 40% of the way to the
- * pack into slightly slower pieces (the final boss keeps the original BANG), plus less HP, a
- * slower trigger and smaller aimed fans.
+ * pack into slightly slower pieces, plus less HP, a slower trigger and smaller aimed fans.
+ *
+ * L90 CAPTAIN KABOOM and L111 THE GRAND CORKBOARD also get tall-lane (portrait) fixes, which
+ * leave the short landscape lane as it was: the slot the weak spot is about to hop to twinkles
+ * first (tele), hops stay short in pixels (hopPx), stun rings turn up within reach of the pack
+ * (ringNear). The corkboard's shots also don't speed up for the tall lane (spdCap), it stays
+ * dizzy 5% longer there (tallStun), and it keeps wider
+ * gaps in its index-card walls and tack storms (gap), its sticky notes stop homing when close
+ * (lock), and its paper balls burst 40% of the way to the pack (bang/burst). Its HP, fire rate,
+ * volleys and pattern list are untouched, so it stays the hardest fight.
  */
-const EASE: Record<string, { hp?: number; fire?: number; volley?: number; slant?: number; extra?: number; big?: number; bang?: boolean }> = {
+export const EASE: Record<string, BossEase> = {
   toosuccessful: { slant: 0.4, extra: 1 },
-  cbb: { hp: 0.8, fire: 1.3, volley: 0.75, big: 1, bang: true },
+  cbb: { hp: 0.8, fire: 1.3, volley: 0.75, big: 1, bang: true, tele: 0.5, hopPx: 230, ringNear: 380 },
+  itm: { tele: 0.6, hopPx: 120, ringNear: 130, spdCap: 0.8, gap: 0.4, lock: 420, bang: true, burst: 0.4, tallStun: 1.05 },
 };
-const easeOf = (id: string) => EASE[id] ?? {};
+const easeOf = (id: string): BossEase => EASE[id] ?? {};
 
 /** The rank curve plus this boss's easing (used by the fight). */
 export function easedTuning(def: BossDef): BossTuning {
   const t = bossTuning(def.rank);
   const e = easeOf(def.modeId);
-  return { ...t, hp: Math.round(t.hp * (e.hp ?? 1)), fireEvery: +(t.fireEvery * (e.fire ?? 1)).toFixed(3), volley: +(t.volley * (e.volley ?? 1)).toFixed(2) };
+  return {
+    ...t,
+    hp: Math.round(t.hp * (e.hp ?? 1)),
+    fireEvery: +(t.fireEvery * (e.fire ?? 1)).toFixed(3),
+    volley: +(t.volley * (e.volley ?? 1)).toFixed(2),
+    spotEvery: +(t.spotEvery * (e.spot ?? 1)).toFixed(2),
+    stun: +(t.stun * (e.stun ?? 1)).toFixed(2),
+  };
 }
 
 export interface BossShot {
@@ -262,6 +313,8 @@ export interface BossShot {
   kind: 'orb' | 'dot' | 'coin' | 'pie' | 'glove' | 'balloon' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
   /** Visual-only costume (horseshoe, rubber duck, cassette...): physics and hit radius unchanged. */
   skin?: string;
+  /** Homing shot that has lost its lock (flies straight on). */
+  lost?: boolean;
   /** BANG BANG: shot age (s) at which a big shot bursts into three. */
   burst?: number;
   t: number;
@@ -457,8 +510,11 @@ export class BossFight {
   /** Ring touched by the pack: stun (with a short immunity so rings can't chain-lock it). */
   stunHit(): boolean {
     if (this.state !== 'fight' || this.stunImmune > 0 || this.stunT > 0) return false;
-    this.stunT = this.tune.stun;
-    this.stunImmune = this.tune.stun + 1.5;
+    // Tall (portrait) lanes: the pack travels further between rings, so the eased bosses stay
+    // dizzy a little longer there.
+    const tall = this.bottom - this.top > 500 ? easeOf(this.def.modeId).tallStun ?? 1 : 1;
+    this.stunT = this.tune.stun * tall;
+    this.stunImmune = this.stunT + 1.5;
     this.shots.length = 0;
     this.slam = 0;
     this.events.push({ type: 'stunned' });
@@ -654,12 +710,12 @@ export class BossFight {
 
     // Weak spot hops to a different rank slot.
     this.spotT -= dt;
+    const tele = easeOf(this.def.modeId).tele ?? 0;
+    if (tele > 0 && this.spotT <= tele && !this.nextSpots) this.nextSpots = this.boards.map((b) => this.pickSpot(b));
     if (this.spotT <= 0) {
       this.spotT = this.tune.spotEvery * (0.75 + this.rng() * 0.5);
-      for (const b of this.boards) {
-        const r = Math.floor(this.rng() * (b.rows - 1));
-        b.spot = r >= b.spot ? r + 1 : r;
-      }
+      this.boards.forEach((b, i) => (b.spot = this.nextSpots ? this.nextSpots[i] : this.pickSpot(b)));
+      this.nextSpots = null;
     }
     // Decoy shuffle.
     if (this.def.signature === 'decoy') {
@@ -673,7 +729,10 @@ export class BossFight {
     this.ringT -= dt;
     if (this.ringT <= 0) {
       this.ringT = this.tune.ringEvery * (0.8 + this.rng() * 0.4);
-      const y = this.top + 60 + this.rng() * Math.max(10, this.bottom - this.top - 120);
+      const rn = easeOf(this.def.modeId).ringNear ?? 0;
+      let y = this.top + 60 + this.rng() * Math.max(10, this.bottom - this.top - 120);
+      // Tall lanes: the ring turns up within reach of the pack (not 800 px away).
+      if (rn > 0 && this.bottom - this.top > rn * 2 + 120) y = Math.min(this.bottom - 60, Math.max(this.top + 60, inp.py + ((y - this.top - 60) / Math.max(10, this.bottom - this.top - 120) - 0.5) * 2 * rn));
       this.events.push({ type: 'ring', x: this.right * (0.62 + this.rng() * 0.12), y });
     }
     // Slam (TOO FAT): telegraph 0.7 s, lunge 0.45 s, hold 0.3 s, back 0.8 s.
@@ -692,6 +751,27 @@ export class BossFight {
     }
   }
 
+  /** Telegraphed next weak-spot slot per boss body (null when no hop is coming up). */
+  nextSpots: number[] | null = null;
+
+  /** Where the weak spot hops next: any other slot, or (eased bosses) a nearby one. */
+  private pickSpot(b: Board): number {
+    const ez = easeOf(this.def.modeId);
+    let near = ez.near ?? 0;
+    // Hop at most about hopPx (tall portrait lanes): a long hop is mostly travel, not aiming.
+    if (ez.hopPx && b.h > 0) {
+      const byPx = Math.max(1, Math.floor(ez.hopPx / (b.h / b.rows)));
+      if (byPx < b.rows - 1) near = near > 0 ? Math.min(near, byPx) : byPx;
+    }
+    if (near > 0) {
+      const opts: number[] = [];
+      for (let r = Math.max(0, b.spot - near); r <= Math.min(b.rows - 1, b.spot + near); r++) if (r !== b.spot) opts.push(r);
+      return opts[Math.floor(this.rng() * opts.length)];
+    }
+    const r = Math.floor(this.rng() * (b.rows - 1));
+    return r >= b.spot ? r + 1 : r;
+  }
+
   private volleyCount(): number {
     const v = this.tune.volley + (this.phase - 1);
     return Math.max(1, Math.floor(v + this.rng()));
@@ -708,7 +788,8 @@ export class BossFight {
   private fire(p: Pattern, inp: BossInput): void {
     this.pattern = p;
     const laneH = this.bottom - this.top;
-    const sp = this.tune.shotSpeed * Math.max(0.75, Math.min(1.3, laneH / 420));
+    const ez = easeOf(this.def.modeId);
+    const sp = this.tune.shotSpeed * Math.max(0.75, Math.min(ez.spdCap ?? 1.3, laneH / 420));
     const r = Math.max(7, laneH * 0.022);
     const n = this.volleyCount();
     const shooters = this.boards.filter((b) => this.def.signature === 'twins' || this.boards.length === 1 || this.rng() < 0.7 || b.real);
@@ -745,7 +826,7 @@ export class BossFight {
       case 'wall':
       case 'kick': {
         // A column of shots across the lane with a gap that always fits the pack.
-        const gap = Math.min(laneH * 0.62, Math.max(inp.packH + 56, 120));
+        const gap = Math.min(laneH * 0.62, Math.max(inp.packH + 56, 120, laneH * (ez.gap ?? 0)));
         const gy = this.top + gap / 2 + this.rng() * Math.max(1, laneH - gap);
         const step = r * 3.2;
         const kick = p === 'kick';
@@ -792,7 +873,7 @@ export class BossFight {
         const k = Math.max(1, Math.ceil(n / 3) - (easeOf(this.def.modeId).big ?? 0));
         // COMEDY BANG BANG: burst about 40% of the way to the pack (never later than 0.65 s), so the
         // three pieces have room to fan out; on a narrow lane a fixed 0.65 s burst went off point-blank.
-        const burst = easeOf(this.def.modeId).bang ? Math.max(0.3, Math.min(0.65, (0.4 * Math.hypot(inp.px - ox, inp.py - oy)) / (sp * 0.7))) : 0.65;
+        const burst = ez.bang ? Math.max(0.3, Math.min(ez.burst ? 1.4 : 0.65, ((ez.burst ?? 0.4) * Math.hypot(inp.px - ox, inp.py - oy)) / (sp * 0.7))) : 0.65;
         for (let i = 0; i < k; i++) {
           const a = Math.atan2(inp.py - oy, inp.px - ox) + (i - (k - 1) / 2) * 0.35 + jit();
           const s = this.shots.length;
@@ -889,7 +970,7 @@ export class BossFight {
       }
       case 'dots': {
         const k = n * 3;
-        const gap = Math.min(laneH * 0.55, Math.max(inp.packH + 56, 120));
+        const gap = Math.min(laneH * 0.55, Math.max(inp.packH + 56, 120, laneH * (ez.gap ?? 0)));
         const gy = this.top + gap / 2 + this.rng() * Math.max(1, laneH - gap);
         for (let i = 0; i < k; i++) {
           const y = this.top + this.rng() * laneH;
@@ -923,7 +1004,11 @@ export class BossFight {
         add.push({ x: -s.r, y: s.y, vx: sp * 0.65, vy: 0, r: s.r, kind: 'orb', t: 0, life: 6, alive: true, skin: TOON_SKINS[this.def.modeId]?.['>warn'] });
         continue;
       }
-      if (s.kind === 'homing') {
+      if (s.kind === 'homing' && !s.lost) {
+        const lock = easeOf(this.def.modeId).lock ?? 0;
+        if (lock > 0 && Math.hypot(inp.px - s.x, inp.py - s.y) < lock) s.lost = true;
+      }
+      if (s.kind === 'homing' && !s.lost) {
         const want = Math.atan2(inp.py - s.y, inp.px - s.x);
         const cur = Math.atan2(s.vy, s.vx);
         let d = want - cur;
@@ -1114,6 +1199,29 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   f.boards.forEach((b, idx) => {
     if (d.signature === 'mirror') drawMime(ctx, f, b, time);
     else drawToon(ctx, f, b, idx, time, W);
+    // Telegraph: the slot the weak spot is about to hop to twinkles (eased bosses only).
+    const nx = f.nextSpots?.[idx];
+    if (nx !== undefined && f.state === 'fight' && !f.stunned) {
+      const rowH = b.h / b.rows;
+      const ny = b.y - b.h / 2 + rowH * (nx + 0.5);
+      const pulse = 0.5 + 0.5 * Math.sin(time * 18);
+      ctx.save();
+      ctx.globalAlpha = 0.12 + 0.18 * pulse;
+      ctx.fillStyle = '#ffe14d';
+      ctx.fillRect(b.x - b.w / 2, ny - rowH * 0.32, b.w, rowH * 0.64);
+      ctx.globalAlpha = 0.6 + 0.4 * pulse;
+      const sx = b.x - b.w / 2 - u(10);
+      const sr = u(7) * (0.8 + 0.4 * pulse);
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = (k * Math.PI) / 4 + time * 3;
+        const rr = k % 2 ? sr * 0.35 : sr;
+        ctx.lineTo(sx + Math.cos(a) * rr, ny + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
   });
   // Comic text bursts (BONK! BOING! HONK!): pop in big, then float up and fade.
   for (const p of f.pops) {
