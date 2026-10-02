@@ -2486,3 +2486,147 @@ html[lang='vi'] #mission-toast,
 html[lang='vi'] #dev-rows li span:not(.dev-lvl) {
   font-family: 'Exo 2', 'Be Vietnam Pro', 'Segoe UI', Roboto, 'Noto Sans', Arial, sans-serif !important;
 }
+
+/* —— GAME SPEED (pause screen only): under the stall door, clear of the HUD and the dimmed
+   stick / BOOST (Game.placeSpeedPanel sets top). —— */
+#speed-ctl {
+  display: none;
+  position: absolute;
+  z-index: 17;
+  left: 50%;
+  top: 60%;
+  transform: translateX(-50%);
+  width: min(340px, calc(100% - 24px));
+  box-sizing: border-box;
+  padding: 6px 10px 8px;
+  border: 2px solid rgba(255, 80, 200, 0.6);
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.9);
+  box-shadow: 0 0 18px rgba(255, 80, 200, 0.25);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+body.speed-open #speed-ctl {
+  display: block;
+}
+#speed-ctl.fast {
+  border-color: rgba(255, 230, 109, 0.85);
+  box-shadow: 0 0 18px rgba(255, 210, 90, 0.35);
+}
+#speed-title {
+  margin: 0 0 1px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255, 157, 232, 0.8);
+}
+#speed-readout {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #ffffff;
+}
+#speed-ctl.fast #speed-readout {
+  color: #ffe66d;
+}
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#speed-ctl .speed-row .diff-btn {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+}
+#speed-ctl.fast .speed-row .diff-btn {
+  border-color: rgba(255, 230, 109, 0.5);
+  color: #ffe66d;
+}
+#speed-range {
+  --fill: 0%;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: none;
+  cursor: pointer;
+}
+#speed-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff4ec8 0 var(--fill), rgba(255, 255, 255, 0.16) var(--fill) 100%);
+}
+#speed-range::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16);
+}
+#speed-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: #ff4ec8;
+}
+#speed-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ff4ec8;
+  box-shadow: 0 0 10px rgba(255, 78, 200, 0.8);
+}
+#speed-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ff4ec8;
+}
+#speed-ctl.fast #speed-range::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, #ffd23f 0 var(--fill), rgba(255, 255, 255, 0.16) var(--fill) 100%);
+}
+#speed-ctl.fast #speed-range::-webkit-slider-thumb {
+  background: #ffd23f;
+  box-shadow: 0 0 10px rgba(255, 210, 63, 0.8);
+}
+#speed-note {
+  margin: 4px 0 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: rgba(255, 230, 109, 0.85);
+}
+#speed-note[hidden] {
+  display: none;
+}
+/* Short (landscape phone) screens: a slimmer GAME SPEED panel. */
+@media (max-height: 480px) {
+  #speed-ctl {
+    padding: 4px 10px 5px;
+  }
+  #speed-title {
+    display: none;
+  }
+  #speed-readout {
+    margin-bottom: 1px;
+  }
+  #speed-note {
+    margin-top: 1px;
+    font-size: 11px;
+  }
+}

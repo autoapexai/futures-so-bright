@@ -8,6 +8,7 @@
 import type { LeaderboardEntry } from './storage';
 import { SCORE_CAP } from './difficulty';
 import { remoteEnabled, rpc } from './remoteBoard';
+import { SPEED_DEFAULT, SPEED_ON_PUBLIC_BOARD, clampSpeed } from './speed';
 
 export const DEV_BOARD_SIZE = 11;
 const FETCH_TIMEOUT_MS = 2500;
@@ -53,6 +54,7 @@ export async function submitDevScore(
   level: number,
   startLevel: number | null,
   timeoutMs = SUBMIT_TIMEOUT_MS,
+  speedTenths: number | null = null,
 ): Promise<{ board: LeaderboardEntry[]; index: number } | null> {
   if (!remoteEnabled) return null;
   try {
@@ -63,6 +65,8 @@ export async function submitDevScore(
       p_level: Math.max(1, Math.min(111, Math.round(level))),
     };
     if (startLevel && startLevel >= 1 && startLevel <= 10 && startLevel <= level) body.p_start = startLevel;
+    // GAME SPEED: sent only once fsb_dev_submit takes p_speed (supabase/fsb_speed_scores.sql).
+    if (SPEED_ON_PUBLIC_BOARD && speedTenths && clampSpeed(speedTenths) !== SPEED_DEFAULT) body.p_speed = clampSpeed(speedTenths);
     return parseDevRows(await rpc('fsb_dev_submit', body, timeoutMs));
   } catch (err) {
     console.warn('[dev board] submit failed, kept on this device:', err);

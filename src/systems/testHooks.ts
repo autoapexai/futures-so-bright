@@ -9,6 +9,7 @@ import { bossPilot, makeSkill, type PilotSkill } from './bossAutopilot';
 import { BOSSES, bossTuning } from './Boss';
 import { mulberry32 } from '../utils/rng';
 import { MODES, MISSION_MODE } from '../utils/modes';
+import { scalePoints } from '../utils/speed';
 
 let pilotOn = false;
 let pilotKeep = false;
@@ -79,6 +80,11 @@ export function installTestHooks(game: unknown): void {
       runSeed: g.runSeed,
       bossesBeaten: g.bossesBeaten,
       charge: g.charge,
+      speedTenths: g.speedTenths,
+      runSpeedMax: g.runSpeedMax,
+      runLocalOnly: g.runLocalOnly,
+      speedPanelOpen: g.speedPanelOpen,
+      distance: g.distance,
       banner: g.bannerT > 0 ? g.bannerText : null,
       promo: g.promoT > 0 ? g.promoTitle : null,
       boss: g.boss
@@ -130,6 +136,24 @@ export function installTestHooks(game: unknown): void {
     missionHit: () => {
       if (g.missionRun) g.missionHit(1, 0.85, 0.12);
     },
+    /** GAME SPEED layout (view units): HUD tag, HUD bottom, touch controls, view size, CSS px per unit. */
+    speedLayout: () => {
+      const cr = g.canvas.getBoundingClientRect();
+      return {
+        tag: g.renderer.speedTagRect ? { ...g.renderer.speedTagRect } : null,
+        hudBottom: g.renderer.hudBottom(g.viewW, g.viewH),
+        controls: g.touchPrimary ? g.touchControlRects() : [],
+        view: { w: g.viewW, h: g.viewH },
+        canvas: { x: cr.left, y: cr.top, w: cr.width, h: cr.height },
+        k: cr.width / g.viewW,
+        door: g.renderer.pauseDoorRect(),
+        panelTopView: g.speedPanelTopView,
+      };
+    },
+    /** GAME SPEED in tenths (same path as the pause slider). */
+    setSpeed: (t: number) => g.setSpeed(t),
+    /** The GAME SPEED points rule (utils/speed.ts), for exact checks. */
+    scalePoints,
     /** Pin the next run's seed. */
     seed: (n: number) => {
       g.forcedSeed = n >>> 0;

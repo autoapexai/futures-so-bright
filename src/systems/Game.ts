@@ -41,6 +41,7 @@ import {
 } from '../utils/storage';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { trackRunStart } from '../utils/track';
+import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed, fmtSpeed, loadSpeed, saveSpeed, scalePoints, speedSubsteps } from '../utils/speed';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
@@ -206,6 +207,16 @@ export class Game {
   private climbTicket: Promise<string | 'denied' | null> | null = null;
   /** This run's score stays on this device's board (level 11 without a server ticket). */
   private runLocalOnly = false;
+  /** GAME SPEED in integer tenths (10 = 1.0 ... 111 = 11.1), saved per device (utils/speed.ts). */
+  private speedTenths = loadSpeed();
+  /** The highest speed this run has used (a run that ever ran above 1.0 is a speed run). */
+  private runSpeedMax = SPEED_DEFAULT;
+  /** The ended run's top speed (sent as p_speed once the server supports it). */
+  private pendingSpeed = SPEED_DEFAULT;
+  private speedPanelOpen = false;
+  private speedPanelKey = '';
+  /** Top of the GAME SPEED panel in view units (the stall door's writing stays above it). */
+  private speedPanelTopView = Infinity;
   /** How to Play walkthrough: -1 = off, else the current step (0-based). Runs in 'playing' state. */
   private tutStep = -1;
   private tutT = 0;
@@ -683,6 +694,34 @@ export class Game {
       this.changeDifficulty(1);
     });
     this.syncDifficultyUi();
+    // GAME SPEED (pause menu): slider + -/+ (0.1 per press), 1.0-11.1.
+    {
+      const range = document.getElementById('speed-range') as HTMLInputElement | null;
+      if (range) {
+        range.min = String(SPEED_MIN);
+        range.max = String(SPEED_MAX);
+        range.step = '1';
+        range.value = String(this.speedTenths);
+        range.addEventListener('input', () => this.setSpeed(Number(range.value)));
+      }
+      const panel = document.getElementById('speed-ctl');
+      for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click'] as const) {
+        panel?.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
+      }
+      bindTap(document.getElementById('speed-minus'), () => this.setSpeed(this.speedTenths - 1));
+      bindTap(document.getElementById('speed-plus'), () => this.setSpeed(this.speedTenths + 1));
+      const syncSpeedStrings = (): void => {
+        const title = document.getElementById('speed-title');
+        if (title) title.textContent = tr('speed_title');
+        document.getElementById('speed-minus')?.setAttribute('aria-label', tr('speed_slower'));
+        document.getElementById('speed-plus')?.setAttribute('aria-label', tr('speed_faster'));
+        range?.setAttribute('aria-label', tr('speed_aria'));
+        this.speedPanelKey = '';
+        this.syncSpeedUi();
+      };
+      syncSpeedStrings();
+      onLang(syncSpeedStrings);
+    }
   }
 
   /**
@@ -1217,6 +1256,7 @@ export class Game {
         }
       }
       this.tick(dt);
+      this.syncSpeedPanel();
       if (this.state === 'paused' && this.pauseDrawn) return;
       this.draw();
       this.pauseDrawn = this.state === 'paused';
@@ -1504,7 +1544,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1582,6 +1622,128 @@ export class Game {
     this.floaters.push(f);
   }
 
+  /** Above 1.0 (and until the server knows about speed) a public-board run stays on this device. */
+  private speedKeepsLocal(): boolean {
+    return !SPEED_ON_PUBLIC_BOARD && this.speedTenths !== SPEED_DEFAULT;
+  }
+
+  /** A run that ever ran above 1.0 is kept off the public board (ON A MISSION: DEV BOARD as ever). */
+  private applySpeedBoardRule(): void {
+    if (!this.missionRun && !SPEED_ON_PUBLIC_BOARD && this.runSpeedMax !== SPEED_DEFAULT) this.runLocalOnly = true;
+  }
+
+  /** GAME SPEED change (pause menu slider / - + / keys). Clamped to 1.0-11.1, saved on this device. */
+  private setSpeed(tenths: number): void {
+    const t = clampSpeed(tenths);
+    if (t !== this.speedTenths) {
+      this.speedTenths = t;
+      saveSpeed(t);
+      this.audio.playUi();
+    }
+    if (this.state === 'playing' || this.state === 'paused') {
+      this.runSpeedMax = Math.max(this.runSpeedMax, t);
+      this.applySpeedBoardRule();
+    }
+    this.pauseDrawn = false;
+    this.syncSpeedUi();
+  }
+
+  /** Readout, slider and -/+ state for the current speed and language. */
+  private syncSpeedUi(): void {
+    const t = this.speedTenths;
+    const s = fmtSpeed(t);
+    const range = document.getElementById('speed-range') as HTMLInputElement | null;
+    if (range && range.value !== String(t)) range.value = String(t);
+    range?.setAttribute('aria-valuetext', tr('speed_readout', { s }));
+    range?.style.setProperty('--fill', `${((t - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100}%`);
+    const out = document.getElementById('speed-readout');
+    if (out) out.textContent = tr('speed_readout', { s });
+    const minus = document.getElementById('speed-minus') as HTMLButtonElement | null;
+    const plus = document.getElementById('speed-plus') as HTMLButtonElement | null;
+    if (minus) minus.disabled = t <= SPEED_MIN;
+    if (plus) plus.disabled = t >= SPEED_MAX;
+    const note = document.getElementById('speed-note');
+    if (note) {
+      const show = !this.missionRun && !SPEED_ON_PUBLIC_BOARD && (t !== SPEED_DEFAULT || this.runSpeedMax !== SPEED_DEFAULT);
+      note.textContent = show ? tr('speed_note') : '';
+      note.hidden = !show;
+    }
+    document.getElementById('speed-ctl')?.classList.toggle('fast', t !== SPEED_DEFAULT);
+  }
+
+  /** The GAME SPEED panel shows on the pause (stall door) screen only, placed under the door. */
+  private syncSpeedPanel(): void {
+    const open = this.state === 'paused' && !this.quitOpen && !this.modesOpen && this.tutStep < 0;
+    if (open !== this.speedPanelOpen) {
+      this.speedPanelOpen = open;
+      document.body.classList.toggle('speed-open', open);
+      const el = document.getElementById('speed-ctl');
+      el?.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (open) this.syncSpeedUi();
+      this.speedPanelKey = '';
+    }
+    if (open) this.placeSpeedPanel();
+  }
+
+  private placeSpeedPanel(): void {
+    const el = document.getElementById('speed-ctl');
+    const app = document.getElementById('app');
+    if (!el || !app) return;
+    const cr = this.canvas.getBoundingClientRect();
+    const ar = app.getBoundingClientRect();
+    const key = `${cr.left},${cr.top},${cr.width},${cr.height},${this.viewW},${this.viewH},${lang()},${this.speedTenths},${this.runSpeedMax}`;
+    if (key === this.speedPanelKey) return;
+    this.speedPanelKey = key;
+    const k = cr.width / this.viewW;
+    const door = this.renderer.pauseDoorRect();
+    const gap = 10;
+    const centre = ar.left + ar.width / 2;
+    const controls = this.touchPrimary
+      ? this.touchControlRects().map((r) => ({ left: cr.left + r.x * k, right: cr.left + (r.x + r.w) * k, top: cr.top + r.y * k, bottom: cr.top + (r.y + r.h) * k }))
+      : [];
+    // Lay the panel out at a width (centred): under the door when it fits, otherwise over the
+    // door's lower half (a sign stuck on it), never lower than the stick / BOOST it would cover.
+    const fit = (half: number): { top: number; ph: number } => {
+      el.style.width = `${Math.floor(half * 2)}px`;
+      this.fitSpeedReadout();
+      const ph = el.offsetHeight;
+      let floor = cr.top + cr.height - 10;
+      for (const c of controls) if (c.right > centre - half && c.left < centre + half) floor = Math.min(floor, c.top - gap);
+      const below = cr.top + (door.y + door.h) * k + gap;
+      const top = below + ph <= floor ? below : Math.max(cr.top + (door.y + door.h * 0.5) * k, floor - ph);
+      return { top, ph };
+    };
+    let half = Math.min(170, (ar.width - 24) / 2);
+    let at = fit(half);
+    // A stick / BOOST zone beside the panel's band (landscape phones): narrow it to fit between.
+    let narrow = half;
+    for (const c of controls) {
+      if (c.bottom <= at.top || c.top >= at.top + at.ph) continue;
+      if (c.right <= centre) narrow = Math.min(narrow, centre - c.right - gap);
+      else if (c.left >= centre) narrow = Math.min(narrow, c.left - centre - gap);
+    }
+    narrow = Math.max(130, narrow);
+    if (narrow < half) {
+      half = narrow;
+      at = fit(half);
+    }
+    el.style.top = `${Math.round(at.top - ar.top)}px`;
+    this.speedPanelTopView = (at.top - cr.top) / k;
+    this.pauseDrawn = false;
+  }
+
+  /** Shrink the readout's font a little if a long translation would overflow the panel. */
+  private fitSpeedReadout(): void {
+    const out = document.getElementById('speed-readout');
+    if (!out) return;
+    out.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(out).fontSize) || 13;
+    while (out.scrollWidth > out.clientWidth + 1 && size > 9) {
+      size -= 0.5;
+      out.style.fontSize = `${size}px`;
+    }
+  }
+
   private togglePause(): void {
     if (this.modesOpen) return;
     if (this.state === 'paused' && this.quitOpen) this.closeQuitConfirm();
@@ -1607,6 +1769,11 @@ export class Game {
       return;
     }
     if (this.ticketPending) return;
+    if (this.difficulty === SECRET_DIFFICULTY && this.speedKeepsLocal()) {
+      // A speed run stays on this device: no ticket request (no server write) at all.
+      this.startRun(SECRET_DIFFICULTY, null, true);
+      return;
+    }
     if (this.difficulty === SECRET_DIFFICULTY && remoteEnabled) {
       // Difficulty 11 needs a server ticket (the #1's selector perk; shows the clone card).
       this.requestElevenRun();
@@ -1624,7 +1791,7 @@ export class Game {
   private startCloneRun(): void {
     if (this.state !== 'title' && this.state !== 'gameover') return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
-    if (!remoteEnabled) {
+    if (!remoteEnabled || this.speedKeepsLocal()) {
       this.startRun(SECRET_DIFFICULTY, null, true);
       return;
     }
@@ -1653,6 +1820,8 @@ export class Game {
       void this.refreshDevBoard();
     }
     this.runLocalOnly = localOnly;
+    this.runSpeedMax = this.speedTenths;
+    this.applySpeedBoardRule();
     this.audio.playStart();
     this.state = 'playing';
     this.setBodyFlags();
@@ -1781,6 +1950,7 @@ export class Game {
     this.pendingMode = this.mode ? this.mode.id : null;
     this.pendingModes = Math.max(1, this.modesUsed.size);
     this.pendingStart = this.runStartLevel;
+    this.pendingSpeed = this.runSpeedMax;
     stopSpeech();
     this.announce(tr('sr_end', { v: this.victory ? tr('sr_victory') : tr('sr_gameover'), s: fmtNum(this.pendingScore), d: this.pendingDifficulty }));
     if (!this.victory) {
@@ -1883,7 +2053,7 @@ export class Game {
     this.setBodyFlags();
     this.input.clearTouch();
     this.input.clearJustPressed();
-    void submitDevScore(initials, score, runMs, level, start).then((res) => {
+    void submitDevScore(initials, score, runMs, level, start, undefined, this.pendingSpeed).then((res) => {
       if (res) this.devBoard = res.board;
       if (id !== this.runId || this.state !== 'gameover') return;
       if (res) {
@@ -1912,6 +2082,7 @@ export class Game {
     const endMode = this.pendingMode;
     const modeCount = this.pendingModes;
     const startLevel = this.pendingStart;
+    const speed = this.pendingSpeed;
     const id = this.runId;
     // Always keep this device's board (offline fallback + personal best).
     const local = addEntry(score, initials, undefined, difficulty, this.pendingStart);
@@ -1935,7 +2106,7 @@ export class Game {
 
     if (!remoteEnabled || this.runLocalOnly) return;
     void (ticketReq ?? Promise.resolve(null))
-      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel))
+      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel, speed))
       .then((res) => {
       if (res?.claimToken) addClaimToken(res.claimToken);
       if (res) this.remoteBoard = res.board;
@@ -2116,6 +2287,11 @@ export class Game {
     }
 
     if (this.state === 'paused') {
+      // GAME SPEED keys on the pause screen: [ / - slower, ] / = / + faster (0.1 each).
+      if (this.speedPanelOpen) {
+        if (this.input.consume('[') || this.input.consume('-') || this.input.consume('_')) this.setSpeed(this.speedTenths - 1);
+        else if (this.input.consume(']') || this.input.consume('=') || this.input.consume('+')) this.setSpeed(this.speedTenths + 1);
+      }
       this.input.clearJustPressed();
       return;
     }
@@ -2198,7 +2374,45 @@ export class Game {
       this.a11yT = 3;
       this.announce(tr('sr_score', { s: fmtNum(this.score), d: this.runDifficulty }));
     }
+    this.stepPlayFrame(dt);
+  }
 
+  /**
+   * One frame of play at the GAME SPEED: speed x the frame's game time, split into substeps that
+   * are never longer than a 1.0 frame (see utils/speed.ts). At 1.0 it is exactly one step of dt.
+   * Menus, interstitials (promotion, continue, cat, photo) and the walkthrough stay real time.
+   */
+  private stepPlayFrame(dt: number): void {
+    const t = this.speedTenths;
+    if (t === SPEED_DEFAULT) {
+      this.stepPlay(dt, dt);
+      return;
+    }
+    const n = speedSubsteps(t);
+    const sub = (dt * t) / 10 / n;
+    const real = dt / n;
+    for (let i = 0; i < n; i++) {
+      this.stepPlay(sub, real);
+      if (!this.playStepLive()) break;
+    }
+  }
+
+  /** The run is still in plain play after a substep (no game over, level-clear card, pause ...). */
+  private playStepLive(): boolean {
+    return (
+      this.state === 'playing' &&
+      !this.quitOpen &&
+      this.tutStep < 0 &&
+      this.continueT <= 0 &&
+      this.promoT <= 0 &&
+      this.photoT <= 0 &&
+      this.prizeT <= 0 &&
+      this.catT <= 0
+    );
+  }
+
+  /** One play substep: dt = game time, realDt = the wall-clock share (on-screen text timers). */
+  private stepPlay(dt: number, realDt: number): void {
     this.runTime += dt;
     // Every level 1-111 is a 30 s stage: passing it promotes to the next level (score carries
     // over; gold levels 11+ also multiply the clone swarm). Exactly one level per pass.
@@ -2217,7 +2431,7 @@ export class Game {
         if (this.clearStage()) return;
       }
     }
-    this.bannerT = Math.max(0, this.bannerT - dt);
+    this.bannerT = Math.max(0, this.bannerT - realDt);
     this.toastT = Math.max(0, this.toastT - dt);
     this.spinT = Math.max(0, this.spinT - dt);
     this.shieldT = Math.max(0, this.shieldT - dt);
@@ -2294,8 +2508,8 @@ export class Game {
       let w = 0;
       for (let i = 0; i < fs.length; i++) {
         const f = fs[i];
-        f.y -= 40 * dt;
-        f.life -= dt;
+        f.y -= 40 * realDt;
+        f.life -= realDt;
         if (f.life > 0) fs[w++] = f;
         else this.floaterPool.push(f);
       }
@@ -2305,7 +2519,7 @@ export class Game {
     this.distance += this.scrollSpeed * dt * 0.35;
     // The stage ramp holds while a boss is up (a long fight must not run the scroll away).
     if (!this.boss) this.stageDist += this.scrollSpeed * dt * 0.35;
-    this.score += (this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts;
+    this.score += scalePoints((this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts, this.speedTenths);
     if (this.score > SCORE_CAP) this.score = SCORE_CAP;
 
     // shade drain
@@ -2349,7 +2563,7 @@ export class Game {
           continue;
         }
         this.charge = clamp(this.charge + 0.22, 0, 1);
-        this.score += c.value * pts;
+        this.score += scalePoints(c.value * pts, this.speedTenths);
         if (this.score > SCORE_CAP) this.score = SCORE_CAP;
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
@@ -2766,9 +2980,10 @@ export class Game {
       this.toastT = TOASTER_SECONDS;
       this.player.vx += 900;
       this.player.invuln = Math.max(this.player.invuln, 1.5);
-      this.score += TOASTER_POINTS * pts;
+      const toast = scalePoints(TOASTER_POINTS * pts, this.speedTenths);
+      this.score += toast;
       if (this.score > SCORE_CAP) this.score = SCORE_CAP;
-      this.spawnFloater(x, y - 24, tr('fl_toasted', { n: Math.round(TOASTER_POINTS * pts) }), '#ffb347');
+      this.spawnFloater(x, y - 24, tr('fl_toasted', { n: fmtNum(Math.round(toast)) }), '#ffb347');
       this.particles.burst(x, y, '#ffb347', this.touchPrimary ? 10 : 22, 260);
     } else if (kind === 'blender') {
       this.spinT = BLENDER_SECONDS;
@@ -2916,14 +3131,19 @@ export class Game {
           this.renderer.bumpFlash(0.25);
           break;
         case 'defeated':
-          // Flat bonus, not multiplied, still capped.
-          this.score = Math.min(SCORE_CAP, this.score + BOSS_BONUS);
+          // Flat bonus (no level multiplier) times the GAME SPEED, still capped.
+          this.score = Math.min(SCORE_CAP, this.score + scalePoints(BOSS_BONUS, this.speedTenths));
           this.bossesBeaten++;
           this.audio.playPromote();
           this.renderer.bumpShake(16);
           this.renderer.bumpFlash(0.6);
           this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 24 : 60, 360);
-          this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, tr('fl_million'), '#ffe66d');
+          this.spawnFloater(
+            bf.main.x - bf.main.w,
+            bf.main.y,
+            this.speedTenths === SPEED_DEFAULT ? tr('fl_million') : `+${fmtNum(scalePoints(BOSS_BONUS, this.speedTenths))}`,
+            '#ffe66d',
+          );
           this.bannerText = tr('banner_beaten', { b: bf.def.name });
           this.bannerT = BANNER_SECONDS;
           break;
@@ -3408,6 +3628,7 @@ export class Game {
               : this.mode
               ? { level: this.runDifficulty, ships: this.ships }
               : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
+        this.tutStep < 0 && this.speedTenths !== SPEED_DEFAULT ? tr('hud_speed', { s: fmtSpeed(this.speedTenths) }) : null,
       );
       if (this.tutStep >= 0) {
         const tt = this.tutorialText();
@@ -3432,7 +3653,7 @@ export class Game {
       if (this.quitOpen || this.modesOpen) {
         ctx.fillStyle = 'rgba(5, 0, 18, 0.65)';
         ctx.fillRect(0, 0, this.viewW, this.viewH);
-      } else this.renderer.drawPause(ctx);
+      } else this.renderer.drawPause(ctx, this.speedPanelOpen ? this.speedPanelTopView : Infinity);
     }
     if (this.state === 'initials') {
       this.renderer.drawInitialsEntry(

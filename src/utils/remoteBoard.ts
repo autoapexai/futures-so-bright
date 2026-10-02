@@ -6,6 +6,7 @@
 import type { LeaderboardEntry } from './storage';
 import { SCORE_CAP } from './difficulty';
 import { MISSION_MODE } from './modes';
+import { SPEED_DEFAULT, SPEED_ON_PUBLIC_BOARD, clampSpeed } from './speed';
 
 const MAX_BOARD = 11;
 const FETCH_TIMEOUT_MS = 2500;
@@ -105,6 +106,7 @@ export async function submitRemoteScore(
   endMode: string | null = null,
   modeCount = 1,
   startLevel: number | null = null,
+  speedTenths: number | null = null,
 ): Promise<{ board: LeaderboardEntry[]; index: number; claimToken: string | null } | null> {
   if (!remoteEnabled) return null;
   // ON A MISSION scores never go to the public board (they go to the DEV BOARD, utils/devBoard.ts).
@@ -121,6 +123,9 @@ export async function submitRemoteScore(
     if (endMode) body.p_mode = endMode;
     body.p_modes = Math.max(1, Math.min(13, Math.floor(modeCount)));
     if (startLevel && startLevel >= 1 && startLevel <= 11 && startLevel <= difficulty) body.p_start = startLevel;
+    // GAME SPEED (the run's top speed, tenths): only once the server knows p_speed
+    // (supabase/fsb_speed_scores.sql). Until then the body is exactly today's.
+    if (SPEED_ON_PUBLIC_BOARD && speedTenths && clampSpeed(speedTenths) !== SPEED_DEFAULT) body.p_speed = clampSpeed(speedTenths);
     const data = await rpc('fsb_submit_score', body, timeoutMs);
     return parseRows(data);
   } catch (err) {

@@ -70,6 +70,16 @@
         <span id="diff-label" aria-live="polite"><span id="diff-main">DIFFICULTY 1</span><span class="diff-sep"> · </span><span id="diff-mult">0.6x</span></span>
         <button type="button" id="diff-plus" class="diff-btn" aria-label="Harder" title="Harder ( ] or = )" draggable="false" style="touch-action:none">+</button>
       </div>
+      <div id="speed-ctl" role="group" aria-labelledby="speed-title" aria-hidden="true">
+        <p id="speed-title">GAME SPEED</p>
+        <p id="speed-readout" aria-live="polite">SPEED 1.0 · 1.0x POINTS</p>
+        <div class="speed-row">
+          <button type="button" id="speed-minus" class="diff-btn" aria-label="Slower (0.1)" title="Slower ( [ or - )" draggable="false" style="touch-action:none">&minus;</button>
+          <input type="range" id="speed-range" min="10" max="111" step="1" value="10" aria-label="Game speed" />
+          <button type="button" id="speed-plus" class="diff-btn" aria-label="Faster (0.1)" title="Faster ( ] or = )" draggable="false" style="touch-action:none">+</button>
+        </div>
+        <p id="speed-note" hidden></p>
+      </div>
       <div id="eleven-fx" aria-hidden="true">
         <div class="fx-backdrop"></div>
         <div class="fx-flare"></div>

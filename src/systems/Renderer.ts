@@ -625,7 +625,9 @@ export class Renderer {
     charge: number,
     distance: number,
     levelInfo: LevelInfo | null = null,
+    speedTag: string | null = null,
   ): void {
+    this.speedTagRect = null;
     const W = this.W;
     const big = this.touchUi;
     const portrait = this.H > this.W * 1.1;
@@ -661,7 +663,8 @@ export class Renderer {
       );
       ctx.fillText(tr('hud_best', { s: fmtScore(high), d: Math.floor(distance) }), left, top + this.u(50));
       this.drawChargeBar(ctx, left, rightBound, top + this.u(68), charge);
-      if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(102), 'left', this.u(16), maxTw);
+      const end = levelInfo ? this.drawLevelTag(ctx, levelInfo, left, top + this.u(102), 'left', this.u(16), maxTw) : left;
+      if (speedTag) this.drawSpeedTagFit(ctx, speedTag, end + this.u(10), rightBound, top + this.u(102), this.u(12));
     } else if (big) {
       // Landscape / short: two-line HUD so mute/pause chrome never eats the score.
       const top = this.padTop + this.u(10);
@@ -694,7 +697,8 @@ export class Renderer {
         top + this.u(38),
       );
       this.drawChargeBar(ctx, left, rightBound, top + this.u(44), charge);
-      if (levelInfo) this.drawLevelTag(ctx, levelInfo, left, top + this.u(82), 'left', this.u(14), maxTw);
+      const end = levelInfo ? this.drawLevelTag(ctx, levelInfo, left, top + this.u(82), 'left', this.u(14), maxTw) : left;
+      if (speedTag) this.drawSpeedTagFit(ctx, speedTag, end + this.u(12), rightBound, top + this.u(82), this.u(12));
     } else {
       ctx.font = `700 ${this.u(18)}px 'Rajdhani', sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -710,7 +714,71 @@ export class Renderer {
         // Under BEST on the left (the top-right corner belongs to the mute / pause buttons).
         this.drawLevelTag(ctx, levelInfo, left, this.padTop + this.u(78), 'left', this.u(15), W * 0.34);
       }
+      // GAME SPEED tag: under the shade bar, centred (clear of SCORE / BEST and the corner buttons).
+      if (speedTag) this.drawSpeedTag(ctx, speedTag, W / 2, this.padTop + this.u(50), this.u(12), 'center', false);
     }
+    ctx.restore();
+  }
+
+  /**
+   * GAME SPEED tag on a touch HUD row: the full "SPEED 5.5x" pill if it fits between minX (the end
+   * of the LVL / dogs line) and maxX, else the compact "▶▶ 5.5x" pill, right-aligned at maxX.
+   */
+  /** Last GAME SPEED tag drawn (view units; layout checks in tests). */
+  speedTagRect: { x: number; y: number; w: number; h: number; text: string } | null = null;
+
+  private drawSpeedTagFit(ctx: CanvasRenderingContext2D, full: string, minX: number, maxX: number, y: number, size: number): void {
+    const compact = full.replace(/^[^0-9]*/, '');
+    if (this.speedTagWidth(ctx, full, size, false) <= maxX - minX) this.drawSpeedTag(ctx, full, maxX, y, size, 'right', false);
+    else this.drawSpeedTag(ctx, compact, maxX, y, size, 'right', true);
+  }
+
+  private speedTagWidth(ctx: CanvasRenderingContext2D, text: string, size: number, icon: boolean): number {
+    ctx.save();
+    ctx.font = `800 ${size}px 'Orbitron', sans-serif`;
+    const tw = ctx.measureText(text).width;
+    ctx.restore();
+    return tw + size * 1.2 + (icon ? size * 1.25 : 0);
+  }
+
+  /**
+   * Small gold pill (HUD, only when the GAME SPEED isn't 1.0): "SPEED 5.5x", or with icon a
+   * drawn fast-forward mark and "5.5x". x is its right edge (or centre); y the text baseline.
+   */
+  private drawSpeedTag(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, align: 'right' | 'center', icon: boolean): void {
+    ctx.save();
+    const w = this.speedTagWidth(ctx, text, size, icon);
+    ctx.font = `800 ${size}px 'Orbitron', sans-serif`;
+    const h = size * 1.55;
+    const left = align === 'right' ? x - w : x - w / 2;
+    const top = y - size * 1.12;
+    this.speedTagRect = { x: left, y: top, w, h, text };
+    ctx.fillStyle = 'rgba(20, 8, 0, 0.72)';
+    ctx.strokeStyle = 'rgba(255, 210, 90, 0.9)';
+    ctx.lineWidth = Math.max(1, size * 0.11);
+    roundRect(ctx, left, top, w, h, h / 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffe66d';
+    let tx = left + size * 0.6;
+    if (icon) {
+      // Two small triangles (fast forward).
+      const th = size * 0.7;
+      const cy = top + h / 2;
+      for (let k = 0; k < 2; k++) {
+        const ax = tx + k * th * 0.62;
+        ctx.beginPath();
+        ctx.moveTo(ax, cy - th / 2);
+        ctx.lineTo(ax + th * 0.62, cy);
+        ctx.lineTo(ax, cy + th / 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+      tx += size * 1.25;
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, tx, top + h / 2 + size * 0.38);
     ctx.restore();
   }
 
@@ -731,7 +799,7 @@ export class Renderer {
     align: CanvasTextAlign,
     size: number,
     maxW: number,
-  ): void {
+  ): number {
     // "LVL 10  ·  1 dog": the count and the word are drawn apart (count in Orbitron, word in a
     // different face, size and colour), so "1 DOG" can never read as "100G" in Orbitron.
     const lvl = info.ships > 0 || info.label ? `${tr('hud_lvl', { n: info.level })}  ·  ` : tr('hud_lvl', { n: info.level });
@@ -772,7 +840,9 @@ export class Renderer {
         ctx.drawImage(shipSprite(b, { flame: false, accent: '#ffe66d' }), ix, cy - ih / 2, iw, ih);
         ix += iw + this.u(4);
       }
+      return ix;
     }
+    return tx;
   }
 
   /** Level-up banner, e.g. "LEVEL 12 · 2 SHIPS"; `t` counts down from `dur` seconds. */
@@ -1231,16 +1301,23 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawPause(ctx: CanvasRenderingContext2D): void {
+  /** The pause screen's stall door (view units); the GAME SPEED panel is placed from it. */
+  pauseDoorRect(): { x: number; y: number; w: number; h: number } {
+    const dw = Math.min(this.W * 0.72, this.u(330));
+    const dh = Math.min(this.H * 0.62, this.u(300));
+    const dx = this.W / 2 - dw / 2;
+    const dy = Math.max(this.padTop + this.u(70), this.H * 0.42 - dh * 0.55);
+    return { x: dx, y: dy, w: dw, h: dh };
+  }
+
+  /** panelTop (view units): where the GAME SPEED panel starts; door text moves above it. */
+  drawPause(ctx: CanvasRenderingContext2D, panelTop = Infinity): void {
     const big = this.touchUi;
     ctx.fillStyle = 'rgba(5, 0, 18, 0.65)';
     ctx.fillRect(0, 0, this.W, this.H);
     {
       // Bathroom stall door, pushed slightly open, with crayon writing (silliness pack).
-      const dw = Math.min(this.W * 0.72, this.u(330));
-      const dh = Math.min(this.H * 0.62, this.u(300));
-      const dx = this.W / 2 - dw / 2;
-      const dy = Math.max(this.padTop + this.u(70), this.H * 0.42 - dh * 0.55);
+      const { x: dx, y: dy, w: dw, h: dh } = this.pauseDoorRect();
       ctx.save();
       ctx.translate(dx, dy);
       ctx.transform(0.94, -0.03, 0, 1, 0, 0);
@@ -1274,9 +1351,13 @@ export class Renderer {
         fillMax(ctx, txt, 1.2, 0.8, dw * 0.9);
         ctx.restore();
       };
-      crayon(tr('door_paused'), dw / 2, dh * 0.42, this.u(34), '#c81e1e', -0.04);
-      crayon(big ? tr('door_tap') : tr('door_keys'), dw / 2, dh * 0.62, this.u(big ? 18 : 15), '#1d4ed8', 0.03);
-      crayon(tr('door_fsb'), dw * 0.3, dh * 0.86, this.u(11), '#136c33', -0.1);
+      // The GAME SPEED panel may cover the door's lower part (short landscape screens): then the
+      // writing moves up into the part still showing (and the FSB scribble is skipped).
+      const open = Math.min(dh, panelTop - dy);
+      const k = open < dh * 0.95 ? Math.max(0.5, open / dh) : 1;
+      crayon(tr('door_paused'), dw / 2, k < 1 ? open * 0.5 : dh * 0.42, this.u(k < 1 ? 30 : 34), '#c81e1e', -0.04);
+      crayon(big ? tr('door_tap') : tr('door_keys'), dw / 2, k < 1 ? open * 0.82 : dh * 0.62, this.u(big ? 18 : 15), '#1d4ed8', 0.03);
+      if (k === 1) crayon(tr('door_fsb'), dw * 0.3, dh * 0.86, this.u(11), '#136c33', -0.1);
       ctx.restore();
       return;
     }
