@@ -2,15 +2,24 @@
 import { BOSSES, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossTuning } from '../src/systems/Boss';
 import { bossPilot, makeSkill } from '../src/systems/bossAutopilot';
 
-const W = 844, top = 70, bottom = 360, dt = 1 / 60;
-function fight(def: (typeof BOSSES)[number], seed: number) {
+const dt = 1 / 60;
+interface Lane { W: number; top: number; bottom: number; px: number }
+const LANDSCAPE: Lane = { W: 844, top: 70, bottom: 360, px: 160 };
+/** A 390x844 phone held upright: HUD reserve on top, touch-control reserve at the bottom. */
+const PORTRAIT: Lane = { W: 390, top: 70, bottom: 658, px: 70 };
+/**
+ * One fight. `speed` is the GAME SPEED: the sim runs in game time, and the bot's human-ish
+ * re-plan lag (0.2 s of wall-clock time) becomes 0.2 x speed of game time.
+ */
+function fight(def: (typeof BOSSES)[number], seed: number, lane: Lane = LANDSCAPE, speed = 1) {
+  const { W, top, bottom, px } = lane;
   const f = new BossFight(def, seed);
   let py = (top + bottom) / 2, vy = 0, charge = 1, hits = 0, inv = 0;
-  const px = 160, halfH = 16;
+  const halfH = 16;
   const rings: { x: number; y: number }[] = [];
   let t = 0;
   let r = seed >>> 0;
-  const sk = makeSkill(() => ((r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296));
+  const sk = makeSkill(() => ((r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296), 0.2 * speed);
   while (f.state !== 'gone' && t < 400) {
     t += dt;
     const pl = bossPilot(f, { px, py, halfH, top, bottom, charge, rings }, sk, dt);
@@ -19,7 +28,7 @@ function fight(def: (typeof BOSSES)[number], seed: number) {
     py = Math.max(top + halfH, Math.min(bottom - halfH, py + vy * dt));
     charge = Math.min(1, charge - (pl.boost ? 0.14 : 0.048) * dt + 0.07 * dt);
     if (charge < 0) charge = 0;
-    f.update({ dt, W, top, bottom, px, py, packH: halfH * 2, boosting: pl.boost });
+    f.update({ dt, W, top, bottom, px, py, packH: halfH * 2, boosting: pl.boost, ...(speed !== 1 ? { speed } : {}) });
     for (const e of f.events) if (e.type === 'ring') rings.push({ x: e.x, y: e.y });
     f.events.length = 0;
     for (const r of rings) r.x -= 260 * dt;
@@ -37,12 +46,31 @@ function fight(def: (typeof BOSSES)[number], seed: number) {
   }
   return { t: f.endT, won: f.hp <= 0, hits };
 }
+const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => 1000 + s * 7919);
 const rows = [];
 for (const def of BOSSES) {
   const tu = bossTuning(def.rank);
-  const res = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => fight(def, 1000 + s * 7919));
+  const res = SEEDS.map((s) => fight(def, s));
   const won = res.filter((r) => r.won);
   const mean = won.reduce((a, r) => a + r.t, 0) / Math.max(1, won.length);
   rows.push({ L: def.level, boss: def.modeId, hp: tu.hp, fire: tu.fireEvery, volley: tu.volley, speed: tu.shotSpeed, stun: tu.stun, bored: tu.bored, win: `${won.length}/8`, fightS: +mean.toFixed(1), hitsAvg: +(res.reduce((a, r) => a + r.hits, 0) / 8).toFixed(1) });
 }
 console.table(rows);
+
+// Fairness: the eased bosses (L60, L90 = the bar; L111 = the final boss) on both phone
+// orientations and at GAME SPEED 1.0 / 5.5 / 11.1 (the bot's reaction lag scales with speed).
+// fightS is game time, realS the wall-clock length of the fight at that speed.
+const fair = [];
+for (const lvl of [60, 90, 111]) {
+  const def = BOSSES.find((b) => b.level === lvl);
+  if (!def) continue;
+  for (const [lname, lane] of [['landscape', LANDSCAPE], ['portrait', PORTRAIT]] as const) {
+    for (const speed of [1, 5.5, 11.1]) {
+      const res = SEEDS.map((s) => fight(def, s, lane, speed));
+      const won = res.filter((r) => r.won);
+      const mean = won.reduce((a, r) => a + r.t, 0) / Math.max(1, won.length);
+      fair.push({ L: lvl, boss: def.name, lane: lname, speed, win: `${won.length}/8`, fightS: +mean.toFixed(1), realS: +(mean / speed).toFixed(1), hitsAvg: +(res.reduce((a, r) => a + r.hits, 0) / 8).toFixed(1) });
+    }
+  }
+}
+console.table(fair);

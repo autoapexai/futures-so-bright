@@ -20,7 +20,7 @@ import { mulberry32, shuffle, subSeed, type Rng } from '../utils/rng';
 import { MAX_LEVEL } from '../utils/difficulty';
 import { groceryTaunt } from './silly';
 import { hasCjk, t as tr, tp } from '../i18n';
-import { TOON_POPS, TOON_SKINS, drawToon, drawToonShot, hasToon } from './bossToons';
+import { TOON_POPS, TOON_SKINS, drawMindShot, drawToon, drawToonShot, hasToon } from './bossToons';
 import { drawMime, drawMimeShot } from './bossMime';
 
 /** Flat points for beating any boss (not multiplied; the score is still clamped to SCORE_CAP). */
@@ -43,9 +43,9 @@ export type Signature =
   | 'bang'
   | 'homing'
   | 'behind'
-  | 'storm';
+  | 'mind';
 
-type Pattern = 'aimed' | 'spray' | 'wall' | 'mirror' | 'slam' | 'rain' | 'kick' | 'blink' | 'split' | 'homing' | 'behind' | 'dots' | 'buckles' | 'glitch' | 'static' | 'countdown' | 'lasso' | 'tumble' | 'chicken';
+type Pattern = 'aimed' | 'spray' | 'wall' | 'mirror' | 'slam' | 'rain' | 'kick' | 'blink' | 'split' | 'homing' | 'behind' | 'dots' | 'buckles' | 'glitch' | 'static' | 'countdown' | 'lasso' | 'tumble' | 'chicken' | 'wave' | 'beam';
 
 export interface BossDef {
   level: number;
@@ -138,11 +138,12 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
     patterns: ['behind', 'aimed', 'wall'],
     taunts: ['WRONG. ALL OF IT.', 'I DISAGREE WITH YOUR DODGING.', 'LOOK BEHIND YOU.', 'HEAVENS, NO.'],
   },
+  // Level 111: ULTRA CONSCIOUSNESS, the final boss (replaces THE GRAND CORKBOARD; see bossToons.ts).
   itm: {
-    signature: 'storm',
-    blurb: 'THE GRAND CORKBOARD: a googly-eyed corkboard with a cat magnet pinning a Duchess polaroid; thumbtack storms, sticky notes, paper balls that burst into rubber bands, paperclips from behind; gold-push-pin weak spot',
-    patterns: ['dots', 'homing', 'behind', 'split', 'wall', 'aimed'],
-    taunts: ['IN THE MORNING. ALL OF US.', 'PINNED IT.', 'THE FINAL CORKBOARD.', 'LEVEL 111 IS MINE.'],
+    signature: 'mind',
+    blurb: 'ULTRA CONSCIOUSNESS: a giant googly-eyed synthwave brain in a propeller thinking cap, floating on a neon sunset orb; thought-wave rings with a telegraphed safe gap, telegraphed psychic beams, lightbulb ideas, question-mark thought bubbles; golden "big idea" lightbulb weak spot',
+    patterns: ['wave', 'beam', 'aimed', 'spray'],
+    taunts: ['I KNOW WHAT YOU ARE THINKING.', 'BIG BRAIN TIME.', 'THINK FAST.', 'LEVEL 111 IS ALL IN YOUR HEAD.'],
   },
 };
 
@@ -163,7 +164,7 @@ const CHARACTERS: Record<string, { name: string; tint: string; style: ModeStyle 
   cbb: { name: 'CAPTAIN KABOOM', tint: '#ff5a5a', style: 'solid' },
   curry: { name: 'DJ CHANNEL ZAPP', tint: '#20e0d0', style: 'solid' },
   dvorak: { name: 'ANGEL CONTRARIEL', tint: '#fff2b0', style: 'solid' },
-  itm: { name: 'THE GRAND CORKBOARD', tint: '#d9a86b', style: 'solid' },
+  itm: { name: 'ULTRA CONSCIOUSNESS', tint: '#ff5cf0', style: 'solid' },
 };
 
 export const BOSSES: readonly BossDef[] = ORDER.map((id, i) => {
@@ -266,28 +267,40 @@ export interface BossEase {
   ringNear?: number;
   /** Stun-length multiplier on tall (portrait) lanes only. */
   tallStun?: number;
+  /**
+   * Real-time floors at high GAME SPEED, in wall-clock seconds: attack telegraphs, the weak-spot
+   * hop telegraph and the weak-spot dwell never get shorter than this on screen (at 1.0 the
+   * game-time values are longer, so nothing changes there).
+   */
+  realTele?: number;
+  realSpot?: number;
+  realDwell?: number;
+  /** Real-time floor between volleys (wall-clock s) and cap on on-screen shot speed (px per wall-clock s). */
+  realFire?: number;
+  realShot?: number;
 }
 
 /**
- * Per-boss easing on top of the rank curve (Dan-approved, L60 and L90 only; every other boss
+ * Per-boss easing on top of the rank curve (Dan-approved, L60, L90 and L111 only; every other boss
  * uses the plain curve). TOO SUCCESSFUL: coin rain falls slanted (slant = sideways speed as a
  * fraction of the fall speed) with one more coin per shower to keep the pressure. COMEDY BANG
  * BANG: one BANG shell per volley instead of two or three, bursting about 40% of the way to the
  * pack into slightly slower pieces, plus less HP, a slower trigger and smaller aimed fans.
  *
- * L90 CAPTAIN KABOOM and L111 THE GRAND CORKBOARD also get tall-lane (portrait) fixes, which
+ * L90 CAPTAIN KABOOM and L111 ULTRA CONSCIOUSNESS also get tall-lane (portrait) fixes, which
  * leave the short landscape lane as it was: the slot the weak spot is about to hop to twinkles
  * first (tele), hops stay short in pixels (hopPx), stun rings turn up within reach of the pack
- * (ringNear). The corkboard's shots also don't speed up for the tall lane (spdCap), it stays
- * dizzy 5% longer there (tallStun), and it keeps wider
- * gaps in its index-card walls and tack storms (gap), its sticky notes stop homing when close
- * (lock), and its paper balls burst 40% of the way to the pack (bang/burst). Its HP, fire rate,
- * volleys and pattern list are untouched, so it stays the hardest fight.
+ * (ringNear). The brain's shots also don't speed up for the tall lane (spdCap) and it stays
+ * dizzy 5% longer there (tallStun), as the corkboard it replaces did. Its signature attacks are
+ * telegraphed by design (thought waves show their safe gap, psychic beams show their lane, and
+ * neither overlaps another volley), and at high GAME SPEED every telegraph and the weak-spot
+ * dwell keep a wall-clock floor (realTele / realSpot / realDwell) so they stay readable at 11.1.
+ * HP, fire rate and volleys are the plain rank-12 curve, so it stays the hardest fight.
  */
 export const EASE: Record<string, BossEase> = {
   toosuccessful: { slant: 0.4, extra: 1 },
   cbb: { hp: 0.8, fire: 1.3, volley: 0.75, big: 1, bang: true, tele: 0.5, hopPx: 230, ringNear: 380 },
-  itm: { tele: 0.6, hopPx: 120, ringNear: 130, spdCap: 0.8, gap: 0.4, lock: 420, bang: true, burst: 0.4, tallStun: 1.05 },
+  itm: { tele: 0.6, hopPx: 120, ringNear: 130, spdCap: 0.8, tallStun: 1.05, realTele: 0.5, realSpot: 0.35, realDwell: 0.9, realFire: 0.4, realShot: 1200 },
 };
 const easeOf = (id: string): BossEase => EASE[id] ?? {};
 
@@ -311,13 +324,29 @@ export interface BossShot {
   vx: number;
   vy: number;
   r: number;
-  kind: 'orb' | 'dot' | 'coin' | 'pie' | 'glove' | 'balloon' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso';
+  kind: 'orb' | 'dot' | 'coin' | 'pie' | 'glove' | 'balloon' | 'blink' | 'split' | 'homing' | 'warn' | 'buckle' | 'num' | 'static' | 'glitch' | 'tumble' | 'chicken' | 'lasso' | 'wave' | 'beam';
   /** Visual-only costume (horseshoe, rubber duck, cassette...): physics and hit radius unchanged. */
   skin?: string;
   /** Homing shot that has lost its lock (flies straight on). */
   lost?: boolean;
   /** BANG BANG: shot age (s) at which a big shot bursts into three. */
   burst?: number;
+  /**
+   * ULTRA CONSCIOUSNESS thought wave: a ring expanding from (x, y) at `vr` px/s (radius `rad`,
+   * half thickness `r`) over the left half-plane, broken by a safe corridor: the band of heights
+   * gy +- gh/2 (px), at any distance, so a pack anywhere in that band is never hit however wide
+   * the swarm is. It is harmless while t < 0 (the telegraph), and `tele` is that telegraph's
+   * length. gx: the pack's column as aimed (where the telegraph brackets the corridor).
+   * Psychic beam: a band from x = 0 to x at height y (half height r), harmless while t < 0.
+   */
+  rad?: number;
+  vr?: number;
+  gx?: number;
+  gy?: number;
+  gh?: number;
+  tele?: number;
+  /** A wave / beam that already hit something: still drawn (dim), no longer harmful. */
+  spent?: boolean;
   t: number;
   life: number;
   alive: boolean;
@@ -375,6 +404,8 @@ export interface BossInput {
   boosting: boolean;
   /** Keep the boss left of this x (the touch controls on sideways screens); defaults to W. */
   right?: number;
+  /** GAME SPEED multiplier (1 = normal; dt is already scaled by it). Used for real-time floors. */
+  speed?: number;
 }
 
 const BARK_EVERY = 0.2;
@@ -448,6 +479,8 @@ export class BossFight {
   tangleT = 0;
   /** Local player-history jabs folded into the grocery-list taunts. */
   jabs: string[] = [];
+  /** GAME SPEED multiplier from the last update (real-time floors, see BossEase.realTele). */
+  private speed = 1;
 
   constructor(def: BossDef, runSeed: number, jabs: string[] = []) {
     this.jabs = jabs;
@@ -477,6 +510,22 @@ export class BossFight {
 
   get laneTop(): number {
     return Math.max(this.top, this.hudBottom);
+  }
+
+  /** The play lane (top / bottom, px) as of the last update, for drawing lane-wide telegraphs. */
+  get lane(): { top: number; bottom: number } {
+    return { top: this.top, bottom: this.bottom };
+  }
+
+  /** A telegraph length (game s) with this boss's wall-clock floor at high GAME SPEED. */
+  private teleFor(base: number): number {
+    return Math.max(base, (easeOf(this.def.modeId).realTele ?? 0) * this.speed);
+  }
+
+  /** Shot speed (game px/s) capped so it never looks faster than realShot px/s on screen. */
+  private capSpeed(v: number): number {
+    const cap = easeOf(this.def.modeId).realShot ?? 0;
+    return cap > 0 ? Math.min(v, cap / this.speed) : v;
   }
 
   get stunned(): boolean {
@@ -601,8 +650,13 @@ export class BossFight {
     this.right = Math.min(inp.W, inp.right ?? inp.W);
     this.top = inp.top;
     this.bottom = inp.bottom;
+    this.speed = Math.max(1, inp.speed ?? 1);
+    const realFloors = (easeOf(this.def.modeId).realTele ?? 0) > 0;
     this.stateT += dt;
-    if (this.tauntT > 0 && !this.tauntHold) this.tauntT = Math.max(0, this.tauntT - dt);
+    // (Real-time-floored bosses keep the taunt card up for its wall-clock time at any GAME SPEED.)
+    const tdt = realFloors ? dt / this.speed : dt;
+    if (this.tauntT > 0 && !this.tauntHold) this.tauntT = Math.max(0, this.tauntT - tdt);
+
     if (this.state === 'enter') {
       // Character entrances are animated in the drawing (parachutes, cakes, clown cars...).
       this.slideX = isCharacterBoss(this.def) ? 0 : Math.max(0, 1 - this.stateT / (this.enterS * 0.8));
@@ -711,10 +765,13 @@ export class BossFight {
 
     // Weak spot hops to a different rank slot.
     this.spotT -= dt;
-    const tele = easeOf(this.def.modeId).tele ?? 0;
+    const ezs = easeOf(this.def.modeId);
+    const tele = Math.max(ezs.tele ?? 0, (ezs.realSpot ?? 0) * this.speed * ((ezs.tele ?? 0) > 0 ? 1 : 0));
     if (tele > 0 && this.spotT <= tele && !this.nextSpots) this.nextSpots = this.boards.map((b) => this.pickSpot(b));
     if (this.spotT <= 0) {
       this.spotT = this.tune.spotEvery * (0.75 + this.rng() * 0.5);
+      // High GAME SPEED: the weak spot stays put at least realDwell wall-clock seconds.
+      if (ezs.realDwell) this.spotT = Math.max(this.spotT, ezs.realDwell * this.speed);
       this.boards.forEach((b, i) => (b.spot = this.nextSpots ? this.nextSpots[i] : this.pickSpot(b)));
       this.nextSpots = null;
     }
@@ -748,6 +805,9 @@ export class BossFight {
     if (this.fireT <= 0) {
       const tighten = [1, 0.85, 0.72][this.phase - 1];
       this.fireT = this.tune.fireEvery * tighten * (0.8 + this.rng() * 0.4);
+      // High GAME SPEED: no more than one volley per realFire wall-clock seconds.
+      const rf = easeOf(this.def.modeId).realFire ?? 0;
+      if (rf > 0) this.fireT = Math.max(this.fireT, rf * this.speed);
       this.fire(this.nextPattern(), inp);
     }
   }
@@ -790,7 +850,7 @@ export class BossFight {
     this.pattern = p;
     const laneH = this.bottom - this.top;
     const ez = easeOf(this.def.modeId);
-    const sp = this.tune.shotSpeed * Math.max(0.75, Math.min(ez.spdCap ?? 1.3, laneH / 420));
+    const sp = this.capSpeed(this.tune.shotSpeed * Math.max(0.75, Math.min(ez.spdCap ?? 1.3, laneH / 420)));
     const r = Math.max(7, laneH * 0.022);
     const n = this.volleyCount();
     const shooters = this.boards.filter((b) => this.def.signature === 'twins' || this.boards.length === 1 || this.rng() < 0.7 || b.real);
@@ -969,6 +1029,57 @@ export class BossFight {
         }
         break;
       }
+      case 'wave': {
+        // ULTRA CONSCIOUSNESS, signature: a THOUGHT WAVE. The brain charges (telegraph: the ring's
+        // path is drawn dashed, its safe corridor shaded and bracketed), then a neon ring expands
+        // over the whole lane, broken by one safe corridor (a band of heights, so it fits the
+        // whole swarm at any distance; it is always the pack + 70 px tall at least). It is
+        // placed within easy reach (never more than ~170 px away) and no other volley is fired
+        // until the ring has passed the pack. Phase 2 sends a second ring through the same gap,
+        // phase 3 shifts the second gap a little (the two gaps always overlap by the pack + 24 px).
+        const tele = this.teleFor(0.9);
+        const vr = sp * 0.95;
+        const th = Math.max(9, r * 1.15);
+        const gh = Math.min(laneH * 0.6, Math.max(inp.packH + 70, 130, laneH * 0.28));
+        const reach = Math.min(laneH * 0.35, 170);
+        const lo = this.top + gh / 2;
+        const hi = Math.max(lo, this.bottom - gh / 2);
+        const cl = (y: number) => Math.max(lo, Math.min(hi, y));
+        const dir = this.rng() < 0.5 ? -1 : 1;
+        const off = (0.5 + 0.5 * this.rng()) * reach;
+        let gy0 = inp.py + dir * off;
+        if (gy0 < lo || gy0 > hi) gy0 = inp.py - dir * off;
+        gy0 = cl(gy0);
+        const k = this.phase >= 2 ? 2 : 1;
+        const shift = this.phase >= 3 ? (this.rng() < 0.5 ? -1 : 1) * Math.max(0, Math.min(gh * 0.45, gh - inp.packH - 24)) : 0;
+        const colX = Math.min(inp.px, ox - 40);
+        const far = Math.max(Math.hypot(ox, oy - this.top), Math.hypot(ox, this.bottom - oy)) + th;
+        for (let i = 0; i < k; i++) {
+          const gy = i === 1 ? cl(gy0 + shift) : gy0;
+          const delay = i * 0.55;
+          this.shots.push({ x: ox, y: oy, vx: 0, vy: 0, r: th, kind: 'wave', t: -(tele + delay), life: tele + delay + far / vr, alive: true, rad: 0, vr, gx: colX, gy, gh, tele: tele + delay });
+        }
+        const D = Math.hypot(ox - colX, oy - gy0);
+        this.fireT = Math.max(this.fireT, tele + (k - 1) * 0.55 + (0.75 * D) / vr + 0.3);
+        break;
+      }
+      case 'beam': {
+        // PSYCHIC BEAMS: lanes across the screen, telegraphed (a flickering guide line and a
+        // warning at the left edge) for 0.85 s, then a 0.45 s beam. One beam on the pack's height,
+        // plus one more per phase; beams always leave a gap of the pack + 60 px between them.
+        const tele = this.teleFor(0.85);
+        const hr = Math.max(12, laneH * 0.04);
+        const k = Math.min(3, this.phase);
+        const minSep = 2 * hr + inp.packH + 60;
+        const ys = [Math.max(this.top + hr, Math.min(this.bottom - hr, inp.py))];
+        for (let tries = 0; ys.length < k && tries < 12; tries++) {
+          const y = this.top + hr + this.rng() * Math.max(1, laneH - 2 * hr);
+          if (ys.every((q) => Math.abs(q - y) >= minSep)) ys.push(y);
+        }
+        for (const y of ys) this.shots.push({ x: ox, y, vx: 0, vy: 0, r: hr, kind: 'beam', t: -tele, life: tele + 0.45, alive: true, tele });
+        this.fireT = Math.max(this.fireT, tele + 0.7);
+        break;
+      }
       case 'dots': {
         const k = n * 3;
         const gap = Math.min(laneH * 0.55, Math.max(inp.packH + 56, 120, laneH * (ez.gap ?? 0)));
@@ -988,9 +1099,21 @@ export class BossFight {
     const sp = this.tune.shotSpeed;
     const add: BossShot[] = [];
     for (const s of this.shots) {
-      if (!s.alive) continue;
+      if (!s.alive) {
+        // A thought wave / beam that hit the pack (or a clone) is spent, not gone: it carries on
+        // across the screen, drawn dim and harmless (one hit per wave or beam, like a shot).
+        if ((s.kind === 'wave' || s.kind === 'beam') && s.life > 0 && !s.spent) {
+          s.alive = true;
+          s.spent = true;
+        } else continue;
+      }
       s.t += dt;
       s.life -= dt;
+      if (s.kind === 'wave' || s.kind === 'beam') {
+        if (s.kind === 'wave') s.rad = Math.max(0, s.t) * (s.vr ?? 0);
+        if (s.life <= 0) s.alive = false;
+        continue;
+      }
       if (s.kind === 'split' && s.t >= (s.burst ?? 0.65)) {
         s.alive = false;
         const ps = easeOf(this.def.modeId).bang ? sp * 0.85 : sp;
@@ -1033,8 +1156,8 @@ export class BossFight {
 
   /** Is this shot dangerous right now (blink shots only when solid; warnings never)? */
   static harmful(s: BossShot): boolean {
-    if (!s.alive || s.kind === 'warn') return false;
-    if ((s.kind === 'dot' || s.kind === 'glitch') && s.t < 0) return false;
+    if (!s.alive || s.kind === 'warn' || s.spent) return false;
+    if ((s.kind === 'dot' || s.kind === 'glitch' || s.kind === 'wave' || s.kind === 'beam') && s.t < 0) return false;
     if (s.kind === 'blink') return Math.floor(s.t / 0.45) % 2 === 0;
     return true;
   }
@@ -1055,12 +1178,42 @@ export class BossFight {
 
   /** A shot near a box (cheap circle/box test). */
   static shotHits(s: BossShot, x: number, y: number, w: number, h: number): boolean {
+    if (s.kind === 'wave') return waveHits(s, x, y, w, h);
+    if (s.kind === 'beam') return x < s.x && Math.abs(y + h / 2 - s.y) < s.r * 0.85 + h / 2;
     const qx = Math.max(x, Math.min(s.x, x + w));
     const qy = Math.max(y, Math.min(s.y, y + h));
     const dx = s.x - qx;
     const dy = s.y - qy;
     return dx * dx + dy * dy <= s.r * s.r;
   }
+}
+
+/**
+ * Thought wave vs a box: the box touches the ring band (radius rad +- r about the origin, left
+ * half-plane only) and is not wholly inside the safe corridor (heights gy +- gh/2).
+ */
+export function waveHits(s: BossShot, x: number, y: number, w: number, h: number): boolean {
+  const rad = s.rad ?? 0;
+  if (x >= s.x) return false;
+  const gy = s.gy ?? 0;
+  const gh = s.gh ?? 0;
+  if (y >= gy - gh / 2 && y + h <= gy + gh / 2) return false;
+  const nx = Math.max(x, Math.min(s.x, x + w));
+  const ny = Math.max(y, Math.min(s.y, y + h));
+  const dmin = Math.hypot(s.x - nx, s.y - ny);
+  const dmax = Math.hypot(Math.max(Math.abs(s.x - x), Math.abs(s.x - x - w)), Math.max(Math.abs(s.y - y), Math.abs(s.y - y - h)));
+  if (dmax < rad - s.r || dmin > rad + s.r) return false;
+  // The part of the box outside the corridor must touch the ring itself (not just its bounding
+  // annulus through the corridor): test the box clipped to above / below the corridor.
+  for (const [y0, y1] of [[y, Math.min(y + h, gy - gh / 2)], [Math.max(y, gy + gh / 2), y + h]]) {
+    if (y1 <= y0) continue;
+    const qx = Math.max(x, Math.min(s.x, x + w));
+    const qy = Math.max(y0, Math.min(s.y, y1));
+    const lo = Math.hypot(s.x - qx, s.y - qy);
+    const hi = Math.hypot(Math.max(Math.abs(s.x - x), Math.abs(s.x - x - w)), Math.max(Math.abs(s.y - y0), Math.abs(s.y - y1)));
+    if (hi >= rad - s.r && lo <= rad + s.r) return true;
+  }
+  return false;
 }
 
 /** "G-G-G-GROCERY LIST": stutter a few words (the VJ boss). */
@@ -1082,6 +1235,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   // Shots under the boards.
   for (const s of f.shots) {
     if (!s.alive) continue;
+    if (drawMindShot(ctx, f, s, W, u, time, lite)) continue;
     if (drawMimeShot(ctx, s)) continue;
     if (s.kind === 'warn') {
       ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 30);

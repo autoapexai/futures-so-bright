@@ -15,11 +15,12 @@
  *  L90 CAPTAIN KABOOM       clown on a cannon tower, arrives in a tiny car; the fuse spark; fires himself
  *  L100 DJ CHANNEL ZAPP     80s VJ TV head; the gold tuning dial; switches off to a dot
  *  L110 ANGEL CONTRARIEL    grumpy contrarian cherub on a cloud; the halo gem; bonked by his own halo
- *  L111 THE GRAND CORKBOARD googly corkboard, cat magnet + Duchess polaroid; the gold push-pin; flutters apart
+ *  L111 ULTRA CONSCIOUSNESS  synthwave brain in a propeller cap on a sunset orb; the BIG IDEA lightbulb; MIND BLOWN
  */
 import type { Board, BossFight, BossShot } from './Boss';
-import { drawDuchess } from './silly';
 import { nonEnglish, tp } from '../i18n';
+
+export { drawMindShot };
 
 type Ctx = CanvasRenderingContext2D;
 const TAU = Math.PI * 2;
@@ -262,6 +263,15 @@ function speech(ctx: Ctx, text: string, x: number, y: number, size: number, colo
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
   ctx.restore();
+}
+
+/** A speech burst kept inside 0..W (logical px) in every language. */
+function speechIn(ctx: Ctx, text: string, x: number, y: number, size: number, color: string, W: number): void {
+  ctx.save();
+  ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
+  const half = ctx.measureText(nonEnglish() ? tp(text) : text).width / 2 + size * 0.3;
+  ctx.restore();
+  speech(ctx, text, Math.max(half + 4, Math.min(W - half - 4, x)), y, size, color);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1366,149 +1376,201 @@ const drawAngel: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.restore();
 };
 
-/** L111 THE GRAND CORKBOARD: a googly-eyed corkboard covered in doodles, the cat magnet pinning a Duchess polaroid. */
-const drawCork: DrawFn = (ctx, cx, cy, w, h, p) => {
+/**
+ * L111 ULTRA CONSCIOUSNESS: a giant pink synthwave brain with googly eyes and a propeller
+ * thinking cap, on a wiggly neon brain stem that floats on a striped sunset orb. Its weak spot is
+ * the BIG IDEA: a golden lightbulb on a curly neuron, held out on the left at the weak-spot row.
+ */
+const brainR = (w: number, h: number): number => Math.min(w * 0.58, h * 0.21);
+const drawBrain: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate((p.stun ? 0.08 : Math.sin(p.t * 1.7) * 0.025) + (p.hurt ? Math.sin(p.t * 40) * 0.03 : 0));
-  // nail + string
-  ctx.strokeStyle = '#ddd';
+  frame(ctx, cx, cy, h, p, 3.2, 0.03);
+  const R = brainR(w, h);
+  const bob = Math.sin(p.t * 2.2) * R * 0.04;
+  const by = -h / 2 + R * 1.3 + bob;
+  const orbR = Math.min(w * 0.42, h * 0.11);
+  const oy = h / 2 - orbR * 1.05;
+  const ink = '#140022';
+  const pulse = 0.5 + 0.5 * Math.sin(p.t * 4);
+  // aura (alpha fills, no shadowBlur: crisp and cheap on phones)
+  ctx.fillStyle = `rgba(255,92,240,${0.1 + 0.08 * pulse})`;
+  ctx.beginPath();
+  ctx.arc(0, by, R * 1.5, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(63,240,255,${0.08 + 0.07 * (1 - pulse)})`;
+  ctx.beginPath();
+  ctx.arc(0, by, R * 1.28, 0, TAU);
+  ctx.fill();
+  // brain stem: a wiggly neon tube down to the orb, with glowing nodes
+  const s0 = by + R * 0.75;
+  const s1 = oy - orbR * 0.85;
+  const wig = (p.stun ? 0.3 : 1) * Math.sin(p.t * 3) * Math.max(6, w * 0.16);
+  const tube = (lw: number, col: string): void => {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, s0);
+    ctx.bezierCurveTo(wig, s0 + (s1 - s0) * 0.33, -wig, s0 + (s1 - s0) * 0.66, 0, s1);
+    ctx.stroke();
+  };
+  const tw = Math.max(5, w * 0.13);
+  tube(tw + 3, ink);
+  tube(tw, '#3ff0ff');
+  tube(Math.max(1.5, tw * 0.3), '#ffffff');
+  for (let i = 1; i <= 3; i++) {
+    const q = i / 4;
+    const x = (1 - q) * (1 - q) * (1 - q) * 0 + 3 * (1 - q) * (1 - q) * q * wig + 3 * (1 - q) * q * q * -wig;
+    const y = s0 + (s1 - s0) * q;
+    ctx.fillStyle = Math.floor(p.t * 6 + i) % 3 === 0 ? '#ffffff' : '#ff5cf0';
+    ctx.beginPath();
+    ctx.arc(x, y, tw * 0.45, 0, TAU);
+    ctx.fill();
+  }
+  // the sunset orb it floats on, with a hover ring
+  ctx.strokeStyle = `rgba(63,240,255,${0.45 + 0.35 * pulse})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(-w * 0.35, -h / 2);
-  ctx.lineTo(0, -h / 2 - w * 0.3);
-  ctx.lineTo(w * 0.35, -h / 2);
+  ctx.ellipse(0, oy + orbR * 0.95, orbR * (1.35 + 0.1 * pulse), orbR * 0.3, 0, 0, TAU);
   ctx.stroke();
-  ctx.fillStyle = '#999';
-  ctx.beginPath();
-  ctx.arc(0, -h / 2 - w * 0.3, 4, 0, TAU);
-  ctx.fill();
-  // frame + cork
-  ctx.fillStyle = '#8a5a2b';
-  ctx.fillRect(-w / 2, -h / 2, w, h);
-  ctx.fillStyle = '#d9a86b';
-  const fw = Math.max(4, w * 0.06);
-  ctx.fillRect(-w / 2 + fw, -h / 2 + fw, w - fw * 2, h - fw * 2);
-  ctx.fillStyle = 'rgba(120,70,20,0.35)';
-  for (let i = 0; i < 60; i++) ctx.fillRect(-w / 2 + fw + hash(i) * (w - fw * 2 - 2), -h / 2 + fw + hash(i + 50) * (h - fw * 2 - 2), 2, 2);
-  // googly eyes + marker-drawn mouth near the top
-  // the Duchess polaroid is pinned (under the cat magnet) at the top of the board, face below it
-  const pw = Math.min(w * 0.8, 72, h * 0.32);
-  const ph = pw * 1.18;
-  const py = -h / 2 + fw + ph * 0.55 + p.lift * 6;
-  const ey = py + ph / 2 + Math.min(h * 0.06, w * 0.18);
-  const er = Math.min(w * 0.14, h * 0.06);
-  // doodle notes (no numbers: squiggles, a smiley, a little dog, a heart)
-  const notes = ['#fff59d', '#ff9ecf', '#9ef0ff', '#c5ff9e'];
-  const nTop = ey + er * 3.2;
-  const nCount = Math.max(2, Math.floor((h / 2 - fw - nTop) / Math.max(22, w * 0.3)));
-  const nh = (h / 2 - fw - nTop) / nCount;
-  for (let i = 0; i < nCount; i++) {
-    const nx = (i % 2 ? 0.08 : -0.02) * w;
-    const yy = nTop + i * nh + nh * 0.1;
-    const s = Math.min(nh * 0.8, w * 0.42);
-    ctx.save();
-    ctx.translate(nx, yy + s / 2);
-    ctx.rotate((hash(i + 3) - 0.5) * 0.3 + (p.hurt ? Math.sin(p.t * 30 + i) * 0.15 : 0));
-    ctx.fillStyle = notes[i % notes.length];
-    ctx.fillRect(-s / 2, -s / 2, s, s);
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    const kind = i % 4;
-    if (kind === 0) {
-      ctx.arc(0, 0, s * 0.3, 0, TAU);
-      ctx.moveTo(-s * 0.12, -s * 0.08);
-      ctx.arc(-s * 0.12, -s * 0.08, 1, 0, TAU);
-      ctx.moveTo(s * 0.12, -s * 0.08);
-      ctx.arc(s * 0.12, -s * 0.08, 1, 0, TAU);
-      ctx.moveTo(s * 0.15, s * 0.08);
-      ctx.arc(0, s * 0.05, s * 0.15, 0.3, Math.PI - 0.3);
-    } else if (kind === 1) {
-      for (let k = 0; k < 3; k++) {
-        ctx.moveTo(-s * 0.35, -s * 0.2 + k * s * 0.2);
-        for (let x = -s * 0.35; x < s * 0.35; x += 3) ctx.lineTo(x, -s * 0.2 + k * s * 0.2 + Math.sin(x * 0.6) * 1.5);
-      }
-    } else if (kind === 2) {
-      ctx.ellipse(0, s * 0.05, s * 0.25, s * 0.15, 0, 0, TAU);
-      ctx.moveTo(s * 0.3, -s * 0.05);
-      ctx.arc(s * 0.22, -s * 0.08, s * 0.1, 0, TAU);
-      ctx.moveTo(-s * 0.15, s * 0.18);
-      ctx.lineTo(-s * 0.15, s * 0.3);
-      ctx.moveTo(s * 0.12, s * 0.18);
-      ctx.lineTo(s * 0.12, s * 0.3);
-    } else {
-      ctx.moveTo(0, s * 0.25);
-      ctx.bezierCurveTo(-s * 0.4, 0, -s * 0.2, -s * 0.3, 0, -s * 0.1);
-      ctx.bezierCurveTo(s * 0.2, -s * 0.3, s * 0.4, 0, 0, s * 0.25);
-    }
-    ctx.stroke();
-    ctx.fillStyle = '#e0002a';
-    ctx.beginPath();
-    ctx.arc(0, -s * 0.45, 3, 0, TAU);
-    ctx.fill();
-    ctx.restore();
-  }
-  eyes(ctx, 0, ey, er, p, 1.2);
-  ctx.strokeStyle = '#1a1a1a';
-  ctx.lineWidth = Math.max(2, er * 0.25);
-  ctx.beginPath();
-  if (p.hurt || p.stun) ctx.ellipse(0, ey + er * 2, er * 0.5, er * 0.6, 0, 0, TAU);
-  else if (p.beaten > 0) ctx.arc(0, ey + er * 2.6, er * 0.8, Math.PI * 1.15, Math.PI * 1.85);
-  else ctx.arc(0, ey + er * 1.2, er * 1.1, 0.25, Math.PI - 0.25);
-  ctx.stroke();
-  // the cat magnet with the Duchess polaroid, above the board
-  ctx.save();
-  ctx.translate(w * 0.12, py);
-  ctx.rotate(0.08 + Math.sin(p.t * 2) * 0.03);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
-  ctx.fillStyle = '#ffe1f0';
-  ctx.fillRect(-pw * 0.42, -ph * 0.42, pw * 0.84, pw * 0.84);
   ctx.save();
   ctx.beginPath();
-  ctx.rect(-pw * 0.42, -ph * 0.42, pw * 0.84, pw * 0.84);
+  ctx.arc(0, oy, orbR, 0, TAU);
   ctx.clip();
-  drawDuchess(ctx, 0, -ph * 0.42 + pw * 0.47, pw * 0.6, p.t);
+  const sun = ctx.createLinearGradient(0, oy - orbR, 0, oy + orbR);
+  sun.addColorStop(0, '#ffe14d');
+  sun.addColorStop(0.5, '#ff7a33');
+  sun.addColorStop(1, '#ff3ec8');
+  ctx.fillStyle = sun;
+  ctx.fillRect(-orbR, oy - orbR, orbR * 2, orbR * 2);
+  ctx.fillStyle = '#2a0a4a';
+  for (let i = 0; i < 4; i++) ctx.fillRect(-orbR, oy + orbR * (0.05 + i * 0.24), orbR * 2, orbR * (0.05 + i * 0.03));
   ctx.restore();
-  ctx.fillStyle = '#333';
-  ctx.font = `700 ${Math.max(7, pw * 0.13)}px 'Orbitron', sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('DUCHESS', 0, ph * 0.4);
-  // cat magnet
-  ctx.fillStyle = '#ff7a33';
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(0, -ph / 2, pw * 0.16, 0, TAU);
-  ctx.moveTo(-pw * 0.15, -ph / 2 - pw * 0.05);
-  ctx.lineTo(-pw * 0.1, -ph / 2 - pw * 0.25);
-  ctx.lineTo(-pw * 0.02, -ph / 2 - pw * 0.12);
-  ctx.moveTo(pw * 0.15, -ph / 2 - pw * 0.05);
-  ctx.lineTo(pw * 0.1, -ph / 2 - pw * 0.25);
-  ctx.lineTo(pw * 0.02, -ph / 2 - pw * 0.12);
-  ctx.fill();
-  ctx.fillStyle = '#000';
+  ctx.arc(0, oy, orbR, 0, TAU);
+  ctx.stroke();
+  // the brain: an ink blob for the outline, then the pink lobes on top
+  const lobes = (pad: number): void => {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * TAU;
+      const x = Math.cos(a) * R * 0.6;
+      const y = by + Math.sin(a) * R * 0.46;
+      ctx.moveTo(x + R * 0.47 + pad, y);
+      ctx.arc(x, y, R * 0.47 + pad, 0, TAU);
+    }
+    ctx.fill();
+  };
+  ctx.fillStyle = ink;
+  lobes(Math.max(2, R * 0.07));
+  ctx.fillStyle = p.stun ? '#bfe6ff' : p.hurt ? '#ffb8e6' : '#ff9ad8';
+  lobes(0);
+  // folds (a centre fissure and a few squiggles), a shine, the neon rim
+  ctx.strokeStyle = p.stun ? '#6fa8d8' : '#d1479f';
+  ctx.lineWidth = Math.max(1.5, R * 0.07);
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(-pw * 0.06, -ph / 2 - pw * 0.02, 1.6, 0, TAU);
-  ctx.arc(pw * 0.06, -ph / 2 - pw * 0.02, 1.6, 0, TAU);
+  ctx.moveTo(0, by - R * 0.92);
+  ctx.quadraticCurveTo(R * 0.08, by - R * 0.6, 0, by - R * 0.42);
+  for (const s of [-1, 1]) {
+    ctx.moveTo(s * R * 0.25, by - R * 0.75);
+    ctx.bezierCurveTo(s * R * 0.55, by - R * 0.85, s * R * 0.35, by - R * 0.5, s * R * 0.7, by - R * 0.48);
+    ctx.moveTo(s * R * 0.78, by - R * 0.2);
+    ctx.bezierCurveTo(s * R * 1.0, by, s * R * 0.75, by + R * 0.2, s * R * 0.92, by + R * 0.4);
+    ctx.moveTo(s * R * 0.5, by + R * 0.62);
+    ctx.quadraticCurveTo(s * R * 0.7, by + R * 0.5, s * R * 0.78, by + R * 0.7);
+  }
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath();
+  ctx.ellipse(-R * 0.45, by - R * 0.55, R * 0.22, R * 0.11, -0.5, 0, TAU);
   ctx.fill();
-  ctx.restore();
-  // push pins along the left edge; the gold one at the spot row is the weak spot
+  // the propeller thinking cap
+  const capY = by - R * 0.82 + p.lift * R * 0.35;
+  const capR = R * 0.4;
+  const cols = ['#ff3ec8', '#3ff0ff', '#ffe14d', '#3ff0ff'];
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = cols[i];
+    ctx.beginPath();
+    ctx.moveTo(0, capY);
+    ctx.arc(0, capY, capR, Math.PI + (i * Math.PI) / 4, Math.PI + ((i + 1) * Math.PI) / 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, capY, capR, Math.PI, TAU);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = ink;
+  ctx.fillRect(-1.5, capY - capR - R * 0.18, 3, R * 0.18);
+  const spin = p.t * (p.stun ? 2 : p.hurt ? 30 : 9);
+  const blade = Math.abs(Math.cos(spin)) * R * 0.55 + R * 0.06;
+  ctx.fillStyle = Math.cos(spin) > 0 ? '#ffe14d' : '#ff7a33';
+  ctx.beginPath();
+  ctx.ellipse(0, capY - capR - R * 0.2, blade, R * 0.08, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  // face: googly eyes, rosy cheeks, the big grin
+  const er = R * 0.25;
+  ctx.fillStyle = 'rgba(255,60,140,0.45)';
+  ctx.beginPath();
+  ctx.arc(-R * 0.62, by + R * 0.32, R * 0.12, 0, TAU);
+  ctx.arc(R * 0.62, by + R * 0.32, R * 0.12, 0, TAU);
+  ctx.fill();
+  eyes(ctx, 0, by + R * 0.02, er, p, 1.12, ink);
+  mouth(ctx, 0, by + R * 0.48, R * 0.3, p);
+  if (p.stun) {
+    // BRAIN FREEZE: snowflakes
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 5; i++) star(ctx, Math.cos(p.t * 2 + i * 1.3) * R * 1.15, by + Math.sin(p.t * 2 + i * 1.3) * R * 0.85, Math.max(3, R * 0.1), 6);
+  }
+  // weak spot: the BIG IDEA, a golden lightbulb on a curly neuron at the weak-spot row
   if (!Number.isNaN(p.spotY)) {
     const sy = Math.max(-h / 2, Math.min(h / 2, p.spotY - cy));
-    const r = Math.max(7, Math.min(w * 0.22, h * 0.09));
-    const px = -w / 2 + fw + r * 0.5;
-    glow(ctx, px, sy, r, p);
-    const out = Math.abs(Math.sin(p.t * 7)) * r * 0.25;
-    ctx.fillStyle = '#ccc';
-    ctx.fillRect(px - 1, sy, 2 + out, 2);
-    ctx.fillStyle = '#ffd23f';
+    const r = Math.max(8, Math.min(w * 0.26, h * 0.095));
+    const hx = -w / 2 + r * 0.45;
+    rubberArm(ctx, -w * 0.04, Math.max(s0, Math.min(s1, sy)), hx + r * 0.9, sy, p.t, Math.max(3, w * 0.06), '#3ff0ff');
+    glow(ctx, hx, sy, r, p);
+    ctx.strokeStyle = `rgba(255,246,160,${0.5 + 0.5 * pulse})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(px - out, sy, r * 0.55, 0, TAU);
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI * 0.55 + (i / 5) * Math.PI * 0.9;
+      ctx.moveTo(hx + Math.cos(a) * r * 0.95, sy + Math.sin(a) * r * 0.95);
+      ctx.lineTo(hx + Math.cos(a) * r * (1.25 + 0.15 * pulse), sy + Math.sin(a) * r * (1.25 + 0.15 * pulse));
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#b8b8c8';
+    ctx.fillRect(hx + r * 0.5, sy - r * 0.3, r * 0.5, r * 0.6);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(hx + r * 0.5, sy - r * 0.3, r * 0.5, r * 0.6);
+    ctx.beginPath();
+    ctx.moveTo(hx + r * 0.67, sy - r * 0.3);
+    ctx.lineTo(hx + r * 0.67, sy + r * 0.3);
+    ctx.moveTo(hx + r * 0.84, sy - r * 0.3);
+    ctx.lineTo(hx + r * 0.84, sy + r * 0.3);
+    ctx.stroke();
+    const lit = !(p.hurt && Math.floor(p.t * 30) % 2);
+    ctx.fillStyle = lit ? '#ffe14d' : '#fffbe0';
+    ctx.beginPath();
+    ctx.arc(hx, sy, r * 0.7, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = '#fff6c0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = '#ff7a33';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(px - out - r * 0.18, sy - r * 0.18, r * 0.16, 0, TAU);
+    ctx.moveTo(hx + r * 0.45, sy - r * 0.12);
+    for (let i = 0; i < 4; i++) ctx.lineTo(hx + r * (0.25 - i * 0.18), sy + (i % 2 ? r * 0.18 : -r * 0.18));
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(hx - r * 0.25, sy - r * 0.28, r * 0.15, 0, TAU);
     ctx.fill();
   }
   ctx.restore();
@@ -1529,7 +1591,7 @@ const DRAW: Record<string, DrawFn> = {
   cbb: drawClown,
   curry: drawVJ,
   dvorak: drawAngel,
-  itm: drawCork,
+  itm: drawBrain,
 };
 
 export function hasToon(modeId: string): boolean {
@@ -1594,11 +1656,23 @@ function entranceProps(ctx: Ctx, id: string, cx: number, cy: number, w: number, 
     ctx.fill();
     speech(ctx, 'HONK', x - 34, y - 30, 11, '#ffe14d');
     void W;
+  } else if (id === 'itm') {
+    // ULTRA CONSCIOUSNESS beams down in a neon tractor-beam column
+    ctx.save();
+    ctx.globalAlpha *= clamp01(1.6 - e * 1.6);
+    const bot = cy + h / 2;
+    ctx.fillStyle = 'rgba(63,240,255,0.16)';
+    ctx.fillRect(cx - w * 0.75, 0, w * 1.5, bot);
+    ctx.fillStyle = 'rgba(255,92,240,0.22)';
+    ctx.fillRect(cx - w * 0.35, 0, w * 0.7, bot);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(cx - w * 0.75, (t * 420 + i * (bot / 6)) % Math.max(1, bot), w * 1.5, 2);
+    ctx.restore();
   }
 }
 
 /** Props drawn in front of the character during the entrance (cake, top hat, curtains, static). */
-function entranceFront(ctx: Ctx, id: string, cx: number, cy: number, w: number, h: number, e: number, t: number): void {
+function entranceFront(ctx: Ctx, id: string, cx: number, cy: number, w: number, h: number, e: number, t: number, W: number): void {
   if (e >= 1) return;
   if (id === 'decoy') {
     const a = clamp01(2 - e * 2);
@@ -1646,8 +1720,8 @@ function entranceFront(ctx: Ctx, id: string, cx: number, cy: number, w: number, 
       ctx.fillRect(cx - w / 2 + hash(i * 3 + Math.floor(t * 30)) * w, cy - h / 2 + hash(i * 5) * h, 4, 3);
     }
     ctx.restore();
-  } else if (id === 'itm' && e > 0.4 && e < 0.7) {
-    speech(ctx, 'BONK!', cx, cy - h / 2 - 30, 16, '#ffe14d');
+  } else if (id === 'itm' && e > 0.55) {
+    speechIn(ctx, 'BEHOLD: BIG BRAIN!', cx - w * 0.4, cy - h / 2 + brainR(w, h) * 0.2, 14, '#ff9ad8', W);
   } else if (id === 'daly' && e < 0.9) {
     speech(ctx, 'YEE-HAW?', cx - w * 0.6, cy - h / 2 + 10, 12, '#ffe14d');
   } else if (id === 'alw' && e > 0.6) {
@@ -1690,9 +1764,14 @@ function entranceXf(id: string, e: number, cx: number, cy: number, w: number, h:
     case 'curry':
       return [Math.sin(e * 80) * (1 - e) * 8, 0, 0, 1, 1, 0];
     case 'itm': {
-      const drop = easeOut(clamp01(e / 0.45));
-      const sw = e > 0.45 ? 0.9 * (1 - (e - 0.45) / 0.55) * Math.cos((e - 0.45) * 22) : 0.9;
-      return [0, above * (1 - drop), sw, 1, 1, -h / 2 - w * 0.3];
+      // beamed down stretched thin, then a squashy landing
+      if (e < 0.6) {
+        const k = easeOut(e / 0.6);
+        return [0, above * (1 - k), 0, 1 - 0.45 * (1 - k), 1 + 0.6 * (1 - k), 0];
+      }
+      const q = (e - 0.6) / 0.4;
+      const sq = Math.sin(q * Math.PI * 2) * 0.16 * (1 - q);
+      return [0, 0, 0, 1 + sq, 1 - sq, h / 2];
     }
     default:
       return [(1 - e) * (W - cx + w), 0, 0, 1, 1, 0];
@@ -1734,8 +1813,12 @@ function defeatXf(id: string, k: number, cx: number, cy: number, w: number, h: n
       const go = clamp01((k - 0.4) / 0.6);
       return [Math.sin(k * 10) * w * 0.2 * go, -go * (cy + h), Math.sin(k * 8) * 0.2, 1, 1, 0, 1 - go * 0.6];
     }
-    case 'itm':
-      return [k * w * 0.3, k * k * h * 0.6, -Math.min(1.4, k * 2), 1, 1, h / 2, 1 - clamp01((k - 0.8) / 0.2)];
+    case 'itm': {
+      // OVERTHINKING: it shakes, swells up... then MIND BLOWN (pops at k = 0.6)
+      const shake = k < 0.6 ? Math.sin(k * 140) * w * 0.05 * (0.3 + k) : 0;
+      const sw = k < 0.3 ? 1 : k < 0.6 ? 1 + ((k - 0.3) / 0.3) * 0.35 : Math.max(0.01, 1.35 * (1 - (k - 0.6) / 0.08));
+      return [shake, 0, 0, sw, sw, 0, k < 0.68 ? 1 : 0];
+    }
     default:
       return [0, 0, 0, 1, 1, 0, 1 - k];
   }
@@ -1882,20 +1965,76 @@ function defeatFx(ctx: Ctx, id: string, k: number, cx: number, cy: number, w: nu
         if (q >= 1) speech(ctx, 'BONK! FINE. YOU WIN. (I DISAGREE.)', Math.max(150, cx - w), hy - 20, 11, '#ffe14d');
       }
       break;
-    case 'itm':
-      for (let i = 0; i < 10; i++) {
-        const q = clamp01(k * 1.3 - hash(i) * 0.3);
-        const x = cx + (hash(i + 1) - 0.5) * w + Math.sin(t * 4 + i) * 14 * q;
-        const y = cy - h * 0.3 + q * h;
+    case 'itm': {
+      const R = brainR(w, h);
+      const by = cy - h / 2 + R * 1.3;
+      if (k < 0.6) {
+        // crackling sparks and steam while it overthinks
+        ctx.strokeStyle = '#7fffff';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          if (hash(i + Math.floor(t * 18) * 7) < 0.45) continue;
+          const a = (i / 6) * TAU + t;
+          let x = cx + Math.cos(a) * R * 0.9;
+          let y = by + Math.sin(a) * R * 0.7;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          for (let j = 0; j < 3; j++) {
+            x += Math.cos(a) * R * 0.22 + (j % 2 ? 5 : -5);
+            y += Math.sin(a) * R * 0.22 + (j % 2 ? -5 : 5);
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(255,255,255,${0.5 * clamp01(k * 4)})`;
+        for (let i = 0; i < 4; i++) {
+          const q = (t * 0.9 + i / 4) % 1;
+          ctx.beginPath();
+          ctx.arc(cx + (i - 1.5) * R * 0.4, by - R * (1.1 + q), R * (0.12 + q * 0.18), 0, TAU);
+          ctx.fill();
+        }
+        if (k > 0.08) speechIn(ctx, 'OVERTHINKING...', cx - w * 0.3, by + R * 1.45, 13, '#7fffff', W);
+      } else {
+        const q = clamp01((k - 0.6) / 0.4);
+        ctx.strokeStyle = `rgba(255,92,240,${1 - q})`;
+        ctx.lineWidth = 2 + 8 * (1 - q);
+        ctx.beginPath();
+        ctx.arc(cx, by, R * (1 + q * 4), 0, TAU);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(63,240,255,${1 - q})`;
+        ctx.lineWidth = 2 + 4 * (1 - q);
+        ctx.beginPath();
+        ctx.arc(cx, by, R * (0.6 + q * 2.6), 0, TAU);
+        ctx.stroke();
+        confetti(ctx, cx, by, q, 46, w * 2.2, 11);
+        // little lightbulbs (ideas) everywhere
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * TAU + 0.3;
+          const v = 0.6 + hash(i + 40) * 0.6;
+          const x = cx + Math.cos(a) * q * v * Math.max(w * 1.4, R * 3);
+          const y = by + Math.sin(a) * q * v * R * 2.4 + q * q * R * 1.5;
+          ctx.fillStyle = '#ffe14d';
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = '#b8b8c8';
+          ctx.fillRect(x - 2.5, y + 4, 5, 4);
+        }
+        // the propeller cap flies off, spinning
         ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(Math.sin(t * 5 + i) * 0.8);
-        ctx.fillStyle = ['#fff59d', '#ff9ecf', '#9ef0ff', '#c5ff9e'][i % 4];
-        ctx.fillRect(-7, -7, 14, 14);
+        ctx.translate(cx + q * w * 0.5, by - R - q * Math.max(h * 0.5, R * 4));
+        ctx.rotate(q * 9);
+        ctx.fillStyle = '#ff3ec8';
+        ctx.beginPath();
+        ctx.arc(0, 0, R * 0.4, Math.PI, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#ffe14d';
+        ctx.fillRect(-R * 0.5, -R * 0.55, R, R * 0.12);
         ctx.restore();
+        if (q < 0.9) speechIn(ctx, 'MIND BLOWN!', cx - w * 0.4, by - R * 0.4, 18, '#ffe14d', W);
       }
-      if (k < 0.6) speech(ctx, 'UNPINNED!', cx, cy - h / 2 - 40, 14, '#ffe14d');
       break;
+    }
     default:
       break;
   }
@@ -1964,7 +2103,7 @@ export function drawToon(ctx: Ctx, f: BossFight, b: Board, idx: number, time: nu
     }
   } else fn(ctx, cx, cy, b.w, b.h, p);
   ctx.restore();
-  if (enter < 1) entranceFront(ctx, id, cx, cy, b.w, b.h, enter, time);
+  if (enter < 1) entranceFront(ctx, id, cx, cy, b.w, b.h, enter, time, W);
   // magician swap POOF
   if (id === 'decoy' && p.swapAge < 0.35 && f.state === 'fight') {
     ctx.fillStyle = `rgba(255,255,255,${0.8 * (1 - p.swapAge / 0.35)})`;
@@ -2000,7 +2139,7 @@ export function drawToonMini(ctx: Ctx, modeId: string, x: number, y: number, w: 
   if (!fn) return false;
   const p: Pose = { t, enter: 1, beaten: 0, hurt: false, stun: false, px: Math.sin(t * 3) * 0.5, py: 0.4, lift: 0, spotY: NaN, glow: false, real: true, idx: 0, slam: 0, swapAge: 9 };
   ctx.save();
-  if (modeId === 'itm') fn(ctx, x, y + h * 0.15, w * 0.9, h * 0.8, p);
+  if (modeId === 'itm') fn(ctx, x, y + h * 0.05, w * 1.15, h * 0.95, p);
   else fn(ctx, x, y, w, h, p);
   ctx.restore();
   return true;
@@ -2022,7 +2161,7 @@ export const TOON_SKINS: Record<string, { [pattern: string]: string }> = {
   cbb: { split: 'bomb', aimed: 'whoopee', wall: 'flamingo', '>split': 'duck' },
   curry: { countdown: 'tape', homing: 'plane' },
   dvorak: { aimed: 'harp', wall: 'cloud', '>warn': 'feather' },
-  itm: { dots: 'tack', homing: 'sticky', aimed: 'pushpin', wall: 'index', split: 'paperball', '>split': 'band', '>warn': 'clip' },
+  itm: { aimed: 'bulb', spray: 'qmark' },
 };
 
 /** Draw a skinned shot. Returns false when the shot has no skin (default drawing applies). */
@@ -2410,72 +2549,44 @@ export function drawToonShot(ctx: Ctx, s: BossShot, solid: boolean, time: number
       ctx.lineTo(r * 1.2, 0);
       ctx.stroke();
       break;
-    case 'tack':
-    case 'pushpin':
-      ctx.rotate(skin === 'tack' ? Math.PI : spin * 0.5);
-      ctx.fillStyle = skin === 'tack' ? '#cfcfd8' : '#e0002a';
+    case 'bulb':
+      // a lightbulb: a bright idea, thrown
+      ctx.rotate(spin * 0.5);
+      ctx.fillStyle = '#ffe14d';
       ctx.beginPath();
-      ctx.arc(0, -r * 0.2, r * 0.7, 0, TAU);
+      ctx.arc(0, -r * 0.15, r * 0.78, 0, TAU);
       ctx.fill();
       ctx.stroke();
-      ctx.strokeStyle = '#888';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, r * 0.4);
-      ctx.lineTo(0, r * 1.2);
-      ctx.stroke();
-      break;
-    case 'sticky':
-      ctx.rotate(Math.atan2(s.vy, s.vx) * 0.3);
-      ctx.fillStyle = '#fff59d';
-      ctx.fillRect(-r, -r, r * 2, r * 2);
-      ctx.strokeRect(-r, -r, r * 2, r * 2);
-      ctx.strokeStyle = '#999';
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.6, -r * 0.2);
-      ctx.lineTo(r * 0.6, -r * 0.2);
-      ctx.moveTo(-r * 0.6, r * 0.3);
-      ctx.lineTo(r * 0.3, r * 0.3);
-      ctx.stroke();
-      break;
-    case 'index':
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(-r * 1.2, -r * 0.8, r * 2.4, r * 1.6);
-      ctx.strokeRect(-r * 1.2, -r * 0.8, r * 2.4, r * 1.6);
-      ctx.strokeStyle = '#e0002a';
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.2, -r * 0.4);
-      ctx.lineTo(r * 1.2, -r * 0.4);
-      ctx.stroke();
-      break;
-    case 'paperball':
-      ctx.rotate(spin);
-      ctx.fillStyle = '#f4ecd8';
-      ctx.beginPath();
-      for (let i = 0; i < 9; i++) ctx.lineTo(Math.cos(i * 0.7) * r * (0.8 + 0.2 * hash(i)), Math.sin(i * 0.7) * r * (0.8 + 0.2 * hash(i + 3)));
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    case 'band':
-      ctx.rotate(spin);
+      ctx.fillStyle = '#b8b8c8';
+      ctx.fillRect(-r * 0.36, r * 0.52, r * 0.72, r * 0.5);
+      ctx.strokeRect(-r * 0.36, r * 0.52, r * 0.72, r * 0.5);
       ctx.strokeStyle = '#ff7a33';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.ellipse(0, 0, r, r * 0.5, 0, 0, TAU);
+      ctx.moveTo(-r * 0.3, -r * 0.1);
+      ctx.lineTo(-r * 0.12, -r * 0.35);
+      ctx.lineTo(r * 0.05, -r * 0.1);
+      ctx.lineTo(r * 0.22, -r * 0.35);
       ctx.stroke();
       break;
-    case 'clip':
-      ctx.rotate(spin * 0.4);
-      ctx.strokeStyle = '#cfcfd8';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.3, r);
-      ctx.lineTo(-r * 0.3, -r * 0.6);
-      ctx.arc(0, -r * 0.6, r * 0.3, Math.PI, 0);
-      ctx.lineTo(r * 0.3, r * 0.7);
-      ctx.arc(0, r * 0.7, r * 0.3, 0, Math.PI);
-      ctx.stroke();
+    case 'qmark':
+      // a thought bubble with a question mark in it
+      for (const [pad, col] of [[2, '#7b2cff'], [0, '#ffffff']] as const) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (const [bx, by, br] of [[-r * 0.42, r * 0.12, r * 0.6], [r * 0.42, r * 0.12, r * 0.6], [0, -r * 0.28, r * 0.72]]) {
+          ctx.moveTo(bx + br + pad, by);
+          ctx.arc(bx, by, br + pad, 0, TAU);
+        }
+        ctx.moveTo(r * 0.95 + r * 0.22 + pad, r * 0.85);
+        ctx.arc(r * 0.95, r * 0.85, r * 0.22 + pad, 0, TAU);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#7b2cff';
+      ctx.font = `900 ${Math.max(9, r * 1.25)}px 'Orbitron', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', 0, -r * 0.05);
       break;
     default:
       ctx.restore();
@@ -2497,5 +2608,210 @@ export const TOON_POPS: Record<string, { hit: [string, 'honk' | 'boing' | 'whist
   cbb: { hit: [['HONK HONK!', 'honk'], ['SQUEAK!', 'boing'], ['PFFFT!', 'whistleDown']], stun: 'DUD!' },
   curry: { hit: [['ZZZAP!', 'boing'], ['STATIC!', 'whistleDown'], ['RADICAL!', 'honk']], stun: 'TECHNICAL DIFFICULTIES!' },
   dvorak: { hit: [['HMPH!', 'honk'], ['WRONG!', 'boing'], ['BONK!', 'whistleUp']], stun: 'AGREES (BRIEFLY)!' },
-  itm: { hit: [['THWACK!', 'honk'], ['PING!', 'boing'], ['RUSTLE!', 'whistleDown']], stun: 'UNTACKED!' },
+  itm: { hit: [['ZAP!', 'boing'], ['MY NEURONS!', 'honk'], ['FORGOT!', 'whistleDown']], stun: 'BRAIN FREEZE!' },
 };
+
+// ---------------------------------------------------------------------------------------------
+// ULTRA CONSCIOUSNESS: thought waves and psychic beams (drawn by drawBoss before other shots)
+// ---------------------------------------------------------------------------------------------
+
+/** Canvas angle of a wave angle (wave angles: 0 = straight left, positive = down). */
+const phi = (a: number): number => Math.PI - a;
+
+/**
+ * Wave angles (0 = straight left, positive = down) where a ring of radius `rad` about (x, y)
+ * enters and leaves the safe corridor gy +- gh/2 (equal when the ring doesn't reach it).
+ */
+function gapAngles(y: number, rad: number, gy: number, gh: number): [number, number] {
+  const c = (v: number) => Math.max(-1, Math.min(1, v));
+  return [Math.asin(c((gy - gh / 2 - y) / Math.max(1, rad))), Math.asin(c((gy + gh / 2 - y) / Math.max(1, rad)))];
+}
+
+/** Stroke the ring's two arcs (the left half-plane minus the safe corridor). */
+function waveArcs(ctx: Ctx, x: number, y: number, rad: number, gy: number, gh: number): void {
+  const [a1, a2] = gapAngles(y, rad, gy, gh);
+  if (a2 - a1 < 1e-4) {
+    ctx.beginPath();
+    ctx.arc(x, y, rad, Math.PI / 2, Math.PI * 1.5);
+    ctx.stroke();
+    return;
+  }
+  if (a2 < Math.PI / 2 - 1e-4) {
+    ctx.beginPath();
+    ctx.arc(x, y, rad, Math.PI / 2, phi(a2));
+    ctx.stroke();
+  }
+  if (a1 > -Math.PI / 2 + 1e-4) {
+    ctx.beginPath();
+    ctx.arc(x, y, rad, phi(a1), Math.PI * 1.5);
+    ctx.stroke();
+  }
+}
+
+/**
+ * Draw a thought wave / psychic beam (true) or leave the shot to the default drawing (false).
+ * Telegraphs: a wave's path is drawn dashed (ghost rings) with its safe corridor shaded and
+ * bracketed in mint on the pack's column while the brain charges;
+ * a beam's lane is outlined and flickers, with a red "!" at the left edge, before it fires.
+ */
+function drawMindShot(ctx: Ctx, f: BossFight, s: BossShot, W: number, u: (n: number) => number, time: number, lite: boolean): boolean {
+  if (s.kind !== 'wave' && s.kind !== 'beam') return false;
+  const { top, bottom } = f.lane;
+  const blink = Math.floor(time * 14) % 2;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 16);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, top, W, bottom - top);
+  ctx.clip();
+  if (s.spent) ctx.globalAlpha *= 0.3;
+  if (s.kind === 'wave') {
+    const tele = Math.max(0.01, s.tele ?? 0.9);
+    const gx = s.gx ?? 0;
+    const gy = s.gy ?? 0;
+    const gh = s.gh ?? 0;
+    const D = Math.hypot(s.x - gx, s.y - gy);
+    const rad = s.rad ?? 0;
+    const passed = rad > D + s.r * 2 + 40;
+    if (!passed) {
+      // the safe corridor, shaded across the lane up to the brain
+      ctx.fillStyle = `rgba(125,255,155,${s.t < 0 ? 0.13 + 0.07 * pulse : 0.08})`;
+      ctx.fillRect(0, gy - gh / 2, s.x, gh);
+      // ...with its edges ruled across the whole lane (readable wherever the pack and HUD are)
+      ctx.strokeStyle = `rgba(125,255,155,${s.t < 0 ? 0.6 + 0.3 * pulse : 0.4})`;
+      ctx.lineWidth = Math.max(2, u(2.5));
+      ctx.setLineDash([u(12), u(8)]);
+      ctx.lineDashOffset = time * 60;
+      for (const e of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy + (e * gh) / 2);
+        ctx.lineTo(s.x, gy + (e * gh) / 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // the gap's brackets on the pack's column
+      const bw = u(14);
+      ctx.strokeStyle = `rgba(125,255,155,${0.65 + 0.35 * pulse})`;
+      ctx.lineWidth = Math.max(2.5, u(3));
+      ctx.lineCap = 'round';
+      for (const e of [-1, 1]) {
+        const y0 = gy + (e * gh) / 2;
+        ctx.beginPath();
+        ctx.moveTo(gx - bw, y0 - e * u(8));
+        ctx.lineTo(gx - bw, y0);
+        ctx.lineTo(gx + bw, y0);
+        ctx.lineTo(gx + bw, y0 - e * u(8));
+        ctx.stroke();
+      }
+      // chevrons pointing into the gap from either side
+      ctx.fillStyle = `rgba(125,255,155,${0.55 + 0.45 * pulse})`;
+      for (const e of [-1, 1]) {
+        const x0 = gx + e * (bw + u(10) + pulse * u(4));
+        ctx.beginPath();
+        ctx.moveTo(x0, gy);
+        ctx.lineTo(x0 + e * u(9), gy - u(7));
+        ctx.lineTo(x0 + e * u(9), gy + u(7));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    if (s.t < 0) {
+      // telegraph: the ring's path on the pack's column, dashed, and the brain charging up
+      const k = 1 - -s.t / tele;
+      ctx.setLineDash([u(10), u(7)]);
+      ctx.lineDashOffset = -time * 80;
+      // (ghost rings along the whole path, so the gap reads even behind the pack and the HUD)
+      ctx.lineWidth = Math.max(3, s.r * 0.9);
+      for (const q of [0.38, 0.69, 1]) {
+        ctx.strokeStyle = `rgba(255,92,240,${(0.3 + 0.35 * k) * (q === 1 ? 1.3 : 1) * (0.7 + 0.3 * blink)})`;
+        waveArcs(ctx, s.x, s.y, D * q, gy, gh);
+      }
+      ctx.setLineDash([]);
+      ctx.strokeStyle = `rgba(255,92,240,${0.3 + 0.6 * k})`;
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 3; i++) {
+        const q = (k * 2 + i / 3) % 1;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 8 + (1 - q) * u(56), 0, TAU);
+        ctx.stroke();
+      }
+    } else if (rad > 0) {
+      // the thought wave itself: a neon ring with a white-hot core
+      const layers: [number, string][] = lite
+        ? [[s.r * 1.7, '#ff5cf0'], [s.r * 0.8, '#bff8ff'], [Math.max(1.5, s.r * 0.25), '#ffffff']]
+        : [[s.r * 2.8, 'rgba(255,92,240,0.25)'], [s.r * 1.7, '#ff5cf0'], [s.r * 0.8, '#bff8ff'], [Math.max(1.5, s.r * 0.25), '#ffffff']];
+      ctx.lineCap = 'butt';
+      for (const [lw, col] of layers) {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = lw;
+        waveArcs(ctx, s.x, s.y, rad, gy, gh);
+      }
+      // bright caps at the gap's edges
+      ctx.fillStyle = '#7dff9b';
+      const [a1, a2] = gapAngles(s.y, rad, gy, gh);
+      for (const a of a2 - a1 > 1e-4 ? [a1, a2] : []) {
+        if (Math.abs(a) > Math.PI / 2 - 1e-4) continue;
+        ctx.beginPath();
+        ctx.arc(s.x + Math.cos(phi(a)) * rad, s.y + Math.sin(phi(a)) * rad, Math.max(3, s.r * 0.55), 0, TAU);
+        ctx.fill();
+      }
+    }
+  } else {
+    const len = s.x;
+    if (s.t < 0) {
+      const k = 1 - -s.t / Math.max(0.01, s.tele ?? 0.85);
+      ctx.fillStyle = `rgba(255,92,240,${0.07 + 0.12 * k})`;
+      ctx.fillRect(0, s.y - s.r, len, s.r * 2);
+      ctx.setLineDash([u(8), u(6)]);
+      ctx.lineDashOffset = time * 90;
+      ctx.strokeStyle = `rgba(255,92,240,${0.55 + 0.4 * blink})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, s.y - s.r);
+      ctx.lineTo(len, s.y - s.r);
+      ctx.moveTo(0, s.y + s.r);
+      ctx.lineTo(len, s.y + s.r);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.5 * blink})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, s.y);
+      ctx.lineTo(len, s.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ff3355';
+      ctx.font = `900 ${u(20)}px 'Orbitron', sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.globalAlpha *= 0.5 + 0.5 * blink;
+      ctx.fillText('!', u(6), s.y);
+      ctx.restore();
+      ctx.fillStyle = `rgba(255,92,240,${0.5 + 0.5 * k})`;
+      ctx.beginPath();
+      ctx.arc(len, s.y, s.r * (0.35 + 0.65 * k), 0, TAU);
+      ctx.fill();
+    } else {
+      const wob = 1 + Math.sin(time * 60) * 0.08;
+      const fade = (0.45 - s.t) / 0.12 + 0.2;
+      ctx.globalAlpha *= Math.max(0.2, Math.min(1, fade));
+      const layers: [number, string][] = lite
+        ? [[0.95, '#ff5cf0'], [0.55, '#bff8ff'], [0.22, '#ffffff']]
+        : [[1.3, 'rgba(255,92,240,0.35)'], [0.95, '#ff5cf0'], [0.55, '#bff8ff'], [0.22, '#ffffff']];
+      for (const [k, col] of layers) {
+        ctx.fillStyle = col;
+        ctx.fillRect(0, s.y - s.r * k * wob, len, s.r * k * wob * 2);
+      }
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 8; i++) {
+        const x = (len * (hash(i + 3) + time * 2.5)) % Math.max(1, len);
+        ctx.fillRect(x, s.y + (hash(i + 9) - 0.5) * s.r * 1.6, u(6), 2);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(len, s.y, s.r * 1.3 * wob, 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  return true;
+}

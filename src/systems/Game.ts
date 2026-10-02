@@ -2491,6 +2491,7 @@ export class Game {
         packH: this.player.h + f.extUp + f.extDown,
         boosting,
         right: this.bossRightLimit(),
+        speed: this.speedTenths / SPEED_DEFAULT,
       });
       this.bossEvents();
     }

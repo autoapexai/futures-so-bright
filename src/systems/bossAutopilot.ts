@@ -55,6 +55,28 @@ export function bossPilot(f: BossFight, v: PilotView, sk?: PilotSkill, dt = 1 / 
     if (Math.abs(y - v.py) > 260) continue;
     let cost = Math.abs(y - target) * 0.02 + Math.abs(y - v.py) * 0.002;
     for (const s of f.shots) {
+      if (s.kind === 'beam') {
+        // Psychic beam (telegraphed or live): stay out of its band.
+        if (s.alive && !s.spent && v.px < s.x) {
+          const dy = Math.abs(y - s.y) - s.r - v.halfH;
+          if (dy < 18) cost += (18 - dy) * 3;
+        }
+        continue;
+      }
+      if (s.kind === 'wave') {
+        // Thought wave: be inside its safe corridor before the ring reaches the pack.
+        if (!s.alive || s.spent || s.x <= v.px) continue;
+        const D = Math.hypot(s.x - v.px, s.y - y);
+        const rad = s.rad ?? 0;
+        if (rad > D + s.r + v.halfH) continue;
+        const tArr = (D - rad - s.r - v.halfH) / Math.max(1, s.vr ?? 1) + Math.max(0, -s.t);
+        if (tArr < 3) {
+          const gy = s.gy ?? 0;
+          const gh = s.gh ?? 0;
+          if (y - v.halfH - 8 < gy - gh / 2 || y + v.halfH + 8 > gy + gh / 2) cost += 80 * (1 - tArr / 3) + 10;
+        }
+        continue;
+      }
       if (s.kind !== 'warn' && !BossFight.harmful(s) && s.kind !== 'blink') continue;
       let sx = s.x;
       let sy = s.y;
