@@ -11,7 +11,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff6b35'/%3E%3Cpath d='M3 13h26v3h-2l-2 6q-1 2-3 2h-3q-2 0-3-2l-1-3-1 3q-1 2-3 2H8q-2 0-3-2l-2-6z' fill='%230a0015'/%3E%3C/svg%3E">
 <!--
   STANDBY WAITLIST for Future's So Bright (autoapexai.com).
-  Self-contained: no game JS, no Supabase, no fsb_track, no external fonts/scripts.
+  Self-contained: no game JS, no external fonts/scripts. Works with Supabase down; its only Supabase
+  call is the fire-and-forget no-form beacon (fsb_log_waitlist_attempt), sent only while CONFIG is unfilled.
   Sign-ups POST straight to a Google Form owned by Mr. Dan (responses land in his Google Sheet).
 -->
 <style>
@@ -197,6 +198,22 @@ footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--
       .finally(function () { if (timer) clearTimeout(timer); });
   }
 
+  // No-form beacon: while the Google Form isn't wired in, tell the team a real visitor tried to sign up.
+  // Fire-and-forget; sends NO email or name, only reason 'no_form' + the ?reason= value; at most once per
+  // 10 min per device. Never runs once CONFIG is filled in. The page works the same if this call fails.
+  var SB_URL = 'https://dcqpytggsoiyrdbewiwd.supabase.co', K_NOFORM = 'fsb_wl_noform_at';
+  var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcXB5dGdnc29peXJkYmV3aXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MjIxMzAsImV4cCI6MjEwNjE5ODEzMH0.TC4u-mAchA0ol64ZUcCJtXUPMm9iT8KSGBibkODDfLo';
+  function logNoForm() {
+    try {
+      if (Date.now() - (+read(K_NOFORM) || 0) < 600000) return;
+      store(K_NOFORM, String(Date.now()));
+      fetch(SB_URL + '/rest/v1/rpc/fsb_log_waitlist_attempt', { method: 'POST', credentials: 'omit', cache: 'no-store',
+        referrerPolicy: 'no-referrer', headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_reason: 'no_form', p_trip: reason.replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 40) || null }) })
+        .catch(function () {});
+    } catch (e) {}
+  }
+
   var busy = false;
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -208,7 +225,7 @@ footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--
       return showErr("That email doesn't look quite right. Please check it.", email);
     // Bots: filled the hidden field, or submitted faster than a human could type. Pretend success, send nothing.
     if (hp.value || Date.now() - t0 < 1500) { store(JOINED, addr); return showDone(addr, false); }
-    if (!configured) return showErr("Sign-ups aren't switched on yet. Please try again in a little while.", null);
+    if (!configured) { logNoForm(); return showErr("Sign-ups aren't switched on yet. Please try again in a little while.", null); }
 
     var p = new URLSearchParams();
     p.append(CONFIG.ENTRY_EMAIL, addr);
