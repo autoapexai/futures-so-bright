@@ -1,7 +1,9 @@
-# GAME SPEED and the score server (PROPOSED, NOT APPLIED)
+# GAME SPEED and the score server (APPLIED 2026-10-02, Pacific Time)
 
-Status: nothing here has been run against Supabase. `fsb_speed_scores.sql` and
-`fsb_speed_scores_rollback.sql` wait for Mr. Dan's explicit OK.
+Status: `fsb_speed_scores.sql` was applied to project dcqpytggsoiyrdbewiwd on 2026-10-02 at
+14:40 Pacific Time with Mr. Dan's OK (backup of the previous definitions:
+`/workspace/fsb-phase2/backup-before-speed-scores.sql`). `fsb_speed_scores_rollback.sql` restores
+them. The client now ships with `SPEED_ON_PUBLIC_BOARD = true`.
 
 ## What the live server checks today (read-only inspection, 2026-10-01 Pacific Time)
 
@@ -47,7 +49,7 @@ exactly. With s = p_speed/10: `v_max = s * today's bound` (boss allowance includ
 checks allow game time = (issued - created) + (now - issued) * s, and "ticket too young" uses
 wall * s. Everything else is unchanged.
 
-Until it is applied the client keeps today's behaviour: `SPEED_ON_PUBLIC_BOARD = false` in
+Before it was applied the client kept today's behaviour: `SPEED_ON_PUBLIC_BOARD = false` in
 `src/utils/speed.ts`, so a run that ever ran above 1.0 stays on this device's board (no ticket,
 no submit) and the request bodies are byte-for-byte today's. ON A MISSION still goes to the DEV
 BOARD at any speed (today's body; a 11.1x boss run there would be rejected and kept on the device

@@ -65,7 +65,8 @@ export async function submitDevScore(
       p_level: Math.max(1, Math.min(111, Math.round(level))),
     };
     if (startLevel && startLevel >= 1 && startLevel <= 10 && startLevel <= level) body.p_start = startLevel;
-    // GAME SPEED: sent only once fsb_dev_submit takes p_speed (supabase/fsb_speed_scores.sql).
+    // GAME SPEED: the run's top speed in tenths, only when it isn't 1.0 (fsb_dev_submit p_speed,
+    // supabase/fsb_speed_scores.sql). A 1.0 run's body is exactly today's.
     if (SPEED_ON_PUBLIC_BOARD && speedTenths && clampSpeed(speedTenths) !== SPEED_DEFAULT) body.p_speed = clampSpeed(speedTenths);
     return parseDevRows(await rpc('fsb_dev_submit', body, timeoutMs));
   } catch (err) {

@@ -1622,7 +1622,7 @@ export class Game {
     this.floaters.push(f);
   }
 
-  /** Above 1.0 (and until the server knows about speed) a public-board run stays on this device. */
+  /** SPEED_ON_PUBLIC_BOARD = false only (pre-migration rule): above 1.0 a public-board run stays on this device. */
   private speedKeepsLocal(): boolean {
     return !SPEED_ON_PUBLIC_BOARD && this.speedTenths !== SPEED_DEFAULT;
   }
@@ -1662,12 +1662,6 @@ export class Game {
     const plus = document.getElementById('speed-plus') as HTMLButtonElement | null;
     if (minus) minus.disabled = t <= SPEED_MIN;
     if (plus) plus.disabled = t >= SPEED_MAX;
-    const note = document.getElementById('speed-note');
-    if (note) {
-      const show = !this.missionRun && !SPEED_ON_PUBLIC_BOARD && (t !== SPEED_DEFAULT || this.runSpeedMax !== SPEED_DEFAULT);
-      note.textContent = show ? tr('speed_note') : '';
-      note.hidden = !show;
-    }
     document.getElementById('speed-ctl')?.classList.toggle('fast', t !== SPEED_DEFAULT);
   }
 
@@ -1770,7 +1764,7 @@ export class Game {
     }
     if (this.ticketPending) return;
     if (this.difficulty === SECRET_DIFFICULTY && this.speedKeepsLocal()) {
-      // A speed run stays on this device: no ticket request (no server write) at all.
+      // (SPEED_ON_PUBLIC_BOARD = false only) a speed run stays on this device: no ticket request at all.
       this.startRun(SECRET_DIFFICULTY, null, true);
       return;
     }

@@ -123,8 +123,8 @@ export async function submitRemoteScore(
     if (endMode) body.p_mode = endMode;
     body.p_modes = Math.max(1, Math.min(13, Math.floor(modeCount)));
     if (startLevel && startLevel >= 1 && startLevel <= 11 && startLevel <= difficulty) body.p_start = startLevel;
-    // GAME SPEED (the run's top speed, tenths): only once the server knows p_speed
-    // (supabase/fsb_speed_scores.sql). Until then the body is exactly today's.
+    // GAME SPEED: the run's top speed in tenths (11-111), sent only when it isn't 1.0
+    // (supabase/fsb_speed_scores.sql). A 1.0 run's body is exactly today's.
     if (SPEED_ON_PUBLIC_BOARD && speedTenths && clampSpeed(speedTenths) !== SPEED_DEFAULT) body.p_speed = clampSpeed(speedTenths);
     const data = await rpc('fsb_submit_score', body, timeoutMs);
     return parseRows(data);

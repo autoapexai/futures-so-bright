@@ -24,12 +24,13 @@ export const SPEED_DEFAULT = 10;
 export const SPEED_STEPS = SPEED_MAX - SPEED_MIN + 1;
 
 /**
- * Public board: today's server (fsb_submit_score) validates scores against run time with no
- * idea of speed, so a run that ever ran above 1.0 stays on this device's board (no ticket, no
- * submit) until supabase/fsb_speed_scores.sql is applied. Then set this to true: the run's top
- * speed is sent as p_speed and validated server-side.
+ * Public board + DEV BOARD: the server knows about speed (supabase/fsb_speed_scores.sql, applied
+ * 2026-10-02 Pacific Time), so speed runs go on the boards like any other run. A run whose top
+ * speed was above 1.0 sends it as p_speed (tenths) to fsb_submit_score / fsb_dev_submit, which
+ * scale their plausibility and ticket checks by it. 1.0 runs send today's body (no p_speed).
+ * (false = the pre-migration rule: any run above 1.0 stays on this device's board.)
  */
-export const SPEED_ON_PUBLIC_BOARD = false;
+export const SPEED_ON_PUBLIC_BOARD = true;
 
 const KEY = 'fsb_speed_tenths';
 

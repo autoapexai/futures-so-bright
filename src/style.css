@@ -2603,17 +2603,6 @@ body.speed-open #speed-ctl {
   background: #ffd23f;
   box-shadow: 0 0 10px rgba(255, 210, 63, 0.8);
 }
-#speed-note {
-  margin: 4px 0 0;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.15;
-  color: rgba(255, 230, 109, 0.85);
-}
-#speed-note[hidden] {
-  display: none;
-}
 /* Short (landscape phone) screens: a slimmer GAME SPEED panel. */
 @media (max-height: 480px) {
   #speed-ctl {
@@ -2624,9 +2613,5 @@ body.speed-open #speed-ctl {
   }
   #speed-readout {
     margin-bottom: 1px;
-  }
-  #speed-note {
-    margin-top: 1px;
-    font-size: 11px;
   }
 }

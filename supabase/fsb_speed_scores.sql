@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Future's So Bright: GAME SPEED (1.0-11.1) on the public board and the DEV BOARD.
--- PROPOSED, NOT APPLIED. Needs Mr. Dan's explicit OK before anyone runs it.
+-- APPLIED 2026-10-02 14:40 Pacific Time (Mr. Dan's OK). Do not re-run blindly; it drops + recreates.
 --   /workspace/fsb-phase2/sbq.sh supabase/fsb_speed_scores.sql
 -- Undo: supabase/fsb_speed_scores_rollback.sql (restores the exact definitions live on
 -- 2026-10-01, Pacific Time).

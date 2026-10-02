@@ -198,7 +198,6 @@ const en = {
   speed_slower: 'Slower (0.1)',
   speed_faster: 'Faster (0.1)',
   speed_aria: 'Game speed, 1.0 to 11.1',
-  speed_note: 'Above 1.0, scores stay on this device for now',
   hud_speed: 'SPEED {s}x',
   donate_note: "Goes to @{h}, the game's creator.",
   v4v_message:
@@ -438,7 +437,6 @@ const es: Record<Key, string> = {
   speed_slower: 'Más lento (0.1)',
   speed_faster: 'Más rápido (0.1)',
   speed_aria: 'Velocidad del juego, de 1.0 a 11.1',
-  speed_note: 'Por encima de 1.0, las puntuaciones se quedan en este dispositivo por ahora',
   hud_speed: 'VEL. {s}x',
   donate_note: 'Va para @{h}, el creador del juego.',
   v4v_message:
@@ -673,7 +671,6 @@ const vi: Record<Key, string> = {
   speed_slower: 'Chậm hơn (0.1)',
   speed_faster: 'Nhanh hơn (0.1)',
   speed_aria: 'Tốc độ trò chơi, từ 1.0 đến 11.1',
-  speed_note: 'Trên 1.0, điểm tạm thời chỉ lưu trên thiết bị này',
   hud_speed: 'TỐC ĐỘ {s}x',
   donate_note: 'Gửi đến @{h}, người làm ra trò chơi.',
   v4v_message: "Không quảng cáo. Không nhà tài trợ. Không ai bảo tôi phải làm gì. Future's So Bright sống nhờ một mình bạn.\nChỉ xin một điều: nếu trò chơi mang lại giá trị cho bạn, hãy gửi lại chút giá trị. Bao nhiêu cũng được. Đồng nào cũng quý.\nSự ủng hộ của bạn là tất cả.",
@@ -907,7 +904,6 @@ const zh: Record<Key, string> = {
   speed_slower: '减速（0.1）',
   speed_faster: '加速（0.1）',
   speed_aria: '游戏速度，1.0 至 11.1',
-  speed_note: '速度高于 1.0 时，分数暂时只保存在本设备',
   hud_speed: '速度 {s}x',
   donate_note: '送给 @{h}，本游戏的作者。',
   v4v_message: "没有广告。没有赞助商。没人告诉我该做什么。Future's So Bright 全靠你来支持。\n只求一件事：如果这个游戏带给你价值，就回馈一点价值吧。多少都行，每一分钱都有用。\n你的支持就是全部。",
