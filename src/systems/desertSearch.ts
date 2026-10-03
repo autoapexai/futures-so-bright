@@ -3,15 +3,15 @@
  *
  * When a finished run on the public board does not make the GLOBAL TOP 11, the game-over screen
  * gets a big card: "COMBING THE DESERT FOR YOUR HIGH SCORE" with a short comb-through-the-sand
- * search beat (SEARCH_MS, about 1.5 s), then a NOT FOUND stamp and one random taunt from
+ * search beat (SEARCH_MS, half a second), then a NOT FOUND stamp and one random taunt from
  * src/data/leaderboard-taunts.json (never the same one twice in a row on this device).
  * The card never blocks: ENTER / SPACE / RIDE still start the next run, and a tap on the card
  * just tucks it away so the board shows.
  *
  * The taunts are English in every language (they are wordplay); the card's labels are translated.
  *
- * DESERT SEARCH PARTY REPORT (utils/tauntFeed.ts) is the cross-player ticker. It ships switched
- * off (TAUNT_BROADCAST = false) and its migration (supabase/fsb_taunt_feed.sql) is NOT applied.
+ * DESERT SEARCH PARTY REPORT (utils/tauntFeed.ts) is the anonymous cross-player ticker
+ * (TAUNT_BROADCAST, backed by supabase/fsb_taunt_feed.sql).
  */
 import TAUNTS_JSON from '../data/leaderboard-taunts.json';
 import { lang, onLang, t as tr } from '../i18n';
@@ -20,7 +20,7 @@ import { FEED_POLL_MS, broadcastOn, fetchRecentTaunts, reportTaunt } from '../ut
 
 export const TAUNTS: readonly string[] = (TAUNTS_JSON as unknown[]).filter((s): s is string => typeof s === 'string' && s.length > 0);
 /** The search beat before NOT FOUND + the taunt. */
-export const SEARCH_MS = 1500;
+export const SEARCH_MS = 500;
 /** ON A MISSION runs use the separate DEV BOARD; no desert search for them (flip to opt in). */
 export const DESERT_SEARCH_ON_MISSION = false;
 /** How long one DESERT SEARCH PARTY REPORT ticker stays up. */

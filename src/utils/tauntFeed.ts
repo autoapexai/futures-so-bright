@@ -1,9 +1,10 @@
 /**
  * DESERT SEARCH PARTY REPORT: the cross-player broadcast for the desert-search taunts.
  *
- * SHIPS SWITCHED OFF (TAUNT_BROADCAST = false). Turning it on needs Mr. Dan's OK twice: to apply
- * supabase/fsb_taunt_feed.sql (a new fsb_taunt_feed table + two RPCs; nothing existing changes)
- * and to push. While it is false no request is ever made from this file.
+ * ON (TAUNT_BROADCAST = true, approved by Mr. Dan), backed by supabase/fsb_taunt_feed.sql (a new
+ * fsb_taunt_feed table + two RPCs; nothing existing changes). Set it to false to switch the whole
+ * feature off: then no request is ever made from this file. Undo the database side with
+ * supabase/fsb_taunt_feed_rollback.sql.
  *
  * Anonymous by design: a report carries only the taunt's index into src/data/leaderboard-taunts.json
  * (no initials, names, score, id, device or free text). Other players see the taunt text from their
@@ -13,7 +14,7 @@
 import { remoteEnabled, rpc } from './remoteBoard';
 
 /** Master switch for the broadcast. false = no reports, no polling, no ticker. */
-export const TAUNT_BROADCAST = false;
+export const TAUNT_BROADCAST = true;
 
 /** How often the title / game-over screens poll for new reports while the broadcast is on. */
 export const FEED_POLL_MS = 20000;

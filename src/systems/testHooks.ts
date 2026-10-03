@@ -197,7 +197,7 @@ export function installTestHooks(game: unknown): void {
     },
     shipsForLevel,
     CLONE_SLOTS,
-    /** COMBING THE DESERT: card state, the taunt list and the (switched-off) broadcast. */
+    /** COMBING THE DESERT: card state, the taunt list and the broadcast. */
     desert: () => (g.desert ? g.desert.state : null),
     TAUNTS: [...TAUNTS],
     SEARCH_MS,

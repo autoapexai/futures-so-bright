@@ -2695,7 +2695,7 @@ body.clone-open #desert-search {
   bottom: 8px;
   width: 64px;
   height: 34px;
-  animation: ds-comb 1.5s ease-in-out forwards;
+  animation: ds-comb 0.5s ease-in-out forwards;
 }
 #desert-search .ds-comb::before {
   /* comb spine */
@@ -2733,10 +2733,10 @@ body.clone-open #desert-search {
   color: #6b2f0c;
 }
 #desert-search .ds-dots b {
-  animation: ds-dot 0.75s ease-in-out infinite;
+  animation: ds-dot 0.3s ease-in-out infinite;
 }
-#desert-search .ds-dots b:nth-child(2) { animation-delay: 0.15s; }
-#desert-search .ds-dots b:nth-child(3) { animation-delay: 0.3s; }
+#desert-search .ds-dots b:nth-child(2) { animation-delay: 0.08s; }
+#desert-search .ds-dots b:nth-child(3) { animation-delay: 0.16s; }
 #desert-search .ds-notfound,
 #desert-search .ds-taunt,
 #desert-search .ds-hint {
@@ -2807,7 +2807,7 @@ body.portrait #desert-search.found .ds-notfound { font-size: clamp(22px, 7vw, 32
   #desert-search.found .ds-hint { font-size: 11px; margin-top: 6px; }
 }
 
-/* DESERT SEARCH PARTY REPORT: the (switched-off) cross-player ticker. Title / game-over only. */
+/* DESERT SEARCH PARTY REPORT: the anonymous cross-player ticker. Title / game-over only. */
 #ds-ticker {
   display: none;
   position: absolute;

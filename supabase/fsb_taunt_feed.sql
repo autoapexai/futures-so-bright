@@ -1,15 +1,15 @@
 -- =============================================================================
 -- Future's So Bright: DESERT SEARCH PARTY REPORT feed (cross-player missed-board taunts)
 --
--- STATUS: WRITTEN, NOT APPLIED. Needs Mr. Dan's OK before it is run, and the client switch
--- (TAUNT_BROADCAST in src/utils/tauntFeed.ts) stays false until then.
+-- Client switch: TAUNT_BROADCAST in src/utils/tauntFeed.ts (on with this feed; false = no calls).
+-- The taunt index range (0-99) matches the 100 entries in src/data/leaderboard-taunts.json.
 --
 -- Only CREATES new fsb_taunt_ objects. Alters NO existing table, function, policy or grant:
 -- fsb_scores, fsb_dev_scores and every existing fsb_ RPC are untouched.
 -- Undo: supabase/fsb_taunt_feed_rollback.sql (drops exactly what this file adds).
 -- Safe to re-run (create if not exists / create or replace; grants re-applied).
 --
--- Apply (only with Mr. Dan's OK; same way the earlier fsb_ files were applied):
+-- Apply (same way the earlier fsb_ files were applied):
 --   /workspace/fsb-phase2/sbq.sh supabase/fsb_taunt_feed.sql
 --
 -- Object (RLS on, no policies, no table / sequence grants to anon or authenticated):
