@@ -40,6 +40,7 @@ import {
   type LeaderboardEntry,
 } from '../utils/storage';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
+import { DesertSearch, DESERT_SEARCH_ON_MISSION } from './desertSearch';
 import { trackRunStart } from '../utils/track';
 import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed, fmtSpeed, loadSpeed, saveSpeed, scalePoints, speedSubsteps } from '../utils/speed';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
@@ -302,6 +303,8 @@ export class Game {
   private readonly car = new MissionCar();
   /** Last DEV BOARD fetched (null = never / unavailable). */
   private devBoard: LeaderboardEntry[] | null = null;
+  /** COMBING THE DESERT: the missed-the-TOP-11 taunt card (systems/desertSearch.ts). */
+  private desert: DesertSearch | null = null;
   private devOpen = false;
   private devSeq = 0;
   private dpr = 1;
@@ -414,6 +417,10 @@ export class Game {
     const app = document.getElementById('app') ?? canvas;
     app.addEventListener('pointerdown', this.onPointer, { passive: false });
     this.bindChrome();
+    this.desert = new DesertSearch(
+      () => this.audio.isMuted,
+      () => (this.state === 'title' || this.state === 'gameover') && !this.modesOpen && !this.congratsOpen && !this.cloneOpen,
+    );
     this.setBodyFlags();
     // First load on this device: the How to Play walkthrough plays before any run can start.
     if (!loadTutorialDone()) this.startTutorial();
@@ -1574,6 +1581,8 @@ export class Game {
     document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
     document.body.classList.toggle('quit-open', this.quitOpen);
     document.body.classList.toggle('mission-run', this.missionRun && (this.state === 'playing' || this.state === 'paused'));
+    // The desert-search card belongs to one game-over screen only.
+    if (this.state !== 'gameover') this.desert?.hide();
     this.syncWakeLock();
     // Title-screen demo loop plays only while the title is up.
     const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
@@ -1992,6 +2001,9 @@ export class Game {
       this.boardIsRemote = true;
       // Shared board was unavailable at game over but is now: offer initials if it qualifies.
       if (!hadRemote && qualifiesForBoard(this.pendingScore, board)) this.enterInitials();
+      // The freshly fetched public board confirms the run missed the TOP 11: comb the desert.
+      // (No board = no taunt: an offline / failed read never shows one.)
+      else if (!qualifiesForBoard(this.pendingScore, board)) this.missedBoard();
     }).then(() => this.checkTop());
   }
 
@@ -2020,7 +2032,18 @@ export class Game {
       this.leaderboard = [...board];
       this.boardIsRemote = true;
       if (!hadRemote && qualifiesForBoard(this.pendingScore, board)) this.enterInitials();
+      else if (!qualifiesForBoard(this.pendingScore, board)) this.missedBoard();
     });
+  }
+
+  /**
+   * A finished run missed the board it was played for: show the desert-search taunt.
+   * Public-board runs only by default; ON A MISSION (DEV BOARD) runs only if DESERT_SEARCH_ON_MISSION.
+   */
+  private missedBoard(): void {
+    if (this.state !== 'gameover' || this.highlightIndex !== -1) return;
+    if (this.pendingMission ? !DESERT_SEARCH_ON_MISSION : this.runLocalOnly || !this.boardIsRemote) return;
+    this.desert?.show();
   }
 
   /** ON A MISSION initials: this device's mission board + the DEV BOARD (fsb_dev_submit). */
@@ -2109,6 +2132,8 @@ export class Game {
         this.leaderboard = res.board;
         this.highlightIndex = res.index;
         this.boardIsRemote = true;
+        // Accepted, but bumped out of the TOP 11 while typing initials: that's a miss too.
+        if (res.index === -1) this.missedBoard();
       } else {
         // Network down / rejected: fall back to this device's board.
         this.leaderboard = local.board;

@@ -10,6 +10,8 @@ import { BOSSES, bossTuning } from './Boss';
 import { mulberry32 } from '../utils/rng';
 import { MODES, MISSION_MODE } from '../utils/modes';
 import { scalePoints } from '../utils/speed';
+import { TAUNTS, pickTauntIndex, SEARCH_MS } from './desertSearch';
+import { setBroadcastForTest, broadcastOn, TAUNT_BROADCAST } from '../utils/tauntFeed';
 
 let pilotOn = false;
 let pilotKeep = false;
@@ -195,6 +197,19 @@ export function installTestHooks(game: unknown): void {
     },
     shipsForLevel,
     CLONE_SLOTS,
+    /** COMBING THE DESERT: card state, the taunt list and the (switched-off) broadcast. */
+    desert: () => (g.desert ? g.desert.state : null),
+    TAUNTS: [...TAUNTS],
+    SEARCH_MS,
+    pickTauntIndex,
+    TAUNT_BROADCAST,
+    broadcastOn: () => broadcastOn(),
+    /** Mocked-network tests only: switch the broadcast on in this test build and poll once. */
+    setBroadcast: (on: boolean) => {
+      setBroadcastForTest(on);
+      if (on) g.desert?.startFeedForTest();
+    },
+    pollFeed: () => g.desert?.pollOnce() ?? null,
     game: g,
   };
 }

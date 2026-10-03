@@ -324,6 +324,12 @@ const en = {
   dev_loading: 'Loading…',
   dev_local: 'Offline: showing this device',
   dev_empty: 'No mission scores yet.',
+  ds_head: 'COMBING THE DESERT FOR YOUR HIGH SCORE',
+  ds_notfound: 'NOT FOUND',
+  ds_hint_touch: 'TAP HERE TO SEE THE BOARD',
+  ds_hint_keys: 'CLICK HERE TO SEE THE BOARD  ·  ENTER TO RIDE AGAIN',
+  ds_feed_title: 'DESERT SEARCH PARTY REPORT',
+  ds_feed_lead: 'Somewhere, a player just missed the board:',
 };
 
 export type Key = keyof typeof en;
@@ -560,6 +566,12 @@ const es: Record<Key, string> = {
   dev_loading: 'Cargando…',
   dev_local: 'Sin conexión: se muestra este dispositivo',
   dev_empty: 'Aún no hay puntuaciones de misión.',
+  ds_head: 'PEINANDO EL DESIERTO EN BUSCA DE TU RÉCORD',
+  ds_notfound: 'NO ENCONTRADO',
+  ds_hint_touch: 'TOCA AQUÍ PARA VER LA TABLA',
+  ds_hint_keys: 'CLIC AQUÍ PARA VER LA TABLA  ·  ENTER PARA OTRA VUELTA',
+  ds_feed_title: 'INFORME DE LA PATRULLA DEL DESIERTO',
+  ds_feed_lead: 'En algún lugar, alguien se quedó fuera de la tabla:',
 };
 
 const vi: Record<Key, string> = {
@@ -793,6 +805,12 @@ const vi: Record<Key, string> = {
   dev_loading: 'Đang tải…',
   dev_local: 'Ngoại tuyến: hiển thị thiết bị này',
   dev_empty: 'Chưa có điểm nhiệm vụ nào.',
+  ds_head: 'ĐANG LỤC TUNG SA MẠC TÌM ĐIỂM CAO CỦA BẠN',
+  ds_notfound: 'KHÔNG TÌM THẤY',
+  ds_hint_touch: 'CHẠM VÀO ĐÂY ĐỂ XEM BẢNG',
+  ds_hint_keys: 'BẤM VÀO ĐÂY ĐỂ XEM BẢNG  ·  ENTER ĐỂ CHƠI LẠI',
+  ds_feed_title: 'BÁO CÁO ĐỘI TÌM KIẾM SA MẠC',
+  ds_feed_lead: 'Ở đâu đó, một người chơi vừa trượt khỏi bảng:',
 };
 
 const zh: Record<Key, string> = {
@@ -1026,6 +1044,12 @@ const zh: Record<Key, string> = {
   dev_loading: '加载中…',
   dev_local: '离线：显示本设备的记录',
   dev_empty: '还没有任务分数。',
+  ds_head: '正在把沙漠梳一遍，寻找你的最高分',
+  ds_notfound: '未找到',
+  ds_hint_touch: '点这里查看排行榜',
+  ds_hint_keys: '点这里查看排行榜  ·  ENTER 再来一局',
+  ds_feed_title: '沙漠搜救队报告',
+  ds_feed_lead: '某处，一位玩家刚刚与排行榜擦肩而过：',
 };
 
 export const STRINGS: Record<Lang, Record<Key, string>> = { en, es, vi, zh };
