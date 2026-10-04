@@ -214,12 +214,12 @@ export function miniAppearance(level: number): number {
 const cache = new Map<number, BossDef>();
 
 /**
- * ROLLOUT IN BATCHES BY DECADE: mini-bosses are live on levels 1..MINI_LIVE_MAX only.
- * Live: 1-9, 11-19, 21-29, 31-39, 41-49, 51-59, 61-69, 71-79, 81-89, 91-99 (batches 1-10). Next: 109 (every mini level). Levels above it play
- * exactly as before (no mini, no gate). The server bound (supabase/fsb_minis_initials.sql)
- * already allows every mini level, so raising this needs no migration.
+ * ROLLOUT IN BATCHES BY DECADE (done in v2.2): mini-bosses are live on levels 1..MINI_LIVE_MAX.
+ * Live: all 99 (1-9, 11-19 ... 101-109; batches 1-11). Levels 110 and 111 are big bosses, so
+ * nothing plays without its boss any more. The server bound (supabase/fsb_minis_initials.sql)
+ * already allows every mini level.
  */
-export const MINI_LIVE_MAX = 99;
+export const MINI_LIVE_MAX = 109;
 
 /** Every mini-boss level (1-109, not multiples of 10): 99 in all. */
 export const MINI_TOTAL = 99;
