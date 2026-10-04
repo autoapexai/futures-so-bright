@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { shipsForLevel } from '../utils/cloneLevels';
 import { CLONE_SLOTS } from '../entities/Formation';
-import { bossPilot, makeSkill, type PilotSkill } from './bossAutopilot';
+import { bossPilot, makeSkill, stickTo, type PilotSkill } from './bossAutopilot';
 import { BOSSES, bossTuning } from './Boss';
 import { mulberry32 } from '../utils/rng';
 import { MODES, MISSION_MODE } from '../utils/modes';
@@ -37,8 +37,8 @@ export function installTestHooks(game: unknown): void {
         const rings = g.world.obstacles
           .filter((o: any) => o.kind === 'ring' && o.alive && !o.passed)
           .map((o: any) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2 }));
-        const act = bossPilot(f, { px: g.player.x, py: g.player.y, halfH: g.player.h / 2 + 4, top: pr.top, bottom: g.viewH - pr.bottom, charge: g.charge, rings }, sk, dt);
-        axis.x = g.player.x > g.viewW * 0.22 ? -0.4 : g.player.x < g.viewW * 0.15 ? 0.4 : 0;
+        const act = bossPilot(f, { px: g.player.x, py: g.player.y, halfH: g.player.h / 2 + 4, top: pr.top, bottom: g.viewH - pr.bottom, charge: g.charge, rings, vy: g.player.vy }, sk, dt);
+        axis.x = stickTo(g.viewW * 0.185 - g.player.x, g.player.vx) * 0.6;
         axis.y = act.ay;
         Object.defineProperty(g.input, 'axis', { configurable: true, get: () => axis });
         Object.defineProperty(g.input, 'boosting', { configurable: true, get: () => act.boost });
@@ -59,6 +59,9 @@ export function installTestHooks(game: unknown): void {
       ships: g.ships,
       drawn: 1 + g.formation.occupiedCount,
       levelTime: g.levelTime,
+      hazardsPopped: g.hazardsPopped,
+      pvx: g.player.vx,
+      pvy: g.player.vy,
       runTime: g.runTime,
       score: g.score,
       runDifficulty: g.runDifficulty,

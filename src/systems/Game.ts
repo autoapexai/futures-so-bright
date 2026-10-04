@@ -46,7 +46,8 @@ import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v
 import { boardTaunt } from './boardTaunt';
 import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
-import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
+import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
+import { APP_VERSION } from '../version';
 import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel } from './miniBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
@@ -95,6 +96,10 @@ const FIGHT_LEAD_S = 1.5;
  * this (a full bar), once per gate. Gates never cost a dog, shade or count as a hit.
  */
 const GATE_CHARGE = 1.0;
+/** FIRE vs hazards (v2.1): hit flash (s, same as a boss's hurt flash), points per hp popped. */
+const HAZARD_HIT_FLASH = 0.35;
+const HAZARD_POP_POINTS = 25;
+const HAZARD_HIT_POPS: [string, 'honk' | 'boing'][] = [['BONK!', 'honk'], ['BOING!', 'boing'], ['PLINK!', 'boing'], ['HONK!', 'honk']];
 /** Dog pack: a normal run (levels 1-10) starts with N0 dogs on screen. */
 const PACK_START = 4;
 /** Per-dog scale with the full pack (s0); each dog is this times its breed size. */
@@ -335,6 +340,16 @@ export class Game {
   private lastBufW = 0;
   private lastBufH = 0;
   private floaters: { x: number; y: number; text: string; life: number; color: string }[] = [];
+  /** FIRE outside boss fights: the dogs' barks (WOOF), the same shot a boss takes (Boss.ts barks). */
+  private barks: { x: number; y: number; alive: boolean }[] = [];
+  private barkT = 0;
+  /** Slapstick word throttle for hazard hits (like the boss's comic pops). */
+  private hazardPopCd = 0;
+  /** Hazards popped by FIRE this run (tests / stats). */
+  hazardsPopped = 0;
+  /** The lead's hitbox swept along this step's move (see sweepPlayer); sweepN boxes are live. */
+  private sweepBoxes: { x: number; y: number; w: number; h: number }[] = [];
+  private sweepN = 0;
   private floaterPool: { x: number; y: number; text: string; life: number; color: string }[] = [];
   /** Accumulators to throttle particle spawn on mobile Safari. */
   private trailAcc = 0;
@@ -731,6 +746,9 @@ export class Game {
       });
       this.syncChips();
       onLang(() => this.syncChips());
+      document.querySelectorAll<HTMLElement>('.ver-label').forEach((el) => {
+        el.textContent = `v${APP_VERSION}`;
+      });
       bindTap(big, () => this.tryDevMode());
       bindTap(nudge, () => this.tryDevMode());
       bindTap(link, () => {
@@ -1204,6 +1222,8 @@ export class Game {
     this.formation = this.cloneFormation;
     this.formation.clear();
     this.world.reset();
+    this.barks.length = 0;
+    this.barkT = 0;
     this.particles.clear();
     while (this.floaters.length) {
       const f = this.floaters.pop();
@@ -2031,6 +2051,7 @@ export class Game {
     this.bossDone = false;
     this.bossesBeaten = 0;
     this.minisBeaten = 0;
+    this.hazardsPopped = 0;
     this.modesUsed = new Set(mode ? [mode.id] : []);
     this.modeFullShips = mode ? mode.ships : 0;
     this.world.spawnObstacles = true;
@@ -2079,6 +2100,8 @@ export class Game {
     // boss / mini-boss in after a breath (same fight, rules, rewards and scoring).
     if (this.runFight) this.levelTime = LEVEL_SECONDS - FIGHT_LEAD_S;
     this.world.reset();
+    this.barks.length = 0;
+    this.barkT = 0;
     this.particles.clear();
     while (this.floaters.length) {
       const f = this.floaters.pop();
@@ -2492,6 +2515,7 @@ export class Game {
       this.player.x = this.viewW * 0.28;
       const tr = this.touchReserves();
       this.player.update(dt, { x: 0, y: 0 }, true, this.viewW, this.viewH, 0.4, tr.top, tr.bottom, tr.left);
+    this.sweepPlayer();
       this.trailAcc += dt;
       if (!this.touchPrimary || this.trailAcc >= 0.04) {
         this.trailAcc = 0;
@@ -2739,7 +2763,9 @@ export class Game {
     this.shieldT = Math.max(0, this.shieldT - dt);
 
     const boosting = this.input.boosting && this.charge > 0.05;
-    const speedMul = boosting ? 1.35 : 1;
+    // FIRE adds push through the player's ramp (Player.ts FIRE; no speed cap); fresh presses escalate it.
+    const speedMul = 1;
+    this.player.boostTaps += this.input.takeBoostPresses();
     if (boosting && this.input.consume(' ')) this.audio.playBoost();
 
     // Difficulty scales base speed + ramp (m) and points (pts). m is the eased hazard speed
@@ -2766,6 +2792,7 @@ export class Game {
       pr.left + f.extLeft,
     );
     if (this.missionRun && this.touchPrimary) this.keepCarClearOfControls(dt);
+    this.sweepPlayer();
     if (this.packRun) {
       // Pack growth eases in over ~0.3 s; sprites and hitboxes use the same scale.
       const want = packScale(this.ships);
@@ -2788,6 +2815,9 @@ export class Game {
       hz.density,
       hz.rampMul,
     );
+    // FIRE pops hazards with the boss's own barks; in a boss fight the boss handles barks as tuned.
+    if (!this.boss) this.updateBarks(dt, boosting, pts);
+    else if (this.barks.length) this.barks.length = 0;
     if (this.boss) {
       this.boss.update({
         dt,
@@ -2855,11 +2885,10 @@ export class Game {
       );
     }
 
-    // collect
-    const hb = this.player.hitbox;
+    // collect (swept: see sweepPlayer)
     for (const c of this.world.collectibles) {
       if (!c.alive) continue;
-      if (circleRect(c.x, c.y, c.r, hb.x, hb.y, hb.w, hb.h)) {
+      if (this.sweptAny((b) => circleRect(c.x, c.y, c.r, b.x, b.y, b.w, b.h))) {
         c.alive = false;
         if (c.kind !== 'shade') {
           this.applyPower(c.kind, pts);
@@ -2880,7 +2909,7 @@ export class Game {
     if (this.player.invuln <= 0) {
       for (const o of this.world.obstacles) {
         if (!o.alive) continue;
-        if (this.hitsObstacle(o, hb)) {
+        if (this.sweptAny((b) => this.hitsObstacle(o, b))) {
           if (this.shieldT > 0) {
             this.pizzaAbsorb();
             break;
@@ -2919,9 +2948,9 @@ export class Game {
     // Boss: a shot (or its body) on the lead dog costs shade, not dogs (see bossHit).
     if (this.boss && this.player.invuln <= 0) {
       const bf = this.boss;
-      let hit = bf.bodyHits(hb.x, hb.y, hb.w, hb.h);
+      let hit = this.sweptAny((b) => bf.bodyHits(b.x, b.y, b.w, b.h));
       for (const s of bf.shots) {
-        if (BossFight.harmful(s) && BossFight.shotHits(s, hb.x, hb.y, hb.w, hb.h)) {
+        if (BossFight.harmful(s) && this.sweptAny((b) => BossFight.shotHits(s, b.x, b.y, b.w, b.h))) {
           s.alive = false;
           hit = true;
         }
@@ -2961,6 +2990,8 @@ export class Game {
     this.tutLastX = this.player.x;
     this.tutLastY = this.player.y;
     this.world.reset();
+    this.barks.length = 0;
+    this.barkT = 0;
     this.world.spawnObstacles = false;
     this.world.spawnCollectibles = false;
     this.particles.clear();
@@ -3000,6 +3031,8 @@ export class Game {
     this.player.reset(this.viewH);
     this.charge = 1;
     this.world.reset();
+    this.barks.length = 0;
+    this.barkT = 0;
     this.world.spawnObstacles = true;
     this.world.spawnCollectibles = true;
     this.particles.clear();
@@ -3024,13 +3057,17 @@ export class Game {
    */
   private tickTutorial(dt: number): void {
     this.tutT += dt;
-    const boosting = this.tutStep === 3 && this.input.boosting && this.charge > 0.05;
+    // FIRE works from the dodge step on (step 2 teaches it: hold FIRE to pop hazards).
+    const boosting = (this.tutStep === 1 || this.tutStep === 3) && this.input.boosting && this.charge > 0.05;
     const hz = hazardLevers(MIN_DIFFICULTY);
     this.scrollSpeed = 240 * hz.speed + (boosting ? 90 : 0);
     const pr = this.touchReserves();
-    this.player.update(dt, this.input.axis, boosting, this.viewW, this.viewH, boosting ? 1.35 : 1, pr.top, pr.bottom, pr.left);
+    this.player.boostTaps += this.input.takeBoostPresses();
+    this.player.update(dt, this.input.axis, boosting, this.viewW, this.viewH, 1, pr.top, pr.bottom, pr.left);
+    this.sweepPlayer();
     // A steady trickle of hazards so step 2 has something to dodge within a few seconds.
     this.world.update(dt, this.scrollSpeed, this.viewW, this.viewH, 0, pr.top, this.viewH - pr.bottom, 1.2, 1);
+    this.updateBarks(dt, boosting, 0); // never scores in the walkthrough
     this.particles.update(dt);
     this.renderer.update(dt, this.scrollSpeed);
     this.trailAcc += dt;
@@ -3106,7 +3143,7 @@ export class Game {
       case 1:
         return {
           title: tr('tut1_title'),
-          lines: [tr('tut1_a'), tr('tut1_b')],
+          lines: [tr('tut1_a'), tr('tut1_c'), tr('tut1_b')],
         };
       case 2:
         return {
@@ -3695,6 +3732,8 @@ export class Game {
     this.boss = null;
     this.world.spawnObstacles = true;
     this.world.reset();
+    this.barks.length = 0;
+    this.barkT = 0;
     this.stageDist = 0;
     this.levelTime = 0;
     this.charge = 1;
@@ -3908,6 +3947,8 @@ export class Game {
       if (leftSide ? want > maxX : want < 20) continue;
       const step = 1400 * dt;
       p.x = leftSide ? Math.min(want, p.x + step) : Math.max(want, p.x - step);
+      // Like a lane edge: no velocity builds up into the control (uncapped movement).
+      if (leftSide ? p.vx < 0 : p.vx > 0) p.vx = 0;
     }
   }
 
@@ -3991,10 +4032,9 @@ export class Game {
     let rings = false;
     for (const o of obs) if (o.kind === 'ring' && o.alive && !o.passed) rings = true;
     if (!rings) return;
-    const phb = this.player.hitbox;
     for (const o of obs) {
       if (o.kind !== 'ring' || !o.alive || o.passed) continue;
-      let touched = this.touchesGate(o, phb.x, phb.y, phb.w, phb.h);
+      let touched = this.sweptAny((b) => this.touchesGate(o, b.x, b.y, b.w, b.h));
       if (!touched) {
         for (const sl of this.formation.slots) {
           if (!sl.occupied) continue;
@@ -4017,6 +4057,116 @@ export class Game {
       this.spawnFloater(cx, o.y - 6, tr('fl_gate'), '#ffe66d');
       this.boss?.stunHit();
     }
+  }
+
+  /**
+   * Swept collision for the lead (v2.1: no speed cap). This step's move from (prevX, prevY) to
+   * (x, y) is covered by hitboxes at most half a hitbox apart, so at any speed nothing (hazard,
+   * gate, circle, boss body or shot) can be jumped over between two frames.
+   */
+  private sweepPlayer(): void {
+    const p = this.player;
+    const hb = p.hitbox;
+    const dx = p.x - p.prevX;
+    const dy = p.y - p.prevY;
+    const step = Math.max(3, Math.min(hb.w, hb.h) * 0.5);
+    const dist = Math.hypot(dx, dy);
+    const n = Number.isFinite(dist) ? Math.min(512, Math.max(1, Math.ceil(dist / step))) : 1;
+    while (this.sweepBoxes.length < n) this.sweepBoxes.push({ x: 0, y: 0, w: 0, h: 0 });
+    for (let i = 0; i < n; i++) {
+      const k = (i + 1) / n;
+      const b = this.sweepBoxes[i];
+      b.x = hb.x - dx * (1 - k);
+      b.y = hb.y - dy * (1 - k);
+      b.w = hb.w;
+      b.h = hb.h;
+    }
+    this.sweepN = n;
+  }
+
+  /** Does any box of this step's sweep pass the test? (One box at normal speeds.) */
+  private sweptAny(test: (b: { x: number; y: number; w: number; h: number }) => boolean): boolean {
+    if (this.sweepN <= 0) return test(this.player.hitbox);
+    for (let i = 0; i < this.sweepN; i++) if (test(this.sweepBoxes[i])) return true;
+    return false;
+  }
+
+  /**
+   * FIRE outside boss fights: holding FIRE barks WOOF straight ahead every BARK_EVERY s at
+   * BARK_SPEED, exactly like a boss fight (Boss.ts). A bark that reaches a hazard hits it (point in
+   * its box, swept so a bark never skips a thin beam): a hit flash + wobble, a cartoon word and
+   * sound; at 0 hp the hazard pops apart in a puff (small score bonus, x level points x GAME
+   * SPEED, capped). Ring gates are never hit (barks fly through).
+   */
+  private updateBarks(dt: number, boosting: boolean, pts: number): void {
+    this.hazardPopCd = Math.max(0, this.hazardPopCd - dt);
+    this.barkT -= dt;
+    const p = this.player;
+    if (boosting && this.barkT <= 0) {
+      this.barkT = BARK_EVERY;
+      this.barks.push({ x: p.x + 30, y: p.y, alive: true });
+    }
+    if (!this.barks.length) return;
+    const back = this.scrollSpeed * dt; // hazards moved left by this much this step
+    for (const k of this.barks) {
+      if (!k.alive) continue;
+      const x0 = k.x;
+      k.x += BARK_SPEED * dt;
+      if (k.x > this.viewW + 40) k.alive = false;
+      for (const o of this.world.obstacles) {
+        if (!o.alive || o.hp <= 0 || o.kind === 'ring') continue;
+        let left: number;
+        let right: number;
+        let hitY: boolean;
+        if (o.kind === 'flare') {
+          const r = o.w * 0.38;
+          const cx = o.x + o.w / 2;
+          left = cx - r;
+          right = cx + r;
+          hitY = Math.abs(k.y - (o.y + o.h / 2)) <= r;
+        } else {
+          left = o.x;
+          right = o.x + o.w;
+          hitY = k.y >= o.y && k.y <= o.y + o.h;
+        }
+        if (!hitY || k.x < left || x0 > right + back) continue;
+        k.alive = false;
+        this.hazardHit(o, Math.max(left, Math.min(k.x, right)), k.y, pts);
+        break;
+      }
+    }
+    let w = 0;
+    for (const k of this.barks) if (k.alive) this.barks[w++] = k;
+    this.barks.length = w;
+  }
+
+  private hazardHit(o: Obstacle, x: number, y: number, pts: number): void {
+    const col = o.kind === 'neon' ? '#7fffff' : o.kind === 'flare' ? '#ffb347' : '#ffe66d';
+    o.hp -= 1;
+    o.hitT = HAZARD_HIT_FLASH;
+    // Same hit burst as a bark on a boss board.
+    this.particles.burst(x, y, col, this.touchPrimary ? 3 : 6, 140);
+    if (o.hp > 0) {
+      if (this.hazardPopCd <= 0) {
+        this.hazardPopCd = 0.7;
+        const [word, sfx] = HAZARD_HIT_POPS[Math.floor(Math.random() * HAZARD_HIT_POPS.length)];
+        this.spawnFloater(x, y - 18, word, '#ffe14d');
+        this.audio.playComic(sfx);
+      }
+      return;
+    }
+    // Popped: it breaks apart into a cartoon puff (confetti-like bits, no debris that hurts).
+    o.alive = false;
+    const cx = o.x + o.w / 2;
+    const cy = o.y + o.h / 2;
+    this.particles.burst(cx, cy, col, this.touchPrimary ? 10 : 22, 240);
+    this.particles.burst(cx, cy, '#ffffff', this.touchPrimary ? 4 : 10, 160);
+    const bonus = pts > 0 ? scalePoints(HAZARD_POP_POINTS * o.maxHp * pts, this.speedTenths) : 0;
+    this.score = Math.min(SCORE_CAP, this.score + bonus);
+    this.spawnFloater(cx, cy - 10, Math.random() < 0.5 ? 'POOF!' : 'POP!', '#ffffff');
+    if (bonus > 0) this.spawnFloater(cx, cy + 14, `+${fmtNum(Math.round(bonus))}`, '#ffe66d');
+    this.audio.playComic('boing');
+    this.hazardsPopped++;
   }
 
   /** Does this box touch any part of ring gate o (its outer ellipse, rim included)? */
@@ -4061,6 +4211,7 @@ export class Game {
     if (this.state !== 'title') {
       this.renderer.drawObstacles(ctx, this.world.obstacles);
       this.renderer.drawCollectibles(ctx, this.world.collectibles);
+      if (this.barks.length) this.renderer.drawBarks(ctx, this.barks);
       if (this.boss) {
         const bf = this.boss;
         bf.hudBottom = this.renderer.hudBottom(this.viewW, this.viewH);

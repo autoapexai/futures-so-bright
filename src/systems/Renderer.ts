@@ -460,7 +460,8 @@ export class Renderer {
     ctx.fillStyle = `rgba(0, 255, 255, ${0.5 * flick})`;
     ctx.beginPath();
     ctx.moveTo(rear, -2);
-    ctx.lineTo(rear - 16 * flick - (p.boostFlash > 0 ? 10 : 0), 2);
+    // The jet stretches with the FIRE ramp.
+    ctx.lineTo(rear - 16 * flick - (p.boostFlash > 0 ? 10 : 0) - 18 * p.boostRamp, 2);
     ctx.lineTo(rear, 6);
     ctx.closePath();
     ctx.fill();
@@ -471,7 +472,21 @@ export class Renderer {
     ctx.lineTo(rear, 4);
     ctx.closePath();
     ctx.fill();
-    ctx.shadowBlur = this.lite ? 0 : 14;
+    // Full ramp: three quick speed lines behind the dog (cheap strokes, no blur).
+    if (p.boostRamp > 0.95) {
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = `rgba(200, 255, 255, ${0.35 + 0.25 * flick})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = -1; i <= 1; i++) {
+        const y = 2 + i * 7;
+        const x0 = rear - 30 - ((this.time * 600 + i * 13) % 14);
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x0 - 16, y);
+      }
+      ctx.stroke();
+    }
+    ctx.shadowBlur = this.lite ? 0 : 14 + 10 * p.boostRamp;
     ctx.shadowColor = p.boostFlash > 0 ? COL.cyan : COL.magenta;
     paintShip(ctx, p.breed, {
       lens: charge > 0.3 ? 'rgba(0, 255, 220, 0.8)' : 'rgba(255, 200, 50, 0.9)',
@@ -482,8 +497,29 @@ export class Renderer {
     ctx.shadowBlur = 0;
   }
 
+  /** FIRE barks outside boss fights: the same WOOF a boss fight draws (Boss.ts drawBoss). */
+  drawBarks(ctx: CanvasRenderingContext2D, barks: { x: number; y: number; alive: boolean }[]): void {
+    ctx.fillStyle = '#ffe66d';
+    ctx.font = `900 ${this.u(13)}px 'Orbitron', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const k of barks) if (k.alive) ctx.fillText('WOOF', k.x, k.y);
+  }
+
   drawObstacles(ctx: CanvasRenderingContext2D, obstacles: Obstacle[]): void {
     for (const o of obstacles) {
+      // FIRE hit: a cartoon wobble while the hit flash fades (same 0.35 s as a boss's hurt flash).
+      const hitK = o.hitT > 0 ? o.hitT / 0.35 : 0;
+      if (hitK > 0) {
+        ctx.save();
+        const cx0 = o.x + o.w / 2;
+        const cy0 = o.y + o.h / 2;
+        const wob = Math.sin(o.hitT * 70) * 0.12 * hitK;
+        ctx.translate(cx0, cy0);
+        ctx.rotate(wob);
+        ctx.scale(1 + 0.08 * hitK, 1 - 0.06 * hitK);
+        ctx.translate(-cx0, -cy0);
+      }
       if (o.kind === 'beam') {
         const pulse = 0.6 + Math.sin(o.pulse) * 0.4;
         ctx.shadowBlur = this.lite ? 0 : 24;
@@ -574,6 +610,20 @@ export class Renderer {
         // danger zones top/bottom of ring (outer rim already stroke; hit is outer)
       }
       ctx.shadowBlur = 0;
+      if (hitK > 0) {
+        // Hit flash: a white glow over the hazard, fading out.
+        ctx.globalAlpha = 0.75 * hitK;
+        ctx.fillStyle = '#ffffff';
+        if (o.kind === 'flare') {
+          ctx.beginPath();
+          ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          roundRect(ctx, o.x - 2, o.y - 2, o.w + 4, o.h + 4, 4);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
     }
   }
 

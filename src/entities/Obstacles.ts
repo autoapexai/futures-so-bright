@@ -16,6 +16,22 @@ export interface Obstacle {
   passed: boolean;
   /** Ring gates: gate-boost glow countdown (s) after the player flew through the hole. */
   boostT: number;
+  /** FIRE: barks (WOOF) left to pop it (rings: 0, never hit). */
+  hp: number;
+  maxHp: number;
+  /** FIRE: hit flash / wobble countdown (s), like a boss's hurt flash. */
+  hitT: number;
+}
+
+/**
+ * How many barks pop a hazard (v2.1 FIRE): small ones 1; a long beam up to 3, a long neon bar 2.
+ * Ring gates are never targets (0).
+ */
+export function obstacleHp(kind: ObstacleKind, w: number, h: number): number {
+  if (kind === 'ring') return 0;
+  if (kind === 'beam') return h >= 140 ? 3 : h >= 95 ? 2 : 1;
+  if (kind === 'neon') return w >= 110 ? 2 : 1;
+  return 1;
 }
 
 export interface Collectible {
@@ -74,6 +90,9 @@ export class WorldSpawner {
         pulse: 0,
         passed: false,
         boostT: 0,
+        hp: 0,
+        maxHp: 0,
+        hitT: 0,
       }
     );
   }
@@ -113,6 +132,8 @@ export class WorldSpawner {
     o.pulse = pulse;
     o.passed = false;
     o.boostT = 0;
+    o.hp = o.maxHp = obstacleHp(kind, w, h);
+    o.hitT = 0;
     this.obstacles.push(o);
   }
 
@@ -160,6 +181,7 @@ export class WorldSpawner {
       o.phase += dt;
       o.pulse += dt * 4;
       if (o.boostT > 0) o.boostT = Math.max(0, o.boostT - dt);
+      if (o.hitT > 0) o.hitT = Math.max(0, o.hitT - dt);
       if (o.kind === 'flare') {
         o.w = 40 + Math.sin(o.phase * 6) * 12;
         o.h = 40 + Math.cos(o.phase * 5) * 12;

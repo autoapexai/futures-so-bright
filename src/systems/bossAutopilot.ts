@@ -14,6 +14,17 @@ export interface PilotView {
   bottom: number;
   charge: number;
   rings: { x: number; y: number }[];
+  /**
+   * The lead's vertical velocity (px/s). When given, the stick is steered toward the planned row
+   * with velocity feedback (v2.1 movement has no speed cap, so a held stick keeps speeding up).
+   */
+  vy?: number;
+}
+
+/** Stick for an uncapped mover: aim at a velocity that shrinks near the target, then match it. */
+export function stickTo(err: number, v: number): number {
+  const want = Math.max(-1400, Math.min(1400, err * 11));
+  return Math.max(-1, Math.min(1, (want - v) / 260));
 }
 
 /** Human-ish handicap: re-plans every `lag` s and aims with a random offset (fraction of a row). */
@@ -24,6 +35,8 @@ export interface PilotSkill {
   t: number;
   ay: number;
   off: number;
+  /** Planned row (y) of the last re-plan. */
+  target?: number;
 }
 
 export function makeSkill(rnd: () => number, lag = 0.2, noise = 0.9): PilotSkill {
@@ -38,7 +51,8 @@ export function bossPilot(f: BossFight, v: PilotView, sk?: PilotSkill, dt = 1 / 
     sk.t -= dt;
     if (sk.t > 0) {
       const lined0 = f.stunned ? Math.abs(v.py - b.y) < b.h / 2 : Math.abs(v.py - spotY) < rowH * 0.6;
-      return { ay: sk.ay, boost: lined0 && v.charge > 0.12 && f.state === 'fight' };
+      const ay0 = v.vy !== undefined && sk.target !== undefined ? stickTo(sk.target - v.py, v.vy) : sk.ay;
+      return { ay: ay0, boost: lined0 && v.charge > 0.12 && f.state === 'fight' };
     }
     sk.t = sk.lag;
     sk.off = (sk.rnd() - 0.5) * 2 * sk.noise * rowH;
@@ -104,8 +118,11 @@ export function bossPilot(f: BossFight, v: PilotView, sk?: PilotSkill, dt = 1 / 
       best = y;
     }
   }
-  const ay = Math.max(-1, Math.min(1, (best - v.py) / 30));
-  if (sk) sk.ay = ay;
+  const ay = v.vy !== undefined ? stickTo(best - v.py, v.vy) : Math.max(-1, Math.min(1, (best - v.py) / 30));
+  if (sk) {
+    sk.ay = ay;
+    sk.target = best;
+  }
   const lined = f.stunned ? Math.abs(v.py - b.y) < b.h / 2 : Math.abs(v.py - spotY) < rowH * 0.6;
   return { ay, boost: lined && v.charge > 0.12 && f.state === 'fight' };
 }

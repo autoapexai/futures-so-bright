@@ -3501,3 +3501,36 @@ body.touch-device #lvl-select .ls-hint { display: none; }
 @media (max-width: 360px) and (orientation: portrait) {
   #lvl-select .ls-go-label { display: none; }
 }
+
+/* —— Version label (title corner + MODES footer); same text in every language —— */
+#ver-label {
+  display: none;
+  position: absolute;
+  z-index: 15;
+  pointer-events: none;
+  /* Every layout: just under HOW TO PLAY (top-left); the bottom edge holds Privacy · Terms. */
+  left: max(14px, env(safe-area-inset-left, 0px));
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 46px);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(191, 247, 255, 0.55);
+}
+body.title-screen #ver-label {
+  display: block;
+}
+body.congrats-open #ver-label,
+body.clone-open #ver-label,
+body.modes-open #ver-label {
+  display: none !important;
+}
+#modes-ver {
+  margin-top: 6px;
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(191, 247, 255, 0.5);
+}

@@ -134,7 +134,7 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
     signature: 'vj',
     blurb: 'DJ CHANNEL ZAPP: an 80s VJ with a TV for a head; glitch bursts, channel-change static walls, cassette-tape drops, paper airplanes; golden-tuning-dial weak spot',
     patterns: ['glitch', 'static', 'countdown', 'homing'],
-    taunts: ['IN THE MORNING!', 'STAY TUNED.', 'VALUE FOR VALUE.', 'BOOSTAGRAM INCOMING.'],
+    taunts: ['IN THE MORNING!', 'STAY TUNED.', 'VALUE FOR VALUE.', 'SATS INCOMING.'],
   },
   dvorak: {
     signature: 'behind',
@@ -414,8 +414,8 @@ export interface BossInput {
   speed?: number;
 }
 
-const BARK_EVERY = 0.2;
-const BARK_SPEED = 760;
+export const BARK_EVERY = 0.2;
+export const BARK_SPEED = 760;
 const ENTER_S = 1.6;
 const EXIT_S = 2.6;
 

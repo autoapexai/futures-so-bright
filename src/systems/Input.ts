@@ -1,5 +1,9 @@
 import { clamp } from '../utils/math';
 
+/** Joystick deadzone (share of the stick radius) and response-curve exponent (v2.1 tuning). */
+export const STICK_DEADZONE = 0.07;
+export const STICK_CURVE = 0.8;
+
 export class Input {
   readonly keys = new Set<string>();
   private touchDirs = new Set<string>();
@@ -7,6 +11,8 @@ export class Input {
   private joyX = 0;
   private joyY = 0;
   boostHeld = false;
+  /** Fresh FIRE presses (Space keydown / FIRE button down) not yet taken by the game. */
+  private boostPresses = 0;
   private justPressed = new Set<string>();
   private unbound: Array<() => void> = [];
   private lastTouchEnd = 0;
@@ -43,7 +49,10 @@ export class Input {
       e.preventDefault();
     }
     const code = e.code === 'Space' ? ' ' : k;
-    if (!this.keys.has(code)) this.justPressed.add(code);
+    if (!this.keys.has(code)) {
+      this.justPressed.add(code);
+      if (code === ' ') this.boostPresses++;
+    }
     this.keys.add(code);
   };
 
@@ -138,6 +147,7 @@ export class Input {
           if (!document.body.classList.contains('playing')) return;
           this.boostHeld = true;
           this.justPressed.add(' ');
+          this.boostPresses++;
         },
         () => {
           this.boostHeld = false;
@@ -163,7 +173,8 @@ export class Input {
       const r = base.clientWidth / 2;
       return Math.max(36, r - 8);
     };
-    const dead = 0.16;
+    // Small deadzone + a light response curve (mag^0.8 past the deadzone) so small nudges register.
+    const dead = STICK_DEADZONE;
 
     const apply = (clientX: number, clientY: number) => {
       const dx = clientX - originX;
@@ -179,7 +190,7 @@ export class Input {
         this.joyX = 0;
         this.joyY = 0;
       } else {
-        const scale = (mag - dead) / (1 - dead);
+        const scale = Math.pow((mag - dead) / (1 - dead), STICK_CURVE);
         this.joyX = (nx / mag) * scale;
         this.joyY = (ny / mag) * scale;
       }
@@ -430,6 +441,13 @@ export class Input {
     this._axis.x = x;
     this._axis.y = y;
     return this._axis;
+  }
+
+  /** Fresh FIRE presses since the last call (each tap escalates the FIRE ramp). */
+  takeBoostPresses(): number {
+    const n = this.boostPresses;
+    this.boostPresses = 0;
+    return n;
   }
 
   get boosting(): boolean {
