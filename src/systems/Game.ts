@@ -48,6 +48,7 @@ import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel } from './miniBoss';
+import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -72,6 +73,7 @@ import {
   pointMultiplier,
   difficultyLabel,
   hazardLevers,
+  clampLevel,
 } from '../utils/difficulty';
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
@@ -86,6 +88,8 @@ const RESTART_LOCK_MS = 800;
 /** Length of THE DUCHESS OF PASADENA prize reveal, s. */
 const PRIZE_SECONDS = 5;
 const BANNER_SECONDS = 2.4;
+/** FIGHT THE BOSS start: seconds of level left before the boss / mini-boss arrives. */
+const FIGHT_LEAD_S = 1.5;
 /**
  * Ring gates are pure boosts: touching any part of one (rim or hole) sets the shade charge to
  * this (a full bar), once per gate. Gates never cost a dog, shade or count as a hit.
@@ -305,6 +309,10 @@ export class Game {
   /** The level this run began on (the board's START column). */
   private runStartLevel = 1;
   private pendingStart = 1;
+  /** LEVEL SELECT FIGHT THE BOSS: this run began at its start level's boss / mini-boss. */
+  private runFight = false;
+  private pendingFight = false;
+  private levelSelect!: LevelSelect;
   private lastHitSfx = 0;
   /** An accepted submit is waiting for its #1 check (survives superseded checks). */
   private awaitingTopAfterSubmit = false;
@@ -800,6 +808,19 @@ export class Game {
       this.changeDifficulty(1);
     });
     this.syncDifficultyUi();
+    // LEVEL SELECT: the LEVELS tab on the difficulty control (or its label, L, or typing a number).
+    this.levelSelect = createLevelSelect({
+      touch: this.touchPrimary,
+      start: (n, fight) => this.startPicked(n, fight),
+      onToggle: (open) => {
+        document.body.classList.toggle('lvl-open', open);
+        this.input.clearTouch();
+        this.input.clearJustPressed();
+      },
+      sfx: () => this.audio.playUi(),
+    });
+    bindTap(document.getElementById('lvl-open'), () => this.openLevelSelect());
+    bindTap(document.getElementById('diff-label'), () => this.openLevelSelect());
     // GAME SPEED (pause menu): slider + -/+ (0.1 per press), 1.0-11.1.
     {
       const range = document.getElementById('speed-range') as HTMLInputElement | null;
@@ -1682,7 +1703,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #devmode, #mission-nudge, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl, #legal-links, #grownup')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #devmode, #mission-nudge, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl, #legal-links, #grownup, #lvl-select')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1944,7 +1965,19 @@ export class Game {
     });
   }
 
-  private startRun(difficulty: number, ticket: Promise<string | 'denied' | null> | null, localOnly = false, mode: ModeDef | null = null): void {
+  /**
+   * at = the level the run starts on (LEVEL SELECT; defaults to difficulty). 12-111 start in the
+   * gold zone like a difficulty-11 run (ticket, scoring) on level at, with a random mode exactly
+   * as a climb arrives there. fight = begin right at that level's boss / mini-boss.
+   */
+  private startRun(
+    difficulty: number,
+    ticket: Promise<string | 'denied' | null> | null,
+    localOnly = false,
+    mode: ModeDef | null = null,
+    at = difficulty,
+    fight = false,
+  ): void {
     this.awaitingTopAfterSubmit = false;
     // ON A MISSION: DEV BOARD only (never a public submit / ticket); its own best on the HUD.
     this.missionRun = isMission(mode);
@@ -1970,10 +2003,12 @@ export class Game {
     this.highlightIndex = -1;
     this.runTime = 0;
     this.runId++;
-    this.runDifficulty = difficulty;
+    this.runDifficulty = at;
     trackRunStart(mode ? mode.name : null, difficulty);
     this.victory = false;
-    this.runStartLevel = difficulty;
+    this.runStartLevel = at;
+    // A boss-fight start only where that level has a live boss / mini-boss.
+    this.runFight = fight && !mode && !!(bossForLevel(at) ?? miniBossForLevel(at));
     this.audio.stopSadTrombone();
     stopSpeech();
     this.toastT = 0;
@@ -2032,7 +2067,17 @@ export class Game {
       this.formation.clear();
       if (this.level === 0) this.fillPack();
       else this.setPackK(1);
+      if (at > FIRST_CLONE_LEVEL) {
+        // Arriving on 12-111 (as a climb does): a random mode with a fresh pack of its dogs.
+        const m = this.randomMode();
+        this.switchMode(m, false);
+        this.bannerText = tr('banner_level', { n: at, m: m.name });
+        this.bannerT = BANNER_SECONDS;
+      }
     }
+    // FIGHT THE BOSS: the level clock starts just short of its end, so the usual entry brings the
+    // boss / mini-boss in after a breath (same fight, rules, rewards and scoring).
+    if (this.runFight) this.levelTime = LEVEL_SECONDS - FIGHT_LEAD_S;
     this.world.reset();
     this.particles.clear();
     while (this.floaters.length) {
@@ -2094,6 +2139,7 @@ export class Game {
     this.pendingMode = this.mode ? this.mode.id : null;
     this.pendingModes = Math.max(1, this.modesUsed.size);
     this.pendingStart = this.runStartLevel;
+    this.pendingFight = this.runFight;
     this.pendingSpeed = this.runSpeedMax;
     stopSpeech();
     this.announce(tr('sr_end', { v: this.victory ? tr('sr_victory') : tr('sr_gameover'), s: fmtNum(this.pendingScore), d: this.pendingDifficulty }));
@@ -2257,6 +2303,7 @@ export class Game {
     const modeCount = this.pendingModes;
     const startLevel = this.pendingStart;
     const speed = this.pendingSpeed;
+    const fight = this.pendingFight;
     const id = this.runId;
     // Always keep this device's board (offline fallback + personal best).
     const local = addEntry(score, initials, undefined, difficulty, this.pendingStart);
@@ -2281,7 +2328,7 @@ export class Game {
 
     if (!remoteEnabled || this.runLocalOnly) return;
     void (ticketReq ?? Promise.resolve(null))
-      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel, speed))
+      .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel, speed, fight))
       .then((res) => {
       if (res?.claimToken) addClaimToken(res.claimToken);
       if (res) {
@@ -2366,6 +2413,59 @@ export class Game {
     this.input.clearJustPressed();
   }
 
+  /** Open LEVEL SELECT (title / game-over, nothing else up); firstDigit pre-types the number box. */
+  private openLevelSelect(firstDigit?: string): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.modesOpen) return;
+    void this.audio.unlock();
+    this.audio.playUi();
+    this.levelSelect.open(firstDigit);
+  }
+
+  /** Title / game-over: L or a digit opens LEVEL SELECT (a digit starts typing the level). */
+  private handleLevelKeys(): boolean {
+    let digit: string | undefined;
+    for (const d of '0123456789') if (this.input.consume(d)) digit = d;
+    if (digit === undefined && !this.input.consume('l')) return false;
+    this.input.clearJustPressed();
+    this.openLevelSelect(digit === '0' ? undefined : digit);
+    return true;
+  }
+
+  /**
+   * LEVEL SELECT start: level n exactly as if the run had climbed there (its hazard / points
+   * curve, gold zone, mode, boss). 1-10 = the difficulty stepper's start; 11-111 get a server run
+   * ticket first, like the gold clone button (offline / refused: played on this device's board).
+   * fight = start right at the level's boss / mini-boss encounter (the normal fight entry).
+   */
+  private startPicked(n: number, fight: boolean): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen) return;
+    const at = clampLevel(n);
+    void this.audio.unlock();
+    if (at <= MAX_PUBLIC_DIFFICULTY) {
+      this.difficulty = at;
+      saveDifficulty(at);
+      this.syncDifficultyUi();
+      this.startRun(at, null, false, null, at, fight);
+      return;
+    }
+    if (!remoteEnabled || this.speedKeepsLocal()) {
+      this.startRun(SECRET_DIFFICULTY, null, true, null, at, fight);
+      return;
+    }
+    this.ticketPending = true;
+    const seq = ++this.startSeq;
+    this.audio.playUi();
+    void startRemoteRun(loadClaimTokens()).then((t) => {
+      if (seq !== this.startSeq) return;
+      this.ticketPending = false;
+      if (this.state !== 'title' && this.state !== 'gameover') return;
+      if (t && t !== 'denied') this.startRun(SECRET_DIFFICULTY, Promise.resolve(t), false, null, at, fight);
+      else this.startRun(SECRET_DIFFICULTY, null, true, null, at, fight);
+    });
+  }
+
   /** Title / game-over only: [ or - = easier, ] or = (+) = harder. Returns true if handled. */
   private handleDifficultyKeys(): boolean {
     let delta = 0;
@@ -2412,7 +2512,12 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.levelSelect.isOpen()) {
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
+      if (this.handleLevelKeys()) return;
       // Any key (after mute handled above) or prior Space/Enter starts the run.
       if (this.input.consumeAny()) {
         void this.audio.unlock();
@@ -2446,7 +2551,12 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.levelSelect.isOpen()) {
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.handleDifficultyKeys()) return;
+      if (!this.restartLocked() && this.handleLevelKeys()) return;
       // consumeAny also swallows keys pressed during the post-submit lock (no queued restart).
       if (this.input.consumeAny() && !this.restartLocked()) this.beginRun();
       return;
