@@ -202,11 +202,11 @@ const cache = new Map<number, BossDef>();
 
 /**
  * ROLLOUT IN BATCHES BY DECADE: mini-bosses are live on levels 1..MINI_LIVE_MAX only.
- * Live: 1-9 (batch 1), 11-19 (batch 2). Next: 29, 39 ... 109 (every mini level). Levels above it play
+ * Live: 1-9, 11-19, 21-29 (batches 1-3). Next: 39, 49 ... 109 (every mini level). Levels above it play
  * exactly as before (no mini, no gate). The server bound (supabase/fsb_minis_initials.sql)
  * already allows every mini level, so raising this needs no migration.
  */
-export const MINI_LIVE_MAX = 19;
+export const MINI_LIVE_MAX = 29;
 
 /** The mini-boss at the end of this level, or null (levels 10, 20 ... 110 and 111 have big bosses). */
 export function miniBossForLevel(level: number, ignoreRollout = false): BossDef | null {
