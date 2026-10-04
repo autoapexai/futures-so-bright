@@ -47,7 +47,7 @@ import { boardTaunt } from './boardTaunt';
 import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
-import { miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText } from './miniBoss';
+import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount } from './miniBoss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -80,6 +80,8 @@ export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover'
 const TUT_STEPS = 4;
 /** MODES menu: a tap on THE CALVIN TWINS starts it after this beat (ms); a 2nd tap = the egg. */
 const CALVIN_PICK_MS = 550;
+/** Ignore restart input this long after submitting initials (a quick double Enter / tap keeps the board up). */
+const RESTART_LOCK_MS = 800;
 /** Level-up banner duration (s). */
 /** Length of THE DUCHESS OF PASADENA prize reveal, s. */
 const PRIZE_SECONDS = 5;
@@ -166,6 +168,8 @@ export class Game {
   private initialsCooldown = 0;
   /** Seconds left on the friendly "pick different initials" nudge (rude initials blocked). */
   private initialsWarn = 0;
+  /** After an initials submit, restart input (keys, taps, BOOST) is ignored until this time (ms) so a quick double Enter / tap can't skip the board. */
+  private restartLockUntil = 0;
   /** Stick held on up / down: consecutive steps (the scroll speeds up through long sets like Chinese). */
   private initialsHold = 0;
   /** Which leaderboard-screen taunt line this game over shows (systems/boardTaunt.ts). */
@@ -495,6 +499,7 @@ export class Game {
     boost?.addEventListener('pointerdown', (e) => {
       if (this.state === 'title' || this.state === 'gameover') {
         e.stopPropagation();
+        if (this.restartLocked()) return;
         void this.audio.unlock();
         this.beginRun();
       } else if (this.state === 'initials') {
@@ -630,7 +635,12 @@ export class Game {
       name.textContent = MISSION_MODE.name;
       const sub = document.createElement('span');
       sub.className = 'mode-ships';
-      b.append(name, sub);
+      // Featured card: a TRY IT badge and the same invite line as the title's TRY DEV MODE button.
+      const tryBadge = document.createElement('span');
+      tryBadge.className = 'try-badge';
+      const invite = document.createElement('span');
+      invite.className = 'mode-invite';
+      b.append(tryBadge, name, sub, invite);
       bindTap(b, () => this.pickMode(MISSION_MODE));
       const dev = document.createElement('button');
       dev.type = 'button';
@@ -647,7 +657,9 @@ export class Game {
       });
       const syncMissionText = (): void => {
         sub.textContent = tr('mis_sub');
-        b.setAttribute('aria-label', tr('mis_aria'));
+        tryBadge.textContent = tr('dm_tryit');
+        invite.textContent = tr('dm_tag');
+        b.setAttribute('aria-label', `${tr('dm_tryit')}: ${tr('mis_aria')}`);
         badge.textContent = tr('dev_badge');
         devName.textContent = tr('dev_btn');
         dev.setAttribute('aria-label', tr('dev_btn_aria'));
@@ -657,6 +669,67 @@ export class Game {
       onLang(syncMissionText);
       row.append(b, dev);
       list.prepend(row);
+    }
+    // TRY DEV MODE (title screen): the featured call to action. The big button starts an
+    // ON A MISSION run right away (same as its MODES entry); the small DEV BOARD button opens
+    // MODES with the DEV BOARD on top. Game-over: a small 'Try DEV MODE next?' nudge.
+    {
+      const big = document.getElementById('devmode-big');
+      const link = document.getElementById('devboard-link');
+      const nudge = document.getElementById('mission-nudge');
+      // Enter / Space on these buttons activates them instead of reaching the start / ride-again keys.
+      for (const el of [document.getElementById('devmode'), nudge])
+        for (const ev of ['keydown', 'keyup']) el?.addEventListener(ev, (e) => e.stopPropagation());
+      const syncDevMode = (): void => {
+        const set = (sel: string, k: Parameters<typeof tr>[0]): void => {
+          const el = big?.querySelector(sel);
+          if (el) el.textContent = tr(k);
+        };
+        set('.dm-try', 'dm_try');
+        set('.dm-tag', 'dm_tag');
+        const mode = big?.querySelector('.dm-mode');
+        if (mode) mode.textContent = MISSION_MODE.name;
+        big?.setAttribute('aria-label', tr('dm_aria'));
+        const badge = link?.querySelector('.dev-badge');
+        if (badge) badge.textContent = tr('dev_badge');
+        const ln = link?.querySelector('.dm-board-name');
+        if (ln) ln.textContent = tr('dev_btn');
+        link?.setAttribute('aria-label', tr('dm_board_aria'));
+        if (nudge) {
+          nudge.textContent = tr('dm_nudge');
+          nudge.setAttribute('aria-label', tr('dm_aria'));
+        }
+      };
+      // Long translations (e.g. PRUEBA EL MODO DEV) shrink to fit the button on one line.
+      const fitTry = (): void => {
+        const el = big?.querySelector<HTMLElement>('.dm-try');
+        if (!el || !el.clientWidth) return;
+        el.style.fontSize = '';
+        let fs = parseFloat(getComputedStyle(el).fontSize) || 14;
+        while (el.scrollWidth > el.clientWidth + 1 && fs > 8) {
+          fs -= 0.5;
+          el.style.fontSize = `${fs}px`;
+        }
+      };
+      if (big && 'ResizeObserver' in window) new ResizeObserver(() => fitTry()).observe(big);
+      syncDevMode();
+      fitTry();
+      // Refit once the webfont (Orbitron, wider than the fallback) has loaded.
+      void document.fonts?.ready.then(() => fitTry());
+      document.fonts?.addEventListener?.('loadingdone', () => fitTry());
+      onLang(() => {
+        syncDevMode();
+        fitTry();
+      });
+      this.syncChips();
+      onLang(() => this.syncChips());
+      bindTap(big, () => this.tryDevMode());
+      bindTap(nudge, () => this.tryDevMode());
+      bindTap(link, () => {
+        void this.audio.unlock();
+        this.openModes();
+        if (this.modesOpen) this.openDevBoard();
+      });
     }
     const modesTitle = document.getElementById('modes-title');
     if (modesTitle) {
@@ -975,6 +1048,38 @@ export class Game {
       b.classList.add('egg');
       window.setTimeout(() => b.classList.remove('egg'), 1100);
     }
+  }
+
+  /**
+   * Title / MODES chips: the mini-boss countdown toward v2.2 (counted from MINI_LIVE_MAX, so it
+   * updates with each batch) and the live #1 from the shared board (masked like the board;
+   * hidden when the board is unavailable). Never hardcoded.
+   */
+  private syncChips(): void {
+    const n = miniLiveCount();
+    const txt = n >= MINI_TOTAL ? tr('mb_all', { t: MINI_TOTAL }) : tr('mb_count', { n, t: MINI_TOTAL });
+    const board = this.remoteBoard;
+    const top = board && board.length ? board.reduce((a, e) => (e.score > a.score ? e : a), board[0]) : null;
+    const wr = top && top.score > 0 ? tr('wr_line', { i: maskInitials(top.initials), s: fmtNum(top.score) }) : '';
+    document.querySelectorAll<HTMLElement>('.chips').forEach((c) => {
+      const t = c.querySelector('.mb-chip .chip-text');
+      if (t) t.textContent = txt;
+      const bar = c.querySelector<HTMLElement>('.mb-chip .chip-bar i');
+      if (bar) bar.style.width = `${Math.round((100 * n) / MINI_TOTAL)}%`;
+      const w = c.querySelector<HTMLElement>('.wr-chip');
+      if (w) {
+        w.textContent = wr;
+        w.hidden = !wr;
+      }
+    });
+  }
+
+  /** TRY DEV MODE (title button / game-over nudge): start an ON A MISSION run, as its MODES entry does. */
+  private tryDevMode(): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.modesOpen || !this.missionUnlocked) return;
+    void this.audio.unlock();
+    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, MISSION_MODE);
   }
 
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
@@ -1577,7 +1682,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl, #legal-links, #grownup')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #devmode, #mission-nudge, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl, #legal-links, #grownup')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -1593,8 +1698,9 @@ export class Game {
     }
     if (e.cancelable) e.preventDefault();
     void this.audio.unlock();
-    if (this.state === 'title' || this.state === 'gameover') this.beginRun();
-    else if (this.state === 'paused') this.togglePause();
+    if (this.state === 'title' || this.state === 'gameover') {
+      if (!this.restartLocked()) this.beginRun();
+    } else if (this.state === 'paused') this.togglePause();
     // initials: stick / BOOST / keys handle entry — ignore canvas taps
   };
 
@@ -1607,6 +1713,8 @@ export class Game {
     document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
     document.body.classList.toggle('quit-open', this.quitOpen);
     document.body.classList.toggle('mission-run', this.missionRun && (this.state === 'playing' || this.state === 'paused'));
+    // The game-over 'Try DEV MODE next?' nudge is for normal runs only.
+    document.body.classList.toggle('mission-over', this.state === 'gameover' && this.pendingMission);
     // The desert-search card belongs to one game-over screen only.
     if (this.state !== 'gameover') this.desert?.hide();
     this.syncWakeLock();
@@ -1943,6 +2051,7 @@ export class Game {
     if (this.remoteFetch) return this.remoteFetch;
     const p = fetchRemoteBoard().then((board) => {
       if (board) this.remoteBoard = board;
+      this.syncChips();
       return board;
     });
     this.remoteFetch = p;
@@ -2099,6 +2208,7 @@ export class Game {
     this.high = loadMissionHigh();
     this.audio.playUi();
     this.state = 'gameover';
+    this.lockRestart();
     this.setBodyFlags();
     this.input.clearTouch();
     this.input.clearJustPressed();
@@ -2115,6 +2225,15 @@ export class Game {
         this.boardIsRemote = false;
       }
     });
+  }
+
+  /** RESTART_LOCK_MS after an initials submit, game-over restart input is ignored (the board stays up). */
+  private lockRestart(): void {
+    this.restartLockUntil = performance.now() + RESTART_LOCK_MS;
+  }
+
+  private restartLocked(): boolean {
+    return this.state === 'gameover' && performance.now() < this.restartLockUntil;
   }
 
   private confirmInitials(): void {
@@ -2155,6 +2274,7 @@ export class Game {
     this.high = loadHighScore();
     this.audio.playUi();
     this.state = 'gameover';
+    this.lockRestart();
     this.setBodyFlags();
     this.input.clearTouch();
     this.input.clearJustPressed();
@@ -2164,7 +2284,10 @@ export class Game {
       .then((t) => submitRemoteScore(initials, score, runMs, difficulty, t && t !== 'denied' ? t : null, undefined, endMode, modeCount, startLevel, speed))
       .then((res) => {
       if (res?.claimToken) addClaimToken(res.claimToken);
-      if (res) this.remoteBoard = res.board;
+      if (res) {
+        this.remoteBoard = res.board;
+        this.syncChips();
+      }
       if (id !== this.runId || this.state !== 'gameover') return;
       if (res) {
         this.leaderboard = res.board;
@@ -2324,7 +2447,8 @@ export class Game {
         return;
       }
       if (this.handleDifficultyKeys()) return;
-      if (this.input.consumeAny()) this.beginRun();
+      // consumeAny also swallows keys pressed during the post-submit lock (no queued restart).
+      if (this.input.consumeAny() && !this.restartLocked()) this.beginRun();
       return;
     }
 

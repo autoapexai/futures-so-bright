@@ -6,12 +6,12 @@
  * beaten. Mini-bosses never get bored and leave (big bosses still do), however long you survive.
  * Beating one is worth 1,000 x level points, times the GAME SPEED (scalePoints), still capped.
  *
- * THE COMEDIANS (Mr. Dan's list): every mini-boss is a gentle, G-rated cartoon tribute to a
- * comedian, labelled "MINI-BOSS: NAME", with a signature prop and Airplane!/Naked Gun-style
- * deadpan sight gags (pratfalls, literal-minded signs, props that misbehave). All lines are
- * original (no quotes from their material). Level 1 is ROB REINER; then, in order and repeating:
- * Jerry Seinfeld, Larry David, Norm Macdonald, David Letterman, Brody Stevens, Richard Pryor,
- * Redd Foxx, Joe Rogan, Jim Gaffigan, Mel Brooks, Carl Reiner. Drawn smaller than any big boss.
+ * THE LINEUP (Mr. Dan's list): every mini-boss is a gentle, G-rated cartoon with a satirical pun
+ * name (never a real name or a real likeness), labelled "MINI-BOSS: NAME", with a signature pun
+ * prop and Airplane!/Naked Gun-style deadpan sight gags (pratfalls, literal-minded signs, props
+ * that misbehave). All lines are original. Level 1 is ROB REINDEER; then, in order and repeating:
+ * JERRY SNEEZEFELD, LARRY DIVOT, NORM MACDOODLE, DAVID LETTUCEMAN, ROWDY STEVENS, RICHARD FRYER,
+ * RED SOCKS, JOE YOGAN, JIM GIGGLEGAN, MEL BROOMS, CARL REINDEER. Drawn smaller than any big boss.
  * Difficulty rises smoothly with the level (miniTuning) and always stays well below the big
  * bosses, including the eased L60 and L90 fights, so there is no spike next to them.
  * The fight itself reuses BossFight (barks, weak spot, stun rings, shots) with a def.mini spec.
@@ -22,7 +22,7 @@ import { eyes, glow, mouth, speech, star, type Pose } from './bossToons';
 
 export interface MiniSpec {
   design: Design;
-  /** 0 on the comedian's first appearance, 1 on the second, ... (fresh gags each time). */
+  /** 0 on the character's first appearance, 1 on the second, ... (fresh gags each time). */
   appearance: number;
   /** Shot costume per attack pattern (drawn by drawMiniShot). */
   skins: Record<string, string>;
@@ -31,7 +31,7 @@ export interface MiniSpec {
   stunPop: () => string;
 }
 
-type Design = 'reiner' | 'seinfeld' | 'larry' | 'norm' | 'letterman' | 'brody' | 'pryor' | 'foxx' | 'rogan' | 'gaffigan' | 'brooks' | 'carl';
+type Design = 'reindeer' | 'sneezefeld' | 'divot' | 'macdoodle' | 'lettuceman' | 'rowdy' | 'fryer' | 'socks' | 'yogan' | 'gigglegan' | 'brooms' | 'elder';
 
 /** Points per level for beating a mini-boss (x level, x GAME SPEED). */
 export const MINI_POINTS_PER_LEVEL = 1000;
@@ -46,18 +46,18 @@ interface DesignDef {
 }
 
 const DESIGNS: Record<Design, DesignDef> = {
-  reiner: { name: 'ROB REINER', tint: '#ffd166', sig: 'spray', skins: { aimed: 'clap', spray: 'reel' }, sfx: ['honk', 'boing', 'whistleUp'] },
-  seinfeld: { name: 'JERRY SEINFELD', tint: '#fff3d6', sig: 'spray', skins: { spray: 'cereal', aimed: 'cereal', wall: 'puffy' }, sfx: ['boing', 'honk', 'whistleUp'] },
-  larry: { name: 'LARRY DAVID', tint: '#d8c59a', sig: 'dots', skins: { dots: 'golf', aimed: 'golf', wall: 'coffee', spray: 'golf' }, sfx: ['honk', 'whistleDown', 'boing'] },
-  norm: { name: 'NORM MACDONALD', tint: '#b8c7d6', sig: 'homing', skins: { homing: 'moth', aimed: 'moth', wall: 'moth', spray: 'moth' }, sfx: ['whistleDown', 'honk', 'boing'] },
-  letterman: { name: 'DAVID LETTERMAN', tint: '#8fc1ff', sig: 'tumble', skins: { tumble: 'card', aimed: 'pencil', wall: 'card', spray: 'pencil' }, sfx: ['whistleUp', 'honk', 'boing'] },
-  brody: { name: 'BRODY STEVENS', tint: '#ff6b6b', sig: 'spray', skins: { spray: 'baseball', aimed: 'baseball', wall: 'cap' }, sfx: ['whistleUp', 'boing', 'honk'] },
-  pryor: { name: 'RICHARD PRYOR', tint: '#ffb347', sig: 'buckles', skins: { buckles: 'windup', aimed: 'duck', wall: 'windup', spray: 'duck' }, sfx: ['boing', 'whistleUp', 'honk'] },
-  foxx: { name: 'REDD FOXX', tint: '#d9b98c', sig: 'rain', skins: { rain: 'hubcap', aimed: 'boot', wall: 'hubcap', spray: 'boot' }, sfx: ['honk', 'boing', 'whistleDown'] },
-  rogan: { name: 'JOE ROGAN', tint: '#9be39b', sig: 'homing', skins: { homing: 'mic', aimed: 'dumbbell', wall: 'dumbbell', spray: 'mic' }, sfx: ['honk', 'whistleUp', 'boing'] },
-  gaffigan: { name: 'JIM GAFFIGAN', tint: '#ffd6a5', sig: 'rain', skins: { rain: 'pocket', aimed: 'bacon', wall: 'pocket', spray: 'bacon' }, sfx: ['boing', 'honk', 'whistleDown'] },
-  brooks: { name: 'MEL BROOKS', tint: '#e3b5ff', sig: 'tumble', skins: { tumble: 'crown', aimed: 'tophat', wall: 'tophat', spray: 'crown' }, sfx: ['honk', 'boing', 'whistleUp'] },
-  carl: { name: 'CARL REINER', tint: '#e6e6e6', sig: 'dots', skins: { dots: 'wheel', aimed: 'hourglass', wall: 'wheel', spray: 'hourglass' }, sfx: ['whistleDown', 'boing', 'honk'] },
+  reindeer: { name: 'ROB REINDEER', tint: '#ffd166', sig: 'spray', skins: { aimed: 'clap', spray: 'reel' }, sfx: ['honk', 'boing', 'whistleUp'] },
+  sneezefeld: { name: 'JERRY SNEEZEFELD', tint: '#fff3d6', sig: 'spray', skins: { spray: 'tissue', aimed: 'tissue', wall: 'tissue' }, sfx: ['boing', 'honk', 'whistleUp'] },
+  divot: { name: 'LARRY DIVOT', tint: '#d8c59a', sig: 'dots', skins: { dots: 'golf', aimed: 'golf', wall: 'coffee', spray: 'golf' }, sfx: ['honk', 'whistleDown', 'boing'] },
+  macdoodle: { name: 'NORM MACDOODLE', tint: '#b8c7d6', sig: 'homing', skins: { homing: 'moth', aimed: 'moth', wall: 'moth', spray: 'moth' }, sfx: ['whistleDown', 'honk', 'boing'] },
+  lettuceman: { name: 'DAVID LETTUCEMAN', tint: '#8fc1ff', sig: 'tumble', skins: { tumble: 'card', aimed: 'pencil', wall: 'card', spray: 'pencil' }, sfx: ['whistleUp', 'honk', 'boing'] },
+  rowdy: { name: 'ROWDY STEVENS', tint: '#ff6b6b', sig: 'spray', skins: { spray: 'baseball', aimed: 'baseball', wall: 'cap' }, sfx: ['whistleUp', 'boing', 'honk'] },
+  fryer: { name: 'RICHARD FRYER', tint: '#ffb347', sig: 'buckles', skins: { buckles: 'egg', aimed: 'pancake', wall: 'egg', spray: 'pancake' }, sfx: ['boing', 'whistleUp', 'honk'] },
+  socks: { name: 'RED SOCKS', tint: '#d9b98c', sig: 'rain', skins: { rain: 'sock', aimed: 'boot', wall: 'hubcap', spray: 'sock' }, sfx: ['honk', 'boing', 'whistleDown'] },
+  yogan: { name: 'JOE YOGAN', tint: '#9be39b', sig: 'homing', skins: { homing: 'mic', aimed: 'dumbbell', wall: 'dumbbell', spray: 'mic' }, sfx: ['honk', 'whistleUp', 'boing'] },
+  gigglegan: { name: 'JIM GIGGLEGAN', tint: '#ffd6a5', sig: 'rain', skins: { rain: 'pocket', aimed: 'bacon', wall: 'pocket', spray: 'bacon' }, sfx: ['boing', 'honk', 'whistleDown'] },
+  brooms: { name: 'MEL BROOMS', tint: '#e3b5ff', sig: 'tumble', skins: { tumble: 'crown', aimed: 'tophat', wall: 'tophat', spray: 'crown' }, sfx: ['honk', 'boing', 'whistleUp'] },
+  elder: { name: 'CARL REINDEER', tint: '#e6e6e6', sig: 'dots', skins: { dots: 'wheel', aimed: 'hourglass', wall: 'wheel', spray: 'hourglass' }, sfx: ['whistleDown', 'boing', 'honk'] },
 };
 
 /**
@@ -71,15 +71,15 @@ export const MINI_EASE: Record<string, { realTele: number; realFire: number; rea
 );
 
 /**
- * THE COMEDIANS (Mr. Dan's list). Level 1 is ROB REINER; every later mini-boss level takes the
- * next comedian in this order and the list repeats (11 comedians over mini-bosses #2-#99, so each
+ * THE LINEUP (Mr. Dan's list). Level 1 is ROB REINDEER; every later mini-boss level takes the
+ * next character in this order and the list repeats (11 characters over mini-bosses #2-#99, so each
  * shows up 9 times). Each repeat is a later level, so it is harder (miniTuning), and it opens
- * with a fresh set of gags (miniTaunt picks from a different window of the comedian's lines).
+ * with a fresh set of gags (miniTaunt picks from a different window of the character's lines).
  */
-const ROTATION: Design[] = ['seinfeld', 'larry', 'norm', 'letterman', 'brody', 'pryor', 'foxx', 'rogan', 'gaffigan', 'brooks', 'carl'];
+const ROTATION: Design[] = ['sneezefeld', 'divot', 'macdoodle', 'lettuceman', 'rowdy', 'fryer', 'socks', 'yogan', 'gigglegan', 'brooms', 'elder'];
 
 interface Words {
-  /** Six original G-rated lines (three for Rob Reiner); each appearance uses a different three. */
+  /** Six original G-rated lines (three for ROB REINDEER); each appearance uses a different three. */
   taunts: string[];
   pops: [string, string, string];
   stun: string;
@@ -102,18 +102,18 @@ const TEXT: Record<Lang, LangText> = {
     gate: 'BEAT IT TO PASS LEVEL {n}',
     beaten: 'MINI-BOSS BEATEN  ·  +{p}',
     words: {
-      reiner: { taunts: ['ACTION! WAIT, WHO CAST ALL THESE DOGS?', 'FROM THE TOP. THIS TIME WITH LESS BARKING.', 'I SAID CUT, NOT WOOF.'], pops: ['CUT!', 'TAKE TWO!', 'ACTION!'], stun: 'QUIET ON SET!', fall: "THAT'S A WRAP!", prop: 'ROB' },
-      seinfeld: { taunts: ['WHAT IS THE DEAL WITH DOGS IN SUNGLASSES? WHO ARE THEY HIDING FROM?', 'YOU EVER NOTICE DOGS ALWAYS RUN TO THE RIGHT? WHY NOT THE LEFT?', 'THIS SHIRT HAS RUFFLES. I DID NOT ASK FOR RUFFLES.', 'CEREAL FOR DINNER IS NOT A PHASE. IT IS A LIFESTYLE.', "WHY DO THEY CALL IT A BOSS FIGHT? I'M MORE OF A MANAGER.", "AND WHAT'S WITH THE SUN? UP THERE ALL DAY. GET A HOBBY!"], pops: ['WHAT?!', 'RUFFLES!', 'OH, COME ON!'], stun: 'WHAT IS THE DEAL?!', fall: 'NOT THE SHIRT!' },
-      larry: { taunts: ['IS THIS A SOCIAL RULE NOW? DOGS JUST RUNNING AT PEOPLE?', "I'M NOT SAYING YOU'RE WRONG. I'M SAYING I'M RIGHT.", "YOU WAVED AT ME. I DIDN'T WAVE BACK. NOW IT'S A WHOLE THING.", 'THIS IS SO-SO. MAYBE EVEN SO-SO-SO.', "I'LL DODGE WHEN I'M READY. I HAVE A SYSTEM.", 'DID YOU JUST STAND IN MY SPOT? THAT WAS MY SPOT.'], pops: ['HEY!', 'COME ON!', 'REALLY?!'], stun: '*SHRUG*', fall: 'UNBELIEVABLE!', prop: 'SO-SO' },
-      norm: { taunts: ["I HAVE A MOTH FRIEND. HE'S MOSTLY HERE FOR THE LAMP.", "SO A DOG WALKS INTO A LEVEL. THAT'S IT. THAT'S THE WHOLE THING.", "I'M GOING TO STAND HERE AND NOT BLINK. THAT'S THE PLAN.", "THE MOTH SAYS HI. HE DOESN'T. HE'S A MOTH.", "SOME SAY I'M DEADPAN. I SAY NOTHING. SEE?", "THAT WAS A GOOD DODGE. I'M NOT GOING TO CLAP, BUT IT WAS."], pops: ['HM.', 'OKAY.', 'WELL.'], stun: 'HUH.', fall: 'WELL, THAT HAPPENED.' },
-      letterman: { taunts: ["TONIGHT'S TOP TEN: NUMBER TEN, DOGS. NUMBER NINE, ALSO DOGS.", "WE'LL BE RIGHT BACK AFTER I THROW THIS PENCIL.", 'NUMBER FOUR: SUNGLASSES INDOORS. SUNGLASSES OUTDOORS. ALL THE SUNGLASSES.', 'TONIGHT ON THE DESK: ONE PENCIL, ONE MUG, ZERO PATIENCE.', "AND THE NUMBER ONE REASON YOU WON'T PASS: ME. I HAVE A DESK.", "HOLD ON, THE BAND IS PLAYING. NO, IT'S JUST THE DOGS."], pops: ['NUMBER TEN!', 'DING!', 'ZING!'], stun: 'COMMERCIAL BREAK!', fall: 'GOOD NIGHT, EVERYBODY!', prop: 'TOP 10' },
-      brody: { taunts: ["POSITIVE ENERGY! YOU'RE DOING GREAT! NOW STOP!", "LET'S GO, TEAM! WAIT, WHICH TEAM AM I ON?", 'HIGH FIVES FOR EVERYONE! EXCEPT THE DOGS. THEY HAVE PAWS.', 'WARMING UP THE ARM! THIS PITCH HAS FEELINGS!', "BIG HUG FROM THE PITCHER'S MOUND! IT'S A LONG-DISTANCE HUG!", "YOU CAN DO IT! I BELIEVE IN YOU! DON'T TELL MY BOSS."], pops: ["LET'S GO!", 'YEAH!', 'STRIKE!'], stun: 'TIME OUT!', fall: 'GOOD GAME, GOOD GAME!', prop: 'HYPE' },
-      pryor: { taunts: ['I GOT A WHOLE TOY CHEST AND NOBODY TO PLAY WITH. YOU WANT A TURN?', "WIND IT UP, LET IT GO, AND RUN! THAT'S THE WHOLE GAME!", 'THIS RUBBER DUCK HAS SEEN THINGS. MOSTLY BATHTUBS.', "HOLD ON, I'M LAUGHING AT MY OWN JOKE. GIVE ME A SECOND.", 'THESE DOGS ARE FAST! SOMEBODY CALL THEIR MOMS!', "CAREFUL! THAT TOY ROBOT DOESN'T KNOW WHERE IT'S GOING. NEITHER DO I."], pops: ['SQUEAK!', 'WHEE!', 'HA HA!'], stun: 'ALL WOUND UP!', fall: 'OKAY, OKAY, YOU WIN!', prop: 'TOYS' },
-      foxx: { taunts: ['WELCOME TO THE JUNKYARD! EVERYTHING IS FOR SALE. EVEN THE DUST.', 'THIS HUBCAP? GENUINE. GENUINELY ROUND.', 'HOLD ON, LET ME SIT DOWN. THIS ROCKING CHAIR WAS A BARGAIN.', "I'VE GOT A BOOT, HALF A LAMP, AND A WHOLE LOT OF OPINIONS.", 'YOU DOGS ARE TRACKING MUD ON MY NICE JUNK!', "ONE PERSON'S TRASH IS ANOTHER PERSON'S... STILL TRASH. BUT SHINY."], pops: ['CLUNK!', 'CLANG!', 'RATTLE!'], stun: 'HOLD ON NOW!', fall: 'SOLD! TO THE DOGS!', prop: 'JUNK' },
-      rogan: { taunts: ['WHOA. DOGS IN SUNGLASSES. HAVE YOU EVER REALLY THOUGHT ABOUT THAT?', "THIS MICROPHONE IS HUGE. I DON'T KNOW WHO ORDERED IT.", 'THREE-HOUR EPISODE TODAY. TOPIC: WHY ARE YOU STILL DODGING?', 'LOOK IT UP. NO, LOOK IT UP AGAIN. THE ONE WITH THE DOGS.', 'I JUST DID A HUNDRED PUSH-UPS. ONE HUNDRED. ASK THE MIC.', "THAT'S WILD. NO, REALLY. THAT IS SO WILD."], pops: ['WHOA!', 'WILD!', 'BOOM!'], stun: 'MIND BLOWN!', fall: "AND THAT'S THE SHOW!", prop: 'ON AIR' },
-      gaffigan: { taunts: ['I WAS GOING TO EXERCISE TODAY. THEN I SAW A SNACK.', 'THIS POCKET SNACK IS FROZEN ON THE OUTSIDE AND LAVA IN THE MIDDLE.', 'BACON IS JUST BREAKFAST WITH A DRUMROLL.', "ARE THOSE DOGS RUNNING? ON PURPOSE? I'M SO TIRED FOR THEM.", "I'LL DODGE AFTER SECOND LUNCH. OR THIRD.", 'THEY SAY BREAKFAST IS THE MOST IMPORTANT MEAL. I SAY ALL OF THEM ARE.'], pops: ['MMM!', 'CRUNCH!', 'NOM!'], stun: 'FOOD COMA!', fall: 'NAP TIME!', prop: 'SNACKS' },
-      brooks: { taunts: ['HEAR YE! THE KING DECLARES: NO RUNNING IN THE KINGDOM!', 'I HAVE A HAT FOR EVERY OCCASION. THIS IS MY THROWING HAT.', 'BRING ME MY CROWN! NO, THE SILLY ONE!', 'ROYAL DECREE: ALL DOGS MUST WEAR SUNGLASSES. OH. THEY DO.', "I'VE BEEN A KING, A COWBOY AND A CHEF. TODAY I'M A WALL.", 'HALT, IN THE NAME OF THE CROWN! ALSO, LOVELY BARKING.'], pops: ['OY!', 'MY HAT!', 'HUZZAH!'], stun: 'THE CROWN SLIPPED!', fall: 'EXIT, STAGE LEFT!' },
-      carl: { taunts: ["I'M TWO THOUSAND YEARS OLD. I'VE SEEN FASTER DOGS. NOT MANY.", "BACK IN MY DAY, WE DIDN'T HAVE LEVELS. WE HAD ROCKS.", 'THIS CANE IS OLDER THAN THE WHEEL. I CHECKED.', 'I REMEMBER WHEN THE SUN WAS A LITTLE SMALLER.', 'SLOW DOWN, YOUNG PUPS! SOME OF US ARE ANCIENT!', 'I INVENTED THE NAP. NOBODY EVER GIVES ME CREDIT.'], pops: ['OOF!', 'HMPH!', 'TAP TAP!'], stun: "WHERE'S MY CANE?", fall: 'TIME FOR A NAP!', prop: '2000' },
+      reindeer: { taunts: ['ACTION! WAIT, WHO CAST ALL THESE DOGS? I ASKED FOR REINDEER.', 'FROM THE TOP. THIS TIME WITH LESS BARKING AND MORE ANTLERS.', 'I SAID CUT, NOT WOOF.'], pops: ['CUT!', 'TAKE TWO!', 'ACTION!'], stun: 'QUIET ON SET!', fall: "THAT'S A WRAP!", prop: 'ROB' },
+      sneezefeld: { taunts: ['EVER NOTICE DOGS IN SUNGLASSES NEVER SNEEZE? HOW DO THEY DO IT?', 'WHO DECIDED THE TISSUE BOX ALWAYS HAS ONE TISSUE LEFT? EVERY TIME!', 'I SNEEZED ONCE AND NOW THE WHOLE LEVEL SAYS BLESS YOU. WHO ARE THESE PEOPLE?', 'POLLEN IN SPACE? HOW DID POLLEN GET A ROCKET?', "WHY DO THEY CALL IT A BOSS FIGHT? I'M MORE OF A MANAGER.", 'AND THE SUN! UP THERE ALL DAY, MAKING ME SNEEZE. GET A HOBBY!'], pops: ['ACHOO!', 'BLESS ME!', 'OH, COME ON!'], stun: 'AH... AH... ACHOO!', fall: 'PASS THE TISSUES!', prop: 'TISSUES' },
+      divot: { taunts: ['IS THIS A RULE NOW? DOGS JUST RUNNING AT PEOPLE? WHO DECIDED THAT?', "I'M NOT SAYING YOU'RE WRONG. I'M SAYING I'M RIGHT.", "YOU WAVED AT ME. I DIDN'T WAVE BACK. NOW IT'S A WHOLE THING.", 'ONE SWING AND I DUG UP HALF THE COURSE. THAT DIVOT HAS ITS OWN ZIP CODE.', "I'LL DODGE WHEN I'M READY. I HAVE A SYSTEM.", 'DID YOU JUST STAND IN MY DIVOT? THAT WAS MY DIVOT.'], pops: ['HEY!', 'FORE!', 'REALLY?!'], stun: '*SHRUG*', fall: "I'LL PUT THE GRASS BACK!", prop: 'FORE' },
+      macdoodle: { taunts: ['I DREW A MOTH. NOW IT WILL NOT LEAVE THE LAMP.', "SO A DOG WALKS INTO A LEVEL. THAT'S IT. THAT'S THE WHOLE THING.", "I'M GOING TO STAND HERE AND DOODLE. THAT'S THE PLAN.", "THE MOTH SAYS HI. HE DOESN'T. HE'S A DOODLE.", "SOME SAY I'M DEADPAN. I SAY NOTHING. SEE?", "THAT WAS A GOOD DODGE. I'M NOT GOING TO CLAP, BUT IT WAS."], pops: ['HM.', 'SCRIBBLE.', 'WELL.'], stun: 'HUH.', fall: 'WELL, THAT HAPPENED.', prop: 'DOODLES' },
+      lettuceman: { taunts: ["TONIGHT'S TOP TEN SALADS: NUMBER TEN, LETTUCE. NUMBER NINE, ALSO LETTUCE.", "WE'LL BE RIGHT BACK AFTER I THROW THIS PENCIL.", 'NUMBER FOUR: SUNGLASSES INDOORS. SUNGLASSES OUTDOORS. ALL THE SUNGLASSES.', 'TONIGHT ON THE DESK: ONE PENCIL, ONE MUG, ONE VERY CRISP HEAD OF LETTUCE.', "AND THE NUMBER ONE REASON YOU WON'T PASS: ME. I HAVE A DESK.", "I'M NOT A SALAD. I'M A HOST. A LEAFY HOST."], pops: ['NUMBER TEN!', 'CRUNCH!', 'ZING!'], stun: 'COMMERCIAL BREAK!', fall: 'LETTUCE SAY GOOD NIGHT!', prop: 'TOP 10' },
+      rowdy: { taunts: ["GOOD VIBES ONLY! YOU'RE DOING GREAT! NOW STOP!", "LET'S GO, TEAM! WAIT, WHICH TEAM AM I ON?", 'HIGH FIVES FOR EVERYONE! EXCEPT THE DOGS. THEY HAVE PAWS.', 'WARMING UP THE ARM! THIS PITCH HAS FEELINGS!', "I'M NOT LOUD. I'M ROWDY. THERE'S A DIFFERENCE. IT'S THE VOLUME.", "YOU CAN DO IT! I BELIEVE IN YOU! DON'T TELL MY BOSS."], pops: ["LET'S GO!", 'YEAH!', 'STRIKE!'], stun: 'TIME OUT!', fall: 'GOOD GAME, GOOD GAME!', prop: 'ROWDY' },
+      fryer: { taunts: ['I GOT A WHOLE KITCHEN AND NOBODY TO COOK FOR. YOU WANT PANCAKES?', "FLIP IT, CATCH IT, AND RUN! THAT'S THE WHOLE GAME!", 'THIS FRYING PAN HAS SEEN THINGS. MOSTLY EGGS.', "HOLD ON, I'M LAUGHING AT MY OWN JOKE. GIVE ME A SECOND.", 'THESE DOGS ARE FAST! SOMEBODY CALL THEIR MOMS!', "CAREFUL! THAT PANCAKE DOESN'T KNOW WHERE IT'S GOING. NEITHER DO I."], pops: ['SIZZLE!', 'FLIP!', 'HA HA!'], stun: 'ALL FLIPPED OUT!', fall: 'OKAY, OKAY, YOU WIN!', prop: 'PAN' },
+      socks: { taunts: ['WELCOME TO THE LAUNDRY PILE! EVERYTHING IS FOR SALE. EVEN THE LINT.', 'THIS SOCK? GENUINE. GENUINELY MISSING ITS PARTNER.', 'HOLD ON, LET ME SIT DOWN. THIS ROCKING CHAIR WAS A BARGAIN.', "I'VE GOT A BOOT, HALF A LAMP, AND ONE RED SOCK. WHERE'S THE OTHER ONE?", 'YOU DOGS ARE TRACKING MUD ON MY CLEAN SOCKS!', "MY SOCK PUPPET SAYS YOU'RE TOO FAST. HE ALSO SAYS HELLO."], pops: ['CLUNK!', 'FLOP!', 'RATTLE!'], stun: 'HOLD ON NOW!', fall: 'SOLD! TO THE DOGS!', prop: 'SOCKS' },
+      yogan: { taunts: ['WHOA. DOGS IN SUNGLASSES. HAVE YOU EVER REALLY THOUGHT ABOUT THAT?', "THIS MICROPHONE IS HUGE. I DON'T KNOW WHO ORDERED IT.", 'THREE-HOUR EPISODE TODAY. TOPIC: WHY ARE YOU STILL DODGING?', 'DOWNWARD DOG? MORE LIKE DOWNWARD DOGS. ALL OF YOU. RIGHT NOW.', 'I JUST HELD A YOGA POSE FOR AN HOUR. ONE HOUR. ASK THE MAT.', 'BREATHE IN. BREATHE OUT. NOW DODGE.'], pops: ['WHOA!', 'NAMASTE!', 'BOOM!'], stun: 'TOTALLY STRETCHED!', fall: "AND THAT'S THE SHOW!", prop: 'ON AIR' },
+      gigglegan: { taunts: ['I WAS GOING TO EXERCISE TODAY. THEN I SAW A SNACK.', 'THIS POCKET SNACK IS FROZEN ON THE OUTSIDE AND LAVA IN THE MIDDLE.', 'BACON IS JUST BREAKFAST WITH A DRUMROLL.', "ARE THOSE DOGS RUNNING? ON PURPOSE? I'M SO TIRED FOR THEM.", "I'LL DODGE AFTER SECOND LUNCH. OR THIRD.", "HEE HEE. SORRY, I GIGGLE WHEN I'M HUNGRY. I'M ALWAYS HUNGRY."], pops: ['MMM!', 'HEE HEE!', 'NOM!'], stun: 'FOOD COMA!', fall: 'NAP TIME!', prop: 'SNACKS' },
+      brooms: { taunts: ['HEAR YE! THE KING DECLARES: NO RUNNING IN THE KINGDOM! ALSO, SWEEP UP.', 'I HAVE A HAT FOR EVERY OCCASION. THIS IS MY THROWING HAT.', 'BRING ME MY CROWN! NO, THE SILLY ONE!', 'ROYAL DECREE: ALL DOGS MUST WEAR SUNGLASSES. OH. THEY DO.', "I'VE BEEN A KING, A COWBOY AND A CHEF. TODAY I'M A BROOM.", 'HALT, IN THE NAME OF THE BROOM! I SHALL SWEEP YOU OFF YOUR PAWS!'], pops: ['OY!', 'MY HAT!', 'SWISH!'], stun: 'THE CROWN SLIPPED!', fall: 'EXIT, STAGE LEFT!', prop: 'BROOM' },
+      elder: { taunts: ["I'M THE ORIGINAL REINDEER. MY SON GOT HIS ANTLERS FROM ME.", "BACK IN MY DAY, WE DIDN'T HAVE LEVELS. WE HAD ROCKS.", 'THIS CANE IS OLDER THAN THE WHEEL. I CHECKED.', 'I REMEMBER WHEN THE SUN WAS A LITTLE SMALLER.', 'SLOW DOWN, YOUNG PUPS! SOME OF US ARE ANCIENT!', 'I INVENTED THE NAP. NOBODY EVER GIVES ME CREDIT.'], pops: ['OOF!', 'HMPH!', 'TAP TAP!'], stun: "WHERE'S MY CANE?", fall: 'TIME FOR A NAP!', prop: 'DAD' },
     },
   },
   es: {
@@ -121,18 +121,18 @@ const TEXT: Record<Lang, LangText> = {
     gate: '¡VÉNCELO PARA PASAR EL NIVEL {n}!',
     beaten: 'MINIJEFE K.O.  ·  +{p}',
     words: {
-      reiner: { taunts: ['¡ACCIÓN! ESPERA, ¿QUIÉN CONTRATÓ A TANTOS PERROS?', 'DESDE EL PRINCIPIO. ESTA VEZ CON MENOS LADRIDOS.', 'DIJE «CORTEN», NO «GUAU».'], pops: ['¡CORTEN!', '¡TOMA DOS!', '¡ACCIÓN!'], stun: '¡SILENCIO EN EL SET!', fall: '¡FIN DEL RODAJE!', prop: 'ROB' },
-      seinfeld: { taunts: ['¿CUÁL ES EL ROLLO CON LOS PERROS CON GAFAS DE SOL? ¿DE QUIÉN SE ESCONDEN?', '¿NO HAS NOTADO QUE LOS PERROS SIEMPRE CORREN A LA DERECHA? ¿POR QUÉ NO A LA IZQUIERDA?', 'ESTA CAMISA TIENE VOLANTES. YO NO PEDÍ VOLANTES.', 'CEREAL PARA CENAR NO ES UNA ETAPA. ES UN ESTILO DE VIDA.', '¿POR QUÉ LE DICEN PELEA DE JEFE? YO SOY MÁS BIEN GERENTE.', '¿Y QUÉ PASA CON EL SOL? AHÍ ARRIBA TODO EL DÍA. ¡BÚSCATE UN PASATIEMPO!'], pops: ['¡¿QUÉ?!', '¡VOLANTES!', '¡AY, POR FAVOR!'], stun: '¡¿CUÁL ES EL ROLLO?!', fall: '¡LA CAMISA NO!' },
-      larry: { taunts: ['¿AHORA ES UNA REGLA SOCIAL? ¿PERROS CORRIENDO HACIA LA GENTE?', 'NO DIGO QUE ESTÉS EQUIVOCADO. DIGO QUE YO TENGO RAZÓN.', 'ME SALUDASTE. NO TE DEVOLVÍ EL SALUDO. AHORA ES TODO UN TEMA.', 'ESTO ESTÁ MÁS O MENOS. TAL VEZ MÁS O MENOS O MENOS.', 'ESQUIVARÉ CUANDO ESTÉ LISTO. TENGO UN SISTEMA.', '¿TE PARASTE EN MI LUGAR? ESE ERA MI LUGAR.'], pops: ['¡OYE!', '¡VAMOS!', '¡¿EN SERIO?!'], stun: '¿Y QUÉ?', fall: '¡INCREÍBLE!', prop: 'MÁS O MENOS' },
-      norm: { taunts: ['TENGO UN AMIGO POLILLA. VIENE MÁS QUE NADA POR LA LÁMPARA.', 'ENTONCES UN PERRO ENTRA A UN NIVEL. YA. ESO ES TODO.', 'ME VOY A QUEDAR AQUÍ SIN PARPADEAR. ESE ES EL PLAN.', 'LA POLILLA TE SALUDA. NO ES CIERTO. ES UNA POLILLA.', 'DICEN QUE SOY INEXPRESIVO. YO NO DIGO NADA. ¿VES?', 'BUENA ESQUIVADA. NO VOY A APLAUDIR, PERO LO FUE.'], pops: ['MM.', 'BUENO.', 'PUES.'], stun: 'AJÁ.', fall: 'BUENO, ESO PASÓ.' },
-      letterman: { taunts: ['EL TOP 10 DE HOY: NÚMERO DIEZ, PERROS. NÚMERO NUEVE, TAMBIÉN PERROS.', 'VOLVEMOS DESPUÉS DE QUE LANCE ESTE LÁPIZ.', 'NÚMERO CUATRO: GAFAS DE SOL ADENTRO. GAFAS DE SOL AFUERA. TODAS LAS GAFAS.', 'HOY EN EL ESCRITORIO: UN LÁPIZ, UNA TAZA, CERO PACIENCIA.', 'Y LA RAZÓN NÚMERO UNO POR LA QUE NO PASARÁS: YO. TENGO UN ESCRITORIO.', 'UN MOMENTO, ESTÁ TOCANDO LA BANDA. NO, SON LOS PERROS.'], pops: ['¡NÚMERO DIEZ!', '¡DING!', '¡ZAS!'], stun: '¡PAUSA COMERCIAL!', fall: '¡BUENAS NOCHES A TODOS!', prop: 'TOP 10' },
-      brody: { taunts: ['¡ENERGÍA POSITIVA! ¡LO ESTÁS HACIENDO GENIAL! ¡AHORA PARA!', '¡VAMOS, EQUIPO! ESPERA, ¿EN QUÉ EQUIPO ESTOY?', '¡CHOCA ESOS CINCO TODO EL MUNDO! MENOS LOS PERROS. TIENEN PATAS.', '¡CALENTANDO EL BRAZO! ¡ESTE LANZAMIENTO TIENE SENTIMIENTOS!', '¡UN GRAN ABRAZO DESDE EL MONTÍCULO! ¡ES UN ABRAZO A DISTANCIA!', '¡TÚ PUEDES! ¡CREO EN TI! NO SE LO DIGAS A MI JEFE.'], pops: ['¡VAMOS!', '¡SÍ!', '¡STRIKE!'], stun: '¡TIEMPO FUERA!', fall: '¡BUEN JUEGO, BUEN JUEGO!', prop: 'ÁNIMO' },
-      pryor: { taunts: ['TENGO UN BAÚL LLENO DE JUGUETES Y NADIE CON QUIEN JUGAR. ¿QUIERES UN TURNO?', '¡DALE CUERDA, SUÉLTALO Y CORRE! ¡ESE ES TODO EL JUEGO!', 'ESTE PATITO DE GOMA HA VISTO COSAS. SOBRE TODO BAÑERAS.', 'ESPERA, ME ESTOY RIENDO DE MI PROPIO CHISTE. DAME UN SEGUNDO.', '¡ESTOS PERROS SON RÁPIDOS! ¡QUE ALGUIEN LLAME A SUS MAMÁS!', '¡CUIDADO! ESE ROBOT DE JUGUETE NO SABE A DÓNDE VA. YO TAMPOCO.'], pops: ['¡ÑIQUI!', '¡IUJU!', '¡JA, JA!'], stun: '¡CON TODA LA CUERDA!', fall: '¡VALE, VALE, TÚ GANAS!', prop: 'JUGUETES' },
-      foxx: { taunts: ['¡BIENVENIDOS AL DESHUESADERO! TODO ESTÁ A LA VENTA. HASTA EL POLVO.', '¿ESTE TAPACUBOS? AUTÉNTICO. AUTÉNTICAMENTE REDONDO.', 'ESPERA, DÉJAME SENTARME. ESTA MECEDORA FUE UNA GANGA.', 'TENGO UNA BOTA, MEDIA LÁMPARA Y UN MONTÓN DE OPINIONES.', '¡PERROS, ESTÁN LLENANDO DE LODO MI CHATARRA BONITA!', 'LO QUE UNO TIRA ES EL TESORO DE OTRO... BUENO, SIGUE SIENDO BASURA. PERO BRILLA.'], pops: ['¡CLONC!', '¡CLANC!', '¡TRAC, TRAC!'], stun: '¡UN MOMENTO!', fall: '¡VENDIDO A LOS PERROS!', prop: 'CHATARRA' },
-      rogan: { taunts: ['UAU. PERROS CON GAFAS DE SOL. ¿ALGUNA VEZ LO HAS PENSADO EN SERIO?', 'ESTE MICRÓFONO ES ENORME. NO SÉ QUIÉN LO PIDIÓ.', 'EPISODIO DE TRES HORAS HOY. TEMA: ¿POR QUÉ SIGUES ESQUIVANDO?', 'BÚSCALO. NO, BÚSCALO OTRA VEZ. EL DE LOS PERROS.', 'ACABO DE HACER CIEN LAGARTIJAS. CIEN. PREGÚNTALE AL MICRÓFONO.', 'QUÉ LOCURA. NO, EN SERIO. QUÉ LOCURA TAN GRANDE.'], pops: ['¡UAU!', '¡LOCURA!', '¡BUM!'], stun: '¡ALUCINANTE!', fall: '¡Y ESO FUE TODO EL PROGRAMA!', prop: 'AL AIRE' },
-      gaffigan: { taunts: ['HOY IBA A HACER EJERCICIO. LUEGO VI UNA BOTANA.', 'ESTA EMPANADA DE BOLSILLO ESTÁ CONGELADA POR FUERA Y ES LAVA POR DENTRO.', 'EL TOCINO ES SOLO DESAYUNO CON REDOBLE DE TAMBOR.', '¿ESOS PERROS ESTÁN CORRIENDO? ¿A PROPÓSITO? QUÉ CANSANCIO ME DAN.', 'ESQUIVARÉ DESPUÉS DEL SEGUNDO ALMUERZO. O DEL TERCERO.', 'DICEN QUE EL DESAYUNO ES LA COMIDA MÁS IMPORTANTE. YO DIGO QUE TODAS LO SON.'], pops: ['¡MMM!', '¡CRUNCH!', '¡ÑAM!'], stun: '¡SIESTA DIGESTIVA!', fall: '¡HORA DE LA SIESTA!', prop: 'BOTANAS' },
-      brooks: { taunts: ['¡OÍD, OÍD! EL REY DECLARA: ¡PROHIBIDO CORRER EN EL REINO!', 'TENGO UN SOMBRERO PARA CADA OCASIÓN. ESTE ES MI SOMBRERO PARA LANZAR.', '¡TRAEDME MI CORONA! ¡NO, LA CHISTOSA!', 'DECRETO REAL: TODOS LOS PERROS DEBEN USAR GAFAS DE SOL. AH. YA LAS USAN.', 'HE SIDO REY, VAQUERO Y CHEF. HOY SOY UNA PARED.', '¡ALTO, EN NOMBRE DE LA CORONA! POR CIERTO, QUÉ LINDOS LADRIDOS.'], pops: ['¡AY!', '¡MI SOMBRERO!', '¡HURRA!'], stun: '¡SE ME RESBALÓ LA CORONA!', fall: '¡MUTIS POR LA IZQUIERDA!' },
-      carl: { taunts: ['TENGO DOS MIL AÑOS. HE VISTO PERROS MÁS RÁPIDOS. NO MUCHOS.', 'EN MIS TIEMPOS NO HABÍA NIVELES. HABÍA PIEDRAS.', 'ESTE BASTÓN ES MÁS VIEJO QUE LA RUEDA. LO COMPROBÉ.', 'RECUERDO CUANDO EL SOL ERA UN POQUITO MÁS PEQUEÑO.', '¡MÁS DESPACIO, CACHORROS! ¡ALGUNOS SOMOS ANTIQUÍSIMOS!', 'YO INVENTÉ LA SIESTA. NADIE ME DA EL CRÉDITO.'], pops: ['¡UF!', '¡HMPF!', '¡TOC, TOC!'], stun: '¿DÓNDE ESTÁ MI BASTÓN?', fall: '¡HORA DE LA SIESTA!', prop: '2000' },
+      reindeer: { taunts: ['¡ACCIÓN! ESPERA, ¿QUIÉN CONTRATÓ A TANTOS PERROS? YO PEDÍ RENOS.', 'DESDE EL PRINCIPIO. ESTA VEZ CON MENOS LADRIDOS Y MÁS ASTAS.', 'DIJE «CORTEN», NO «GUAU».'], pops: ['¡CORTEN!', '¡TOMA DOS!', '¡ACCIÓN!'], stun: '¡SILENCIO EN EL SET!', fall: '¡FIN DEL RODAJE!', prop: 'ROB' },
+      sneezefeld: { taunts: ['¿NO HAS NOTADO QUE LOS PERROS CON GAFAS DE SOL NUNCA ESTORNUDAN? ¿CÓMO LO HACEN?', '¿QUIÉN DECIDIÓ QUE A LA CAJA SIEMPRE LE QUEDE UN SOLO PAÑUELO? ¡SIEMPRE!', 'ESTORNUDÉ UNA VEZ Y AHORA TODO EL NIVEL DICE «SALUD». ¿QUIÉN ES ESTA GENTE?', '¿POLEN EN EL ESPACIO? ¿CÓMO CONSIGUIÓ UN COHETE EL POLEN?', '¿POR QUÉ LE DICEN PELEA DE JEFE? YO SOY MÁS BIEN GERENTE.', '¡Y EL SOL! AHÍ ARRIBA TODO EL DÍA, HACIÉNDOME ESTORNUDAR. ¡BÚSCATE UN PASATIEMPO!'], pops: ['¡ACHÍS!', '¡SALUD A MÍ!', '¡AY, POR FAVOR!'], stun: '¡AH... AH... ACHÍS!', fall: '¡PÁSENME LOS PAÑUELOS!', prop: 'PAÑUELOS' },
+      divot: { taunts: ['¿AHORA ES UNA REGLA? ¿PERROS CORRIENDO HACIA LA GENTE? ¿QUIÉN LO DECIDIÓ?', 'NO DIGO QUE ESTÉS EQUIVOCADO. DIGO QUE YO TENGO RAZÓN.', 'ME SALUDASTE. NO TE DEVOLVÍ EL SALUDO. AHORA ES TODO UN TEMA.', 'UN GOLPE Y ARRANQUÉ MEDIO CAMPO. ESE TROZO DE CÉSPED TIENE SU PROPIO CÓDIGO POSTAL.', 'ESQUIVARÉ CUANDO ESTÉ LISTO. TENGO UN SISTEMA.', '¿TE PARASTE EN MI HOYITO DE CÉSPED? ESE ERA MI HOYITO.'], pops: ['¡OYE!', '¡BOLA VA!', '¡¿EN SERIO?!'], stun: '¿Y QUÉ?', fall: '¡YA PONGO EL CÉSPED!', prop: 'FORE' },
+      macdoodle: { taunts: ['DIBUJÉ UNA POLILLA. AHORA NO SE QUIERE IR DE LA LÁMPARA.', 'ENTONCES UN PERRO ENTRA A UN NIVEL. YA. ESO ES TODO.', 'ME VOY A QUEDAR AQUÍ GARABATEANDO. ESE ES EL PLAN.', 'LA POLILLA TE SALUDA. NO ES CIERTO. ES UN GARABATO.', 'DICEN QUE SOY INEXPRESIVO. YO NO DIGO NADA. ¿VES?', 'BUENA ESQUIVADA. NO VOY A APLAUDIR, PERO LO FUE.'], pops: ['MM.', 'GARABATO.', 'PUES.'], stun: 'AJÁ.', fall: 'BUENO, ESO PASÓ.', prop: 'GARABATOS' },
+      lettuceman: { taunts: ['EL TOP 10 DE ENSALADAS DE HOY: NÚMERO DIEZ, LECHUGA. NÚMERO NUEVE, TAMBIÉN LECHUGA.', 'VOLVEMOS DESPUÉS DE QUE LANCE ESTE LÁPIZ.', 'NÚMERO CUATRO: GAFAS DE SOL ADENTRO. GAFAS DE SOL AFUERA. TODAS LAS GAFAS.', 'HOY EN EL ESCRITORIO: UN LÁPIZ, UNA TAZA Y UNA LECHUGA MUY CRUJIENTE.', 'Y LA RAZÓN NÚMERO UNO POR LA QUE NO PASARÁS: YO. TENGO UN ESCRITORIO.', 'NO SOY UNA ENSALADA. SOY UN PRESENTADOR. UN PRESENTADOR CON HOJAS.'], pops: ['¡NÚMERO DIEZ!', '¡CRUNCH!', '¡ZAS!'], stun: '¡PAUSA COMERCIAL!', fall: '¡BUENAS NOCHES, LECHUGUITAS!', prop: 'TOP 10' },
+      rowdy: { taunts: ['¡SOLO BUENA ONDA! ¡LO ESTÁS HACIENDO GENIAL! ¡AHORA PARA!', '¡VAMOS, EQUIPO! ESPERA, ¿EN QUÉ EQUIPO ESTOY?', '¡CHOCA ESOS CINCO TODO EL MUNDO! MENOS LOS PERROS. TIENEN PATAS.', '¡CALENTANDO EL BRAZO! ¡ESTE LANZAMIENTO TIENE SENTIMIENTOS!', 'NO SOY RUIDOSO. SOY ALBOROTADOR. HAY UNA DIFERENCIA: EL VOLUMEN.', '¡TÚ PUEDES! ¡CREO EN TI! NO SE LO DIGAS A MI JEFE.'], pops: ['¡VAMOS!', '¡SÍ!', '¡STRIKE!'], stun: '¡TIEMPO FUERA!', fall: '¡BUEN JUEGO, BUEN JUEGO!', prop: 'ROWDY' },
+      fryer: { taunts: ['TENGO UNA COCINA ENTERA Y NADIE PARA QUIEN COCINAR. ¿QUIERES PANQUEQUES?', '¡VOLTÉALO, ATRÁPALO Y CORRE! ¡ESE ES TODO EL JUEGO!', 'ESTA SARTÉN HA VISTO COSAS. SOBRE TODO HUEVOS.', 'ESPERA, ME ESTOY RIENDO DE MI PROPIO CHISTE. DAME UN SEGUNDO.', '¡ESTOS PERROS SON RÁPIDOS! ¡QUE ALGUIEN LLAME A SUS MAMÁS!', '¡CUIDADO! ESE PANQUEQUE NO SABE A DÓNDE VA. YO TAMPOCO.'], pops: ['¡CHISS!', '¡VUELTA!', '¡JA, JA!'], stun: '¡TODO VOLTEADO!', fall: '¡VALE, VALE, TÚ GANAS!', prop: 'SARTÉN' },
+      socks: { taunts: ['¡BIENVENIDOS AL MONTÓN DE ROPA! TODO ESTÁ A LA VENTA. HASTA LA PELUSA.', '¿ESTE CALCETÍN? AUTÉNTICO. AUTÉNTICAMENTE SIN SU PAREJA.', 'ESPERA, DÉJAME SENTARME. ESTA MECEDORA FUE UNA GANGA.', 'TENGO UNA BOTA, MEDIA LÁMPARA Y UN CALCETÍN ROJO. ¿DÓNDE ESTÁ EL OTRO?', '¡PERROS, ESTÁN LLENANDO DE LODO MIS CALCETINES LIMPIOS!', 'MI TÍTERE DE CALCETÍN DICE QUE ERES DEMASIADO RÁPIDO. TAMBIÉN DICE HOLA.'], pops: ['¡CLONC!', '¡PLAF!', '¡TRAC, TRAC!'], stun: '¡UN MOMENTO!', fall: '¡VENDIDO A LOS PERROS!', prop: 'CALCETINES' },
+      yogan: { taunts: ['UAU. PERROS CON GAFAS DE SOL. ¿ALGUNA VEZ LO HAS PENSADO EN SERIO?', 'ESTE MICRÓFONO ES ENORME. NO SÉ QUIÉN LO PIDIÓ.', 'EPISODIO DE TRES HORAS HOY. TEMA: ¿POR QUÉ SIGUES ESQUIVANDO?', '¿PERRO BOCA ABAJO? MÁS BIEN PERROS BOCA ABAJO. TODOS USTEDES. AHORA.', 'ACABO DE AGUANTAR UNA POSTURA DE YOGA UNA HORA. UNA HORA. PREGÚNTALE A LA ESTERILLA.', 'INHALA. EXHALA. AHORA ESQUIVA.'], pops: ['¡UAU!', '¡NAMASTÉ!', '¡BUM!'], stun: '¡SUPERESTIRADO!', fall: '¡Y ESO FUE TODO EL PROGRAMA!', prop: 'AL AIRE' },
+      gigglegan: { taunts: ['HOY IBA A HACER EJERCICIO. LUEGO VI UNA BOTANA.', 'ESTA EMPANADA DE BOLSILLO ESTÁ CONGELADA POR FUERA Y ES LAVA POR DENTRO.', 'EL TOCINO ES SOLO DESAYUNO CON REDOBLE DE TAMBOR.', '¿ESOS PERROS ESTÁN CORRIENDO? ¿A PROPÓSITO? QUÉ CANSANCIO ME DAN.', 'ESQUIVARÉ DESPUÉS DEL SEGUNDO ALMUERZO. O DEL TERCERO.', 'JI, JI. PERDÓN, ME DA LA RISA CUANDO TENGO HAMBRE. SIEMPRE TENGO HAMBRE.'], pops: ['¡MMM!', '¡JI, JI!', '¡ÑAM!'], stun: '¡SIESTA DIGESTIVA!', fall: '¡HORA DE LA SIESTA!', prop: 'BOTANAS' },
+      brooms: { taunts: ['¡OÍD, OÍD! EL REY DECLARA: ¡PROHIBIDO CORRER EN EL REINO! Y A BARRER.', 'TENGO UN SOMBRERO PARA CADA OCASIÓN. ESTE ES MI SOMBRERO PARA LANZAR.', '¡TRAEDME MI CORONA! ¡NO, LA CHISTOSA!', 'DECRETO REAL: TODOS LOS PERROS DEBEN USAR GAFAS DE SOL. AH. YA LAS USAN.', 'HE SIDO REY, VAQUERO Y CHEF. HOY SOY UNA ESCOBA.', '¡ALTO, EN NOMBRE DE LA ESCOBA! ¡OS BARRERÉ DE VUESTRAS PATAS!'], pops: ['¡AY!', '¡MI SOMBRERO!', '¡FIUU!'], stun: '¡SE ME RESBALÓ LA CORONA!', fall: '¡MUTIS POR LA IZQUIERDA!', prop: 'ESCOBA' },
+      elder: { taunts: ['SOY EL RENO ORIGINAL. MI HIJO SACÓ LAS ASTAS DE MÍ.', 'EN MIS TIEMPOS NO HABÍA NIVELES. HABÍA PIEDRAS.', 'ESTE BASTÓN ES MÁS VIEJO QUE LA RUEDA. LO COMPROBÉ.', 'RECUERDO CUANDO EL SOL ERA UN POQUITO MÁS PEQUEÑO.', '¡MÁS DESPACIO, CACHORROS! ¡ALGUNOS SOMOS ANTIQUÍSIMOS!', 'YO INVENTÉ LA SIESTA. NADIE ME DA EL CRÉDITO.'], pops: ['¡UF!', '¡HMPF!', '¡TOC, TOC!'], stun: '¿DÓNDE ESTÁ MI BASTÓN?', fall: '¡HORA DE LA SIESTA!', prop: 'PAPÁ' },
     },
   },
   vi: {
@@ -140,18 +140,18 @@ const TEXT: Record<Lang, LangText> = {
     gate: 'HẠ NÓ ĐỂ QUA CẤP {n}',
     beaten: 'HẠ TRÙM NHỎ  ·  +{p}',
     words: {
-      reiner: { taunts: ['DIỄN! KHOAN, AI MỜI CẢ ĐÀN CHÓ NÀY VẬY?', 'LÀM LẠI TỪ ĐẦU. LẦN NÀY BỚT SỦA GIÙM.', 'TÔI BẢO «CẮT», CHỨ ĐÂU BẢO «GÂU».'], pops: ['CẮT!', 'QUAY LẠI!', 'DIỄN!'], stun: 'IM LẶNG!', fall: 'ĐÓNG MÁY!', prop: 'ROB' },
-      seinfeld: { taunts: ['CHUYỆN GÌ VỚI MẤY CON CHÓ ĐEO KÍNH RÂM VẬY? CHÚNG TRỐN AI THẾ?', 'BẠN CÓ ĐỂ Ý LÀ CHÓ LUÔN CHẠY SANG PHẢI KHÔNG? SAO KHÔNG SANG TRÁI?', 'CÁI ÁO NÀY CÓ DIỀM XẾP NẾP. TÔI ĐÂU CÓ ĐẶT DIỀM.', 'ĂN NGŨ CỐC BUỔI TỐI KHÔNG PHẢI MỘT GIAI ĐOẠN. ĐÓ LÀ LỐI SỐNG.', 'SAO GỌI LÀ ĐÁNH TRÙM? TÔI GIỐNG QUẢN LÝ HƠN.', 'CÒN MẶT TRỜI THÌ SAO? Ở TRÊN ĐÓ CẢ NGÀY. KIẾM SỞ THÍCH ĐI CHỨ!'], pops: ['HẢ?!', 'DIỀM!', 'THÔI MÀ!'], stun: 'CHUYỆN GÌ VẬY?!', fall: 'ĐỪNG LÀM HỎNG ÁO!' },
-      larry: { taunts: ['GIỜ ĐÂY LÀ PHÉP LỊCH SỰ À? CHÓ CỨ CHẠY THẲNG VÀO NGƯỜI TA?', 'TÔI KHÔNG NÓI BẠN SAI. TÔI NÓI TÔI ĐÚNG.', 'BẠN VẪY TAY VỚI TÔI. TÔI KHÔNG VẪY LẠI. GIỜ THÀNH CẢ MỘT CHUYỆN.', 'CÁI NÀY TẠM ĐƯỢC. CÓ KHI TẠM TẠM ĐƯỢC.', 'KHI NÀO SẴN SÀNG TÔI SẼ NÉ. TÔI CÓ HỆ THỐNG.', 'BẠN VỪA ĐỨNG VÀO CHỖ CỦA TÔI À? ĐÓ LÀ CHỖ CỦA TÔI.'], pops: ['NÀY!', 'THÔI NÀO!', 'THẬT HẢ?!'], stun: '*NHÚN VAI*', fall: 'KHÔNG THỂ TIN NỔI!', prop: 'TẠM ĐƯỢC' },
-      norm: { taunts: ['TÔI CÓ MỘT NGƯỜI BẠN BƯỚM ĐÊM. NÓ ĐẾN CHỦ YẾU VÌ CÁI ĐÈN.', 'RỒI MỘT CON CHÓ BƯỚC VÀO MÀN CHƠI. HẾT. CHUYỆN CHỈ CÓ VẬY.', 'TÔI SẼ ĐỨNG ĐÂY VÀ KHÔNG CHỚP MẮT. KẾ HOẠCH LÀ VẬY.', 'CON BƯỚM ĐÊM GỬI LỜI CHÀO. KHÔNG ĐÂU. NÓ LÀ BƯỚM ĐÊM MÀ.', 'NGƯỜI TA BẢO TÔI MẶT LẠNH. TÔI KHÔNG NÓI GÌ. THẤY CHƯA?', 'NÉ HAY ĐẤY. TÔI SẼ KHÔNG VỖ TAY, NHƯNG HAY THẬT.'], pops: ['Ừ.', 'ĐƯỢC.', 'CHÀ.'], stun: 'HỬM.', fall: 'CHÀ, CHUYỆN ĐÓ ĐÃ XẢY RA.' },
-      letterman: { taunts: ['TOP 10 TỐI NAY: SỐ MƯỜI, CHÓ. SỐ CHÍN, CŨNG LÀ CHÓ.', 'CHÚNG TÔI SẼ TRỞ LẠI SAU KHI TÔI NÉM CÂY BÚT CHÌ NÀY.', 'SỐ BỐN: KÍNH RÂM TRONG NHÀ. KÍNH RÂM NGOÀI TRỜI. TẤT CẢ KÍNH RÂM.', 'TRÊN BÀN TỐI NAY: MỘT CÂY BÚT CHÌ, MỘT CÁI CỐC, KHÔNG CHÚT KIÊN NHẪN.', 'VÀ LÝ DO SỐ MỘT BẠN KHÔNG QUA ĐƯỢC: TÔI. TÔI CÓ CÁI BÀN.', 'KHOAN, BAN NHẠC ĐANG CHƠI. À KHÔNG, LÀ ĐÀN CHÓ.'], pops: ['SỐ MƯỜI!', 'DING!', 'VÚT!'], stun: 'QUẢNG CÁO!', fall: 'CHÚC MỌI NGƯỜI NGỦ NGON!', prop: 'TOP 10' },
-      brody: { taunts: ['NĂNG LƯỢNG TÍCH CỰC! BẠN ĐANG LÀM RẤT TỐT! GIỜ DỪNG LẠI ĐI!', 'CỐ LÊN CẢ ĐỘI! KHOAN, TÔI Ở ĐỘI NÀO NHỈ?', 'ĐẬP TAY VỚI MỌI NGƯỜI! TRỪ ĐÀN CHÓ. CHÚNG CÓ CHÂN.', 'KHỞI ĐỘNG CÁNH TAY! CÚ NÉM NÀY CÓ CẢM XÚC ĐẤY!', 'ÔM THẬT CHẶT TỪ GÒ NÉM BÓNG! LÀ CÁI ÔM TỪ XA!', 'BẠN LÀM ĐƯỢC! TÔI TIN BẠN! ĐỪNG MÁCH SẾP TÔI NHÉ.'], pops: ['CỐ LÊN!', 'YEAH!', 'STRIKE!'], stun: 'TẠM DỪNG!', fall: 'TRẬN HAY, TRẬN HAY!', prop: 'CỔ VŨ' },
-      pryor: { taunts: ['TÔI CÓ CẢ RƯƠNG ĐỒ CHƠI MÀ KHÔNG AI CHƠI CÙNG. BẠN MUỐN CHƠI KHÔNG?', 'LÊN DÂY CÓT, THẢ RA, RỒI CHẠY! TRÒ CHƠI CHỈ CÓ VẬY!', 'CON VỊT CAO SU NÀY TỪNG TRẢI LẮM. CHỦ YẾU LÀ BỒN TẮM.', 'KHOAN, TÔI ĐANG CƯỜI CHUYỆN CỦA CHÍNH MÌNH. CHỜ TÔI CHÚT.', 'ĐÀN CHÓ NÀY NHANH QUÁ! AI GỌI MẸ CHÚNG ĐI!', 'CẨN THẬN! CON ROBOT ĐỒ CHƠI ĐÓ KHÔNG BIẾT NÓ ĐI ĐÂU. TÔI CŨNG VẬY.'], pops: ['CHÍT!', 'WIII!', 'HA HA!'], stun: 'LÊN DÂY CÓT!', fall: 'THÔI ĐƯỢC, BẠN THẮNG!', prop: 'ĐỒ CHƠI' },
-      foxx: { taunts: ['CHÀO MỪNG ĐẾN BÃI ĐỒ CŨ! MỌI THỨ ĐỀU BÁN. CẢ BỤI CŨNG BÁN.', 'CÁI MÂM XE NÀY À? HÀNG THẬT. TRÒN THẬT.', 'KHOAN, ĐỂ TÔI NGỒI ĐÃ. CÁI GHẾ BẬP BÊNH NÀY MUA RẺ LẮM.', 'TÔI CÓ MỘT CHIẾC ỦNG, NỬA CÁI ĐÈN, VÀ CẢ ĐỐNG Ý KIẾN.', 'ĐÀN CHÓ KIA LÀM DÍNH BÙN LÊN ĐỐNG ĐỒ CŨ XỊN CỦA TÔI!', 'ĐỒ BỎ CỦA NGƯỜI NÀY LÀ... VẪN LÀ ĐỒ BỎ. NHƯNG BÓNG LOÁNG.'], pops: ['CẠCH!', 'KENG!', 'LỌC CỌC!'], stun: 'KHOAN ĐÃ NÀO!', fall: 'BÁN! CHO ĐÀN CHÓ!', prop: 'ĐỒ CŨ' },
-      rogan: { taunts: ['CHÀ. CHÓ ĐEO KÍNH RÂM. BẠN ĐÃ BAO GIỜ THẬT SỰ NGHĨ VỀ ĐIỀU ĐÓ CHƯA?', 'CÁI MICRO NÀY TO QUÁ. TÔI KHÔNG BIẾT AI ĐẶT NÓ.', 'TẬP HÔM NAY DÀI BA TIẾNG. CHỦ ĐỀ: SAO BẠN VẪN CÒN NÉ?', 'TRA THỬ ĐI. KHÔNG, TRA LẠI ĐI. CÁI CÓ ĐÀN CHÓ ẤY.', 'TÔI VỪA HÍT ĐẤT MỘT TRĂM CÁI. MỘT TRĂM. HỎI CÁI MICRO MÀ XEM.', 'KHÓ TIN THẬT. KHÔNG, THẬT ĐẤY. KHÓ TIN QUÁ ĐI.'], pops: ['CHÀ!', 'ĐỈNH!', 'BÙM!'], stun: 'CHOÁNG VÁNG!', fall: 'VÀ CHƯƠNG TRÌNH KẾT THÚC!', prop: 'ĐANG PHÁT' },
-      gaffigan: { taunts: ['HÔM NAY TÔI ĐỊNH TẬP THỂ DỤC. RỒI TÔI THẤY ĐỒ ĂN VẶT.', 'CÁI BÁNH KẸP NÀY NGOÀI THÌ ĐÔNG ĐÁ, TRONG THÌ NÓNG NHƯ DUNG NHAM.', 'THỊT XÔNG KHÓI CHỈ LÀ BỮA SÁNG CÓ TIẾNG TRỐNG DẠO ĐẦU.', 'MẤY CON CHÓ ĐÓ ĐANG CHẠY À? CỐ Ý LUÔN? TÔI MỆT THAY CHO CHÚNG.', 'ĂN TRƯA LẦN HAI XONG TÔI SẼ NÉ. HOẶC LẦN BA.', 'NGƯỜI TA BẢO BỮA SÁNG QUAN TRỌNG NHẤT. TÔI THẤY BỮA NÀO CŨNG QUAN TRỌNG.'], pops: ['NGON!', 'RỘP!', 'MĂM!'], stun: 'NO QUÁ BUỒN NGỦ!', fall: 'GIỜ NGỦ TRƯA!', prop: 'ĐỒ ĂN VẶT' },
-      brooks: { taunts: ['NGHE ĐÂY! NHÀ VUA TUYÊN BỐ: CẤM CHẠY TRONG VƯƠNG QUỐC!', 'TÔI CÓ MŨ CHO MỌI DỊP. ĐÂY LÀ MŨ ĐỂ NÉM.', 'MANG VƯƠNG MIỆN RA ĐÂY! KHÔNG, CÁI NGỘ NGHĨNH CƠ!', 'CHIẾU CHỈ: MỌI CON CHÓ PHẢI ĐEO KÍNH RÂM. Ồ. CHÚNG ĐEO RỒI.', 'TÔI TỪNG LÀ VUA, CAO BỒI VÀ ĐẦU BẾP. HÔM NAY TÔI LÀ BỨC TƯỜNG.', 'ĐỨNG LẠI, NHÂN DANH VƯƠNG MIỆN! À, SỦA HAY LẮM.'], pops: ['ÔI!', 'MŨ CỦA TA!', 'HOAN HÔ!'], stun: 'VƯƠNG MIỆN TUỘT RỒI!', fall: 'XIN LUI VÀO CÁNH GÀ!' },
-      carl: { taunts: ['TÔI HAI NGHÌN TUỔI RỒI. TÔI TỪNG THẤY CHÓ NHANH HƠN. KHÔNG NHIỀU.', 'HỒI XƯA LÀM GÌ CÓ MÀN CHƠI. CHỈ CÓ ĐÁ THÔI.', 'CÂY GẬY NÀY CÒN GIÀ HƠN CẢ BÁNH XE. TÔI KIỂM TRA RỒI.', 'TÔI CÒN NHỚ HỒI MẶT TRỜI NHỎ HƠN MỘT CHÚT.', 'CHẬM LẠI NÀO, MẤY CÚN CON! CÓ NGƯỜI CỔ XƯA LẮM RỒI!', 'TÔI PHÁT MINH RA GIẤC NGỦ TRƯA. CHẲNG AI GHI CÔNG TÔI CẢ.'], pops: ['ỐI!', 'HỪM!', 'CỘC CỘC!'], stun: 'GẬY CỦA TÔI ĐÂU?', fall: 'ĐẾN GIỜ NGỦ TRƯA!', prop: '2000' },
+      reindeer: { taunts: ['DIỄN! KHOAN, AI MỜI CẢ ĐÀN CHÓ NÀY VẬY? TÔI ĐẶT TUẦN LỘC CƠ MÀ.', 'LÀM LẠI TỪ ĐẦU. LẦN NÀY BỚT SỦA, THÊM GẠC.', 'TÔI BẢO «CẮT», CHỨ ĐÂU BẢO «GÂU».'], pops: ['CẮT!', 'QUAY LẠI!', 'DIỄN!'], stun: 'IM LẶNG!', fall: 'ĐÓNG MÁY!', prop: 'ROB' },
+      sneezefeld: { taunts: ['BẠN CÓ ĐỂ Ý LÀ CHÓ ĐEO KÍNH RÂM KHÔNG BAO GIỜ HẮT XÌ KHÔNG? SAO HAY VẬY?', 'AI QUYẾT ĐỊNH HỘP KHĂN GIẤY LÚC NÀO CŨNG CÒN ĐÚNG MỘT TỜ? LẦN NÀO CŨNG VẬY!', 'TÔI HẮT XÌ MỘT CÁI, GIỜ CẢ MÀN CHƠI ĐỀU NÓI «SỐNG LÂU». MẤY NGƯỜI NÀY LÀ AI VẬY?', 'PHẤN HOA TRÊN VŨ TRỤ À? PHẤN HOA LẤY ĐÂU RA TÊN LỬA?', 'SAO GỌI LÀ ĐÁNH TRÙM? TÔI GIỐNG QUẢN LÝ HƠN.', 'CÒN MẶT TRỜI NỮA! Ở TRÊN ĐÓ CẢ NGÀY, LÀM TÔI HẮT XÌ. KIẾM SỞ THÍCH ĐI CHỨ!'], pops: ['HẮT XÌ!', 'TỰ CHÚC MÌNH!', 'THÔI MÀ!'], stun: 'HA... HA... HẮT XÌ!', fall: 'ĐƯA KHĂN GIẤY ĐÂY!', prop: 'KHĂN GIẤY' },
+      divot: { taunts: ['GIỜ ĐÂY LÀ LUẬT À? CHÓ CỨ CHẠY THẲNG VÀO NGƯỜI TA? AI QUYẾT VẬY?', 'TÔI KHÔNG NÓI BẠN SAI. TÔI NÓI TÔI ĐÚNG.', 'BẠN VẪY TAY VỚI TÔI. TÔI KHÔNG VẪY LẠI. GIỜ THÀNH CẢ MỘT CHUYỆN.', 'VUNG GẬY MỘT CÁI, TÔI XỚI TUNG NỬA SÂN GÔN. MIẾNG CỎ ĐÓ CÓ CẢ MÃ BƯU ĐIỆN RIÊNG.', 'KHI NÀO SẴN SÀNG TÔI SẼ NÉ. TÔI CÓ HỆ THỐNG.', 'BẠN VỪA ĐỨNG VÀO CHỖ CỎ BỊ XỚI CỦA TÔI À? CHỖ ĐÓ LÀ CỦA TÔI.'], pops: ['NÀY!', 'CẨN THẬN BÓNG!', 'THẬT HẢ?!'], stun: '*NHÚN VAI*', fall: 'TÔI SẼ TRẢ CỎ LẠI!', prop: 'FORE' },
+      macdoodle: { taunts: ['TÔI VẼ MỘT CON BƯỚM ĐÊM. GIỜ NÓ KHÔNG CHỊU RỜI CÁI ĐÈN.', 'RỒI MỘT CON CHÓ BƯỚC VÀO MÀN CHƠI. HẾT. CHUYỆN CHỈ CÓ VẬY.', 'TÔI SẼ ĐỨNG ĐÂY VÀ VẼ NGUỆCH NGOẠC. KẾ HOẠCH LÀ VẬY.', 'CON BƯỚM ĐÊM GỬI LỜI CHÀO. KHÔNG ĐÂU. NÓ LÀ HÌNH VẼ MÀ.', 'NGƯỜI TA BẢO TÔI MẶT LẠNH. TÔI KHÔNG NÓI GÌ. THẤY CHƯA?', 'NÉ HAY ĐẤY. TÔI SẼ KHÔNG VỖ TAY, NHƯNG HAY THẬT.'], pops: ['Ừ.', 'NGOÁY NGOÁY.', 'CHÀ.'], stun: 'HỬM.', fall: 'CHÀ, CHUYỆN ĐÓ ĐÃ XẢY RA.', prop: 'HÌNH VẼ' },
+      lettuceman: { taunts: ['TOP 10 MÓN SALAD TỐI NAY: SỐ MƯỜI, XÀ LÁCH. SỐ CHÍN, CŨNG LÀ XÀ LÁCH.', 'CHÚNG TÔI SẼ TRỞ LẠI SAU KHI TÔI NÉM CÂY BÚT CHÌ NÀY.', 'SỐ BỐN: KÍNH RÂM TRONG NHÀ. KÍNH RÂM NGOÀI TRỜI. TẤT CẢ KÍNH RÂM.', 'TRÊN BÀN TỐI NAY: MỘT CÂY BÚT CHÌ, MỘT CÁI CỐC, MỘT CÂY XÀ LÁCH THẬT GIÒN.', 'VÀ LÝ DO SỐ MỘT BẠN KHÔNG QUA ĐƯỢC: TÔI. TÔI CÓ CÁI BÀN.', 'TÔI KHÔNG PHẢI ĐĨA SALAD. TÔI LÀ NGƯỜI DẪN CHƯƠNG TRÌNH. MỘT NGƯỜI DẪN NHIỀU LÁ.'], pops: ['SỐ MƯỜI!', 'RỘP!', 'VÚT!'], stun: 'QUẢNG CÁO!', fall: 'XÀ LÁCH CHÚC NGỦ NGON!', prop: 'TOP 10' },
+      rowdy: { taunts: ['CHỈ TOÀN NĂNG LƯỢNG VUI! BẠN ĐANG LÀM RẤT TỐT! GIỜ DỪNG LẠI ĐI!', 'CỐ LÊN CẢ ĐỘI! KHOAN, TÔI Ở ĐỘI NÀO NHỈ?', 'ĐẬP TAY VỚI MỌI NGƯỜI! TRỪ ĐÀN CHÓ. CHÚNG CÓ CHÂN.', 'KHỞI ĐỘNG CÁNH TAY! CÚ NÉM NÀY CÓ CẢM XÚC ĐẤY!', 'TÔI KHÔNG ỒN. TÔI NÁO NHIỆT. KHÁC NHAU ĐẤY: Ở ÂM LƯỢNG.', 'BẠN LÀM ĐƯỢC! TÔI TIN BẠN! ĐỪNG MÁCH SẾP TÔI NHÉ.'], pops: ['CỐ LÊN!', 'YEAH!', 'STRIKE!'], stun: 'TẠM DỪNG!', fall: 'TRẬN HAY, TRẬN HAY!', prop: 'ROWDY' },
+      fryer: { taunts: ['TÔI CÓ CẢ CĂN BẾP MÀ KHÔNG CÓ AI ĐỂ NẤU CHO. BẠN MUỐN ĂN BÁNH KẾP KHÔNG?', 'LẬT NÓ, BẮT NÓ, RỒI CHẠY! TRÒ CHƠI CHỈ CÓ VẬY!', 'CÁI CHẢO NÀY TỪNG TRẢI LẮM. CHỦ YẾU LÀ TRỨNG.', 'KHOAN, TÔI ĐANG CƯỜI CHUYỆN CỦA CHÍNH MÌNH. CHỜ TÔI CHÚT.', 'ĐÀN CHÓ NÀY NHANH QUÁ! AI GỌI MẸ CHÚNG ĐI!', 'CẨN THẬN! CÁI BÁNH KẾP ĐÓ KHÔNG BIẾT NÓ BAY ĐI ĐÂU. TÔI CŨNG VẬY.'], pops: ['XÈO XÈO!', 'LẬT!', 'HA HA!'], stun: 'LẬT TUNG CẢ LÊN!', fall: 'THÔI ĐƯỢC, BẠN THẮNG!', prop: 'CHẢO' },
+      socks: { taunts: ['CHÀO MỪNG ĐẾN ĐỐNG ĐỒ GIẶT! MỌI THỨ ĐỀU BÁN. CẢ XƠ VẢI CŨNG BÁN.', 'CHIẾC TẤT NÀY À? HÀNG THẬT. THẬT SỰ LẠC MẤT CHIẾC KIA.', 'KHOAN, ĐỂ TÔI NGỒI ĐÃ. CÁI GHẾ BẬP BÊNH NÀY MUA RẺ LẮM.', 'TÔI CÓ MỘT CHIẾC ỦNG, NỬA CÁI ĐÈN, VÀ MỘT CHIẾC TẤT ĐỎ. CHIẾC KIA ĐÂU RỒI?', 'ĐÀN CHÓ KIA LÀM DÍNH BÙN LÊN ĐÔI TẤT SẠCH CỦA TÔI!', 'CON RỐI TẤT CỦA TÔI BẢO BẠN NHANH QUÁ. NÓ CŨNG GỬI LỜI CHÀO.'], pops: ['CẠCH!', 'PHỊCH!', 'LỌC CỌC!'], stun: 'KHOAN ĐÃ NÀO!', fall: 'BÁN! CHO ĐÀN CHÓ!', prop: 'TẤT' },
+      yogan: { taunts: ['CHÀ. CHÓ ĐEO KÍNH RÂM. BẠN ĐÃ BAO GIỜ THẬT SỰ NGHĨ VỀ ĐIỀU ĐÓ CHƯA?', 'CÁI MICRO NÀY TO QUÁ. TÔI KHÔNG BIẾT AI ĐẶT NÓ.', 'TẬP HÔM NAY DÀI BA TIẾNG. CHỦ ĐỀ: SAO BẠN VẪN CÒN NÉ?', 'TƯ THẾ CHÓ ÚP MẶT À? PHẢI LÀ CẢ ĐÀN CHÓ ÚP MẶT. TẤT CẢ CÁC BẠN. NGAY BÂY GIỜ.', 'TÔI VỪA GIỮ MỘT TƯ THẾ YOGA SUỐT MỘT TIẾNG. MỘT TIẾNG. HỎI CÁI THẢM MÀ XEM.', 'HÍT VÀO. THỞ RA. GIỜ THÌ NÉ.'], pops: ['CHÀ!', 'NAMASTE!', 'BÙM!'], stun: 'DÃN HẾT CỠ!', fall: 'VÀ CHƯƠNG TRÌNH KẾT THÚC!', prop: 'ĐANG PHÁT' },
+      gigglegan: { taunts: ['HÔM NAY TÔI ĐỊNH TẬP THỂ DỤC. RỒI TÔI THẤY ĐỒ ĂN VẶT.', 'CÁI BÁNH KẸP NÀY NGOÀI THÌ ĐÔNG ĐÁ, TRONG THÌ NÓNG NHƯ DUNG NHAM.', 'THỊT XÔNG KHÓI CHỈ LÀ BỮA SÁNG CÓ TIẾNG TRỐNG DẠO ĐẦU.', 'MẤY CON CHÓ ĐÓ ĐANG CHẠY À? CỐ Ý LUÔN? TÔI MỆT THAY CHO CHÚNG.', 'ĂN TRƯA LẦN HAI XONG TÔI SẼ NÉ. HOẶC LẦN BA.', 'HI HI. XIN LỖI, ĐÓI LÀ TÔI CƯỜI KHÚC KHÍCH. MÀ TÔI LÚC NÀO CŨNG ĐÓI.'], pops: ['NGON!', 'HI HI!', 'MĂM!'], stun: 'NO QUÁ BUỒN NGỦ!', fall: 'GIỜ NGỦ TRƯA!', prop: 'ĐỒ ĂN VẶT' },
+      brooms: { taunts: ['NGHE ĐÂY! NHÀ VUA TUYÊN BỐ: CẤM CHẠY TRONG VƯƠNG QUỐC! VÀ NHỚ QUÉT DỌN.', 'TÔI CÓ MŨ CHO MỌI DỊP. ĐÂY LÀ MŨ ĐỂ NÉM.', 'MANG VƯƠNG MIỆN RA ĐÂY! KHÔNG, CÁI NGỘ NGHĨNH CƠ!', 'CHIẾU CHỈ: MỌI CON CHÓ PHẢI ĐEO KÍNH RÂM. Ồ. CHÚNG ĐEO RỒI.', 'TÔI TỪNG LÀ VUA, CAO BỒI VÀ ĐẦU BẾP. HÔM NAY TÔI LÀ CÂY CHỔI.', 'ĐỨNG LẠI, NHÂN DANH CÂY CHỔI! TA SẼ QUÉT CÁC NGƯƠI BAY ĐI!'], pops: ['ÔI!', 'MŨ CỦA TA!', 'VÚT VÚT!'], stun: 'VƯƠNG MIỆN TUỘT RỒI!', fall: 'XIN LUI VÀO CÁNH GÀ!', prop: 'CHỔI' },
+      elder: { taunts: ['TÔI LÀ CHÚ TUẦN LỘC ĐẦU TIÊN. CON TRAI TÔI ĐƯỢC CẶP GẠC LÀ NHỜ TÔI.', 'HỒI XƯA LÀM GÌ CÓ MÀN CHƠI. CHỈ CÓ ĐÁ THÔI.', 'CÂY GẬY NÀY CÒN GIÀ HƠN CẢ BÁNH XE. TÔI KIỂM TRA RỒI.', 'TÔI CÒN NHỚ HỒI MẶT TRỜI NHỎ HƠN MỘT CHÚT.', 'CHẬM LẠI NÀO, MẤY CÚN CON! CÓ NGƯỜI CỔ XƯA LẮM RỒI!', 'TÔI PHÁT MINH RA GIẤC NGỦ TRƯA. CHẲNG AI GHI CÔNG TÔI CẢ.'], pops: ['ỐI!', 'HỪM!', 'CỘC CỘC!'], stun: 'GẬY CỦA TÔI ĐÂU?', fall: 'ĐẾN GIỜ NGỦ TRƯA!', prop: 'BỐ' },
     },
   },
   zh: {
@@ -159,18 +159,18 @@ const TEXT: Record<Lang, LangText> = {
     gate: '打败它才能通过第 {n} 关',
     beaten: '击败小头目  ·  +{p}',
     words: {
-      reiner: { taunts: ['开拍！等等，这么多狗是谁请来的？', '从头再来。这次少叫几声。', '我说的是“咔”，不是“汪”。'], pops: ['咔！', '再来一条！', '开拍！'], stun: '现场安静！', fall: '杀青！', prop: 'ROB' },
-      seinfeld: { taunts: ['戴墨镜的狗是怎么回事？它们在躲谁？', '你有没有发现，狗总是往右跑？为什么不往左？', '这件衬衫有荷叶边。我可没要荷叶边。', '晚饭吃麦片不是一时兴起，是一种生活方式。', '为什么叫打头目？我更像个经理。', '还有太阳是怎么回事？整天挂在上面。找点爱好吧！'], pops: ['什么？！', '荷叶边！', '拜托！'], stun: '到底怎么回事？！', fall: '别弄坏我的衬衫！' },
-      larry: { taunts: ['现在这算社交礼仪吗？狗直接冲着人跑？', '我没说你错。我是说我对。', '你冲我挥手，我没挥回去。现在成了一件大事。', '这个嘛，马马虎虎。也许马马虎虎虎。', '我准备好了自然会躲。我有一套方法。', '你刚才站在我的位置上了？那是我的位置。'], pops: ['喂！', '拜托！', '真的假的？！'], stun: '*耸肩*', fall: '难以置信！', prop: '马马虎虎' },
-      norm: { taunts: ['我有个飞蛾朋友。它主要是冲着台灯来的。', '一只狗走进了一关。就这样。完了。', '我就站在这儿，不眨眼。这就是计划。', '飞蛾向你问好。其实没有。它是飞蛾。', '有人说我面无表情。我什么也不说。看到没？', '躲得不错。我不会鼓掌，但确实不错。'], pops: ['嗯。', '好吧。', '这样啊。'], stun: '哈？', fall: '好吧，发生了。' },
-      letterman: { taunts: ['今晚十大排行：第十名，狗。第九名，还是狗。', '等我扔完这支铅笔，马上回来。', '第四名：室内戴墨镜。室外戴墨镜。所有墨镜。', '今晚桌上：一支铅笔，一个杯子，零耐心。', '你过不了关的头号原因：我。我有一张桌子。', '等等，乐队在演奏。不对，是狗在叫。'], pops: ['第十名！', '叮！', '嗖！'], stun: '插播广告！', fall: '大家晚安！', prop: 'TOP 10' },
-      brody: { taunts: ['正能量！你做得很棒！现在停下！', '加油，队友们！等等，我是哪一队的？', '大家击个掌！狗除外。它们只有爪子。', '热身胳膊！这一球是有感情的！', '投手丘送上大大的拥抱！远距离拥抱！', '你能行！我相信你！别告诉我老板。'], pops: ['加油！', '耶！', '好球！'], stun: '暂停！', fall: '好比赛，好比赛！', prop: '加油' },
-      pryor: { taunts: ['我有一整箱玩具，却没人陪我玩。你想玩一下吗？', '上好发条，一松手，快跑！游戏就这么简单！', '这只橡皮鸭见过大世面。主要是浴缸。', '等等，我在笑我自己的笑话。给我一秒钟。', '这些狗跑得真快！快叫它们的妈妈来！', '小心！那个玩具机器人不知道要去哪儿。我也不知道。'], pops: ['吱吱！', '呜呼！', '哈哈！'], stun: '发条上满了！', fall: '好啦好啦，你赢了！', prop: '玩具' },
-      foxx: { taunts: ['欢迎来到旧货场！什么都卖。连灰尘都卖。', '这个轮毂盖？正品。货真价实地圆。', '等等，让我坐下。这把摇椅可是捡了便宜。', '我有一只靴子、半盏灯，还有一大堆意见。', '你们这些狗，把泥巴踩到我的好旧货上了！', '别人的垃圾是另一个人的……还是垃圾。不过亮晶晶的。'], pops: ['哐当！', '叮当！', '咔啦咔啦！'], stun: '等一下！', fall: '成交！卖给狗狗！', prop: '旧货' },
-      rogan: { taunts: ['哇。戴墨镜的狗。你有没有认真想过这件事？', '这个麦克风太大了。我不知道是谁订的。', '今天这期三小时。主题：你为什么还在躲？', '查一下。不，再查一遍。有狗的那个。', '我刚做了一百个俯卧撑。一百个。不信问麦克风。', '太离谱了。不，真的。太离谱了。'], pops: ['哇！', '离谱！', '砰！'], stun: '大开眼界！', fall: '本期节目到此结束！', prop: '直播中' },
-      gaffigan: { taunts: ['我今天本来要去锻炼。然后我看到了零食。', '这个口袋点心外面冻得硬邦邦，里面烫得像岩浆。', '培根就是配了鼓声的早餐。', '那些狗在跑步？主动跑？我替它们累。', '等我吃完第二顿午饭再躲。或者第三顿。', '人们说早餐是最重要的一餐。我说每一餐都是。'], pops: ['嗯——！', '咔嚓！', '吧唧！'], stun: '吃撑犯困！', fall: '午睡时间！', prop: '零食' },
-      brooks: { taunts: ['听着！国王宣布：王国里禁止奔跑！', '我每种场合都有一顶帽子。这顶是用来扔的。', '把我的王冠拿来！不，要那顶搞笑的！', '皇家法令：所有狗都必须戴墨镜。哦，它们戴了。', '我当过国王、牛仔和厨师。今天我是一堵墙。', '以王冠之名，站住！另外，叫得真好听。'], pops: ['哎哟！', '我的帽子！', '万岁！'], stun: '王冠滑下来了！', fall: '从舞台左侧退场！' },
-      carl: { taunts: ['我两千岁了。见过跑得更快的狗。不多。', '想当年，我们没有关卡。我们只有石头。', '这根拐杖比轮子还老。我查过。', '我记得太阳以前还小一点。', '慢点，小狗们！我们有些人可是老古董！', '午睡是我发明的。可从来没人记得我的功劳。'], pops: ['哎哟！', '哼！', '笃笃！'], stun: '我的拐杖呢？', fall: '该打盹了！', prop: '2000' },
+      reindeer: { taunts: ['开拍！等等，这么多狗是谁请来的？我要的是驯鹿。', '从头再来。这次少叫几声，多点鹿角。', '我说的是“咔”，不是“汪”。'], pops: ['咔！', '再来一条！', '开拍！'], stun: '现场安静！', fall: '杀青！', prop: 'ROB' },
+      sneezefeld: { taunts: ['你有没有发现，戴墨镜的狗从来不打喷嚏？它们怎么做到的？', '是谁规定纸巾盒里永远只剩一张纸巾？每次都这样！', '我打了一个喷嚏，现在整关的人都在说“长命百岁”。这些人是谁？', '太空里有花粉？花粉从哪儿弄来的火箭？', '为什么叫打头目？我更像个经理。', '还有太阳！整天挂在上面，害我打喷嚏。找点爱好吧！'], pops: ['阿嚏！', '保佑我！', '拜托！'], stun: '阿……阿……阿嚏！', fall: '快递纸巾！', prop: '纸巾' },
+      divot: { taunts: ['现在这算规矩吗？狗直接冲着人跑？谁定的？', '我没说你错。我是说我对。', '你冲我挥手，我没挥回去。现在成了一件大事。', '一杆下去，我把半个球场都挖起来了。那块草皮都有自己的邮编了。', '我准备好了自然会躲。我有一套方法。', '你刚才站在我的草皮坑里了？那是我的坑。'], pops: ['喂！', '看球！', '真的假的？！'], stun: '*耸肩*', fall: '我会把草皮放回去！', prop: 'FORE' },
+      macdoodle: { taunts: ['我画了一只飞蛾。现在它赖在台灯边不走了。', '一只狗走进了一关。就这样。完了。', '我就站在这儿涂鸦。这就是计划。', '飞蛾向你问好。其实没有。它是涂鸦。', '有人说我面无表情。我什么也不说。看到没？', '躲得不错。我不会鼓掌，但确实不错。'], pops: ['嗯。', '涂涂。', '这样啊。'], stun: '哈？', fall: '好吧，发生了。', prop: '涂鸦' },
+      lettuceman: { taunts: ['今晚十大沙拉：第十名，生菜。第九名，还是生菜。', '等我扔完这支铅笔，马上回来。', '第四名：室内戴墨镜。室外戴墨镜。所有墨镜。', '今晚桌上：一支铅笔，一个杯子，一棵特别脆的生菜。', '你过不了关的头号原因：我。我有一张桌子。', '我不是沙拉。我是主持人。一个长叶子的主持人。'], pops: ['第十名！', '咔嚓！', '嗖！'], stun: '插播广告！', fall: '生菜祝大家晚安！', prop: 'TOP 10' },
+      rowdy: { taunts: ['只要好心情！你做得很棒！现在停下！', '加油，队友们！等等，我是哪一队的？', '大家击个掌！狗除外。它们只有爪子。', '热身胳膊！这一球是有感情的！', '我不是吵。我是闹腾。有区别的：区别在音量。', '你能行！我相信你！别告诉我老板。'], pops: ['加油！', '耶！', '好球！'], stun: '暂停！', fall: '好比赛，好比赛！', prop: 'ROWDY' },
+      fryer: { taunts: ['我有一整个厨房，却没人可以做饭给他吃。你要松饼吗？', '翻一下，接住，快跑！游戏就这么简单！', '这口平底锅见过大世面。主要是鸡蛋。', '等等，我在笑我自己的笑话。给我一秒钟。', '这些狗跑得真快！快叫它们的妈妈来！', '小心！那块松饼不知道要飞去哪儿。我也不知道。'], pops: ['滋滋！', '翻！', '哈哈！'], stun: '翻得团团转！', fall: '好啦好啦，你赢了！', prop: '平底锅' },
+      socks: { taunts: ['欢迎来到脏衣服堆！什么都卖。连线头都卖。', '这只袜子？正品。货真价实地丢了另一只。', '等等，让我坐下。这把摇椅可是捡了便宜。', '我有一只靴子、半盏灯，还有一只红袜子。另一只去哪儿了？', '你们这些狗，把泥巴踩到我干净的袜子上了！', '我的袜子木偶说你太快了。它还说你好。'], pops: ['哐当！', '啪嗒！', '咔啦咔啦！'], stun: '等一下！', fall: '成交！卖给狗狗！', prop: '袜子' },
+      yogan: { taunts: ['哇。戴墨镜的狗。你有没有认真想过这件事？', '这个麦克风太大了。我不知道是谁订的。', '今天这期三小时。主题：你为什么还在躲？', '下犬式？应该叫下犬们式。你们全部。现在。', '我刚保持一个瑜伽姿势一小时。一小时。不信问垫子。', '吸气。呼气。现在躲。'], pops: ['哇！', '合十！', '砰！'], stun: '拉伸到底！', fall: '本期节目到此结束！', prop: '直播中' },
+      gigglegan: { taunts: ['我今天本来要去锻炼。然后我看到了零食。', '这个口袋点心外面冻得硬邦邦，里面烫得像岩浆。', '培根就是配了鼓声的早餐。', '那些狗在跑步？主动跑？我替它们累。', '等我吃完第二顿午饭再躲。或者第三顿。', '嘻嘻。抱歉，我一饿就傻笑。而我总是饿。'], pops: ['嗯——！', '嘻嘻！', '吧唧！'], stun: '吃撑犯困！', fall: '午睡时间！', prop: '零食' },
+      brooms: { taunts: ['听着！国王宣布：王国里禁止奔跑！还有，扫扫地。', '我每种场合都有一顶帽子。这顶是用来扔的。', '把我的王冠拿来！不，要那顶搞笑的！', '皇家法令：所有狗都必须戴墨镜。哦，它们戴了。', '我当过国王、牛仔和厨师。今天我是一把扫帚。', '以扫帚之名，站住！我要把你们扫得四脚朝天！'], pops: ['哎哟！', '我的帽子！', '唰！'], stun: '王冠滑下来了！', fall: '从舞台左侧退场！', prop: '扫帚' },
+      elder: { taunts: ['我是元祖驯鹿。我儿子的鹿角就是随我。', '想当年，我们没有关卡。我们只有石头。', '这根拐杖比轮子还老。我查过。', '我记得太阳以前还小一点。', '慢点，小狗们！我们有些人可是老古董！', '午睡是我发明的。可从来没人记得我的功劳。'], pops: ['哎哟！', '哼！', '笃笃！'], stun: '我的拐杖呢？', fall: '该打盹了！', prop: '老爸' },
     },
   },
 };
@@ -184,15 +184,15 @@ function miniIndex(level: number): number {
   return level - Math.floor(level / 10);
 }
 
-/** The comedian fighting at the end of this level (null on big-boss levels). */
+/** The character fighting at the end of this level (null on big-boss levels). */
 export function miniDesignForLevel(level: number): Design | null {
   const n = Math.floor(level);
   if (!Number.isFinite(n) || n < 1 || n >= 111 || n % 10 === 0) return null;
   const k = miniIndex(n);
-  return k === 1 ? 'reiner' : ROTATION[(k - 2) % ROTATION.length];
+  return k === 1 ? 'reindeer' : ROTATION[(k - 2) % ROTATION.length];
 }
 
-/** Which appearance of that comedian this is (0 = first). */
+/** Which appearance of that character this is (0 = first). */
 export function miniAppearance(level: number): number {
   const k = miniIndex(Math.floor(level));
   return k <= 1 ? 0 : Math.floor((k - 2) / ROTATION.length);
@@ -207,6 +207,16 @@ const cache = new Map<number, BossDef>();
  * already allows every mini level, so raising this needs no migration.
  */
 export const MINI_LIVE_MAX = 29;
+
+/** Every mini-boss level (1-109, not multiples of 10): 99 in all. */
+export const MINI_TOTAL = 99;
+
+/** How many mini-bosses are live now (mini levels at or below MINI_LIVE_MAX); updates with each batch. */
+export function miniLiveCount(): number {
+  let n = 0;
+  for (let l = 1; l <= Math.min(109, MINI_LIVE_MAX); l++) if (l % 10 !== 0) n++;
+  return n;
+}
 
 /** The mini-boss at the end of this level, or null (levels 10, 20 ... 110 and 111 have big bosses). */
 export function miniBossForLevel(level: number, ignoreRollout = false): BossDef | null {
@@ -274,7 +284,7 @@ export function miniBonus(level: number): number {
 /** A taunt from this appearance's window of three lines (repeat visits open with fresh gags). */
 export function miniTaunt(def: BossDef, rng: () => number): string {
   const spec = def.mini;
-  const ts = spec ? words(spec.design).taunts : TEXT.en.words.reiner.taunts;
+  const ts = spec ? words(spec.design).taunts : TEXT.en.words.reindeer.taunts;
   const n = Math.min(3, ts.length);
   const off = spec ? (spec.appearance * 3) % ts.length : 0;
   return ts[(off + (Math.floor(rng() * n) % n)) % ts.length];
@@ -346,7 +356,7 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
   ctx.save();
   ctx.translate(x, y);
   switch (design) {
-    case 'reiner': {
+    case 'reindeer': {
       // megaphone
       ctx.fillStyle = '#ffd23f';
       ctx.beginPath();
@@ -360,14 +370,28 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.fillRect(r * 0.6, -r * 0.3, r * 0.35, r * 0.6);
       break;
     }
-    case 'seinfeld':
-    case 'rogan':
-      // a stand-up microphone (Rogan's is comically big)
+    case 'sneezefeld':
+      // a tissue box with the last tissue sticking up
+      ctx.fillStyle = '#4aa3ff';
+      rr(ctx, -r * 0.8, -r * 0.2, r * 1.6, r * 0.85, r * 0.12);
+      ctx.fill();
+      ctx.fillStyle = '#ffd23f';
+      ctx.fillRect(-r * 0.8, r * 0.15, r * 1.6, r * 0.12);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.3, -r * 0.2);
+      ctx.quadraticCurveTo(-r * 0.4 + Math.sin(p.t * 7) * r * 0.15, -r * 0.8, 0, -r * 0.95);
+      ctx.quadraticCurveTo(r * 0.35, -r * 0.6, r * 0.3, -r * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'yogan':
+      // a comically big microphone
       ctx.fillStyle = '#333';
       ctx.fillRect(r * 0.05, -r * 0.12, r * 0.95, r * 0.24);
-      ctx.fillStyle = design === 'rogan' ? '#c0c6cc' : '#9aa3ad';
+      ctx.fillStyle = '#c0c6cc';
       ctx.beginPath();
-      ctx.arc(-r * 0.25, 0, r * (design === 'rogan' ? 0.75 : 0.55), 0, TAU);
+      ctx.arc(-r * 0.25, 0, r * 0.75, 0, TAU);
       ctx.fill();
       ctx.strokeStyle = '#555';
       ctx.lineWidth = 1;
@@ -378,32 +402,35 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
         ctx.stroke();
       }
       break;
-    case 'larry': {
-      // the SO-SO meter: the needle never leaves the middle
-      ctx.fillStyle = '#fffbe0';
+    case 'divot': {
+      // a golf ball on a tee, next to a freshly dug divot
+      ctx.fillStyle = '#6b4226';
       ctx.beginPath();
-      ctx.arc(0, r * 0.3, r * 0.85, Math.PI, TAU);
-      ctx.closePath();
+      ctx.ellipse(-r * 0.35, r * 0.6, r * 0.5, r * 0.22, 0, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = '#ff6b6b';
+      ctx.strokeStyle = '#3fbf5a';
+      ctx.lineWidth = Math.max(1.5, r * 0.1);
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.35 + i * r * 0.18, r * 0.5);
+        ctx.lineTo(-r * 0.35 + i * r * 0.22, r * 0.25);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fff3a0';
+      ctx.fillRect(r * 0.3, r * 0.05, r * 0.14, r * 0.7);
+      ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(0, r * 0.3, r * 0.85, Math.PI, Math.PI * 1.25);
-      ctx.lineTo(0, r * 0.3);
+      ctx.arc(r * 0.37, -r * 0.25, r * 0.38, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = '#5ad35a';
-      ctx.beginPath();
-      ctx.arc(0, r * 0.3, r * 0.85, Math.PI * 1.75, TAU);
-      ctx.lineTo(0, r * 0.3);
-      ctx.fill();
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = Math.max(2, r * 0.12);
-      ctx.beginPath();
-      ctx.moveTo(0, r * 0.3);
-      ctx.lineTo(Math.sin(p.t * 9) * r * 0.08, -r * 0.45);
-      ctx.stroke();
+      ctx.fillStyle = '#ccc';
+      for (const [dx, dy] of [[-0.1, -0.3], [0.1, -0.15], [0.05, -0.4]]) {
+        ctx.beginPath();
+        ctx.arc(r * (0.37 + dx), r * dy, r * 0.05, 0, TAU);
+        ctx.fill();
+      }
       break;
     }
-    case 'norm':
+    case 'macdoodle':
       // the lamp bulb his moth friend visits
       ctx.fillStyle = '#fff3a0';
       ctx.beginPath();
@@ -412,7 +439,7 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.fillStyle = '#9aa3ad';
       ctx.fillRect(-r * 0.3, r * 0.4, r * 0.6, r * 0.35);
       break;
-    case 'letterman':
+    case 'lettuceman':
       // a TOP TEN index card
       ctx.fillStyle = '#fff';
       rr(ctx, -r * 0.85, -r * 0.55, r * 1.7, r * 1.1, r * 0.1);
@@ -422,7 +449,7 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.fillStyle = '#7fb3ff';
       for (let i = 0; i < 3; i++) ctx.fillRect(-r * 0.7, -r * 0.1 + i * r * 0.22, r * 1.4, r * 0.05);
       break;
-    case 'brody':
+    case 'rowdy':
       // a baseball glove
       ctx.fillStyle = '#b5651d';
       ctx.beginPath();
@@ -435,35 +462,39 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.arc(0, r * 0.15, r * 0.3, 0, TAU);
       ctx.fill();
       break;
-    case 'pryor':
-      // a big wind-up key (it turns)
-      ctx.rotate(p.t * 3);
-      ctx.fillStyle = '#ffd23f';
-      ctx.fillRect(-r * 0.1, -r * 0.1, r * 0.9, r * 0.2);
-      for (const s of [-1, 1]) {
-        ctx.beginPath();
-        ctx.ellipse(-r * 0.35, s * r * 0.35, r * 0.3, r * 0.4, 0, 0, TAU);
-        ctx.fill();
-      }
-      break;
-    case 'foxx':
-      // a shiny hubcap
-      ctx.rotate(p.t * 2);
-      ctx.fillStyle = '#d6dde3';
+    case 'fryer':
+      // a frying pan with a sunny-side-up egg (it jiggles)
+      ctx.fillStyle = '#333';
+      ctx.fillRect(r * 0.55, -r * 0.1, r * 0.6, r * 0.2);
       ctx.beginPath();
-      ctx.arc(0, 0, r * 0.85, 0, TAU);
+      ctx.arc(0, 0, r * 0.75, 0, TAU);
       ctx.fill();
-      ctx.strokeStyle = '#8a959f';
-      ctx.lineWidth = Math.max(1.5, r * 0.1);
-      for (let i = 0; i < 5; i++) {
-        const a = (i * TAU) / 5;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8);
-        ctx.stroke();
-      }
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.5 + Math.sin(p.t * 8) * r * 0.04, r * 0.42, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#ffc93c';
+      ctx.beginPath();
+      ctx.arc(-r * 0.05, -r * 0.03, r * 0.2, 0, TAU);
+      ctx.fill();
       break;
-    case 'gaffigan':
+    case 'socks':
+      // one bright red sock (where is the other one?)
+      ctx.rotate(Math.sin(p.t * 2) * 0.2);
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.15, -r * 0.85);
+      ctx.lineTo(r * 0.35, -r * 0.85);
+      ctx.lineTo(r * 0.35, r * 0.2);
+      ctx.quadraticCurveTo(r * 0.35, r * 0.75, -r * 0.3, r * 0.7);
+      ctx.quadraticCurveTo(-r * 0.85, r * 0.65, -r * 0.7, r * 0.3);
+      ctx.lineTo(-r * 0.15, r * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-r * 0.15, -r * 0.85, r * 0.5, r * 0.2);
+      break;
+    case 'gigglegan':
       // a steaming pocket snack
       ctx.fillStyle = '#e8b062';
       rr(ctx, -r * 0.8, -r * 0.45, r * 1.6, r * 0.9, r * 0.25);
@@ -477,7 +508,7 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
         ctx.stroke();
       }
       break;
-    case 'brooks':
+    case 'brooms':
       // the royal orb (a big jewel on top)
       ctx.fillStyle = '#ffd23f';
       ctx.beginPath();
@@ -490,8 +521,8 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.fillStyle = '#b8860b';
       ctx.fillRect(-r * 0.65, r * 0.02, r * 1.3, r * 0.14);
       break;
-    case 'carl':
-      // an hourglass (two thousand years of sand)
+    case 'elder':
+      // an hourglass (a very, very long time of sand)
       ctx.fillStyle = '#8b5a2b';
       ctx.fillRect(-r * 0.6, -r * 0.85, r * 1.2, r * 0.15);
       ctx.fillRect(-r * 0.6, r * 0.7, r * 1.2, r * 0.15);
@@ -545,7 +576,7 @@ function head(ctx: Ctx, x: number, y: number, r: number, skin: string, p: Pose):
 
 type Hair = 'pompadour' | 'fringe' | 'parted' | 'swept' | 'short' | 'light' | 'bald' | 'none';
 
-/** A gentle cartoon person (the comedian minis): legs, torso, head, hair and face details. */
+/** A gentle cartoon person (the people-shaped minis): legs, torso, head, hair and face details. */
 interface Look {
   skin: string;
   shirt: string;
@@ -680,14 +711,49 @@ function placard(ctx: Ctx, s: string, x: number, y: number, w: number, h: number
   if (s) propText(ctx, s, x + w / 2, y + h / 2, w * 0.88, Math.max(7, h * 0.62), fg);
 }
 
+/** Reindeer antlers (and furry ears) on a head at (hx, hy) with radius hr; drawn before the head. */
+function antlers(ctx: Ctx, hx: number, hy: number, hr: number, color: string): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, hr * 0.18);
+  ctx.lineCap = 'round';
+  for (const s of [-1, 1]) {
+    const bx = hx + s * hr * 0.45;
+    const by = hy - hr * 0.75;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + s * hr * 0.2, by - hr * 0.7, bx + s * hr * 0.75, by - hr * 1.05);
+    ctx.moveTo(bx + s * hr * 0.12, by - hr * 0.45);
+    ctx.lineTo(bx + s * hr * 0.6, by - hr * 0.45);
+    ctx.moveTo(bx + s * hr * 0.2, by - hr * 0.75);
+    ctx.lineTo(bx - s * hr * 0.05, by - hr * 1.1);
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(hx + s * hr * 0.95, hy - hr * 0.35, hr * 0.32, hr * 0.15, s * 0.5, 0, TAU);
+    ctx.fill();
+  }
+}
+
+/** A round shiny nose (reindeer red, or a sniffly pink). */
+function nose(ctx: Ctx, x: number, y: number, r: number, color = '#ff3b3b'): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.3, 0, TAU);
+  ctx.fill();
+}
+
 const SKIN = { light: '#f2c7a5', fair: '#ffe0cc', tan: '#e8b896', brown: '#8d5524', deep: '#6b4423' };
 
 type MiniDraw = (ctx: Ctx, w: number, h: number, p: Pose, prop: string) => void;
 
 /** Each draws around (0, 0) = box centre, filling about w x h, facing left (toward the dogs). */
 const BODY: Record<Design, MiniDraw> = {
-  reiner: (ctx, w, h, p, prop) => {
-    // a tall director's chair; the director leans on the armrest with his megaphone
+  reindeer: (ctx, w, h, p, prop) => {
+    // a tall director's chair; ROB REINDEER leans on the armrest with his megaphone
     ctx.strokeStyle = '#8b5a2b';
     ctx.lineWidth = Math.max(3, w * 0.06);
     ctx.beginPath();
@@ -701,71 +767,88 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.fillStyle = '#c0392b';
     ctx.fillRect(w * 0.08, -h * 0.36, w * 0.42, h * 0.16);
     propText(ctx, prop, w * 0.29, -h * 0.28, w * 0.36, Math.max(8, w * 0.2), '#fff');
-    // body (cardigan) and head with glasses + beard
+    // body (cardigan) and a reindeer head: antlers, furry ears, a shiny red nose
     ctx.fillStyle = '#4a6fa5';
     rr(ctx, -w * 0.3, -h * 0.18, w * 0.55, h * 0.24, w * 0.12);
     ctx.fill();
     const hr = Math.min(w * 0.26, h * 0.13);
     const hy = -h * 0.18 - hr * 0.9;
-    ctx.fillStyle = '#d9d9d9';
-    ctx.beginPath();
-    ctx.arc(-w * 0.16, hy + hr * 0.45, hr * 0.85, 0, Math.PI);
-    ctx.fill();
-    head(ctx, -w * 0.16, hy, hr, '#f2c7a5', p);
-    ctx.strokeStyle = '#222';
-    ctx.lineWidth = 1.5;
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.arc(-w * 0.16 + s * hr * 0.3, hy - hr * 0.15, hr * 0.36, 0, TAU);
-      ctx.stroke();
-    }
-    mouth(ctx, -w * 0.16, hy + hr * 0.5, hr * 0.35, p);
+    antlers(ctx, -w * 0.16, hy, hr, '#a0703c');
+    head(ctx, -w * 0.16, hy, hr, '#c89a6a', p);
+    nose(ctx, -w * 0.16 - hr * 0.1, hy + hr * 0.18, hr * 0.2);
+    mouth(ctx, -w * 0.16, hy + hr * 0.55, hr * 0.3, p);
     // the clapperboard on his lap
     ctx.fillStyle = '#222';
     ctx.fillRect(w * 0.08, -h * 0.08, w * 0.3, h * 0.1);
     ctx.fillStyle = '#fff';
     for (let i = 0; i < 3; i++) ctx.fillRect(w * 0.1 + i * w * 0.1, -h * 0.08, w * 0.04, h * 0.03);
   },
-  seinfeld: (ctx, w, h, p) => {
-    // the puffy shirt (ruffles, balloon sleeves) and a bowl of cereal held out to the dogs
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#fffaf0', pants: '#2d3a5a', hair: 'pompadour', hairColor: '#2a1d14' });
-    ctx.fillStyle = '#fffaf0';
-    ctx.strokeStyle = '#e3d5b5';
-    ctx.lineWidth = 1;
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.arc(s * tw * 0.5, -h * 0.14, w * 0.13, 0, TAU);
-      ctx.fill();
-      ctx.stroke();
-    }
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath();
-      ctx.arc(0, -h * 0.15 + i * h * 0.08, w * 0.06, 0, TAU);
-      ctx.fill();
-      ctx.stroke();
-    }
-    arm(ctx, -tw * 0.5, -h * 0.1, -w * 0.4, -h * 0.03 + Math.sin(p.t * 3) * 2, w, '#fffaf0', SKIN.light);
+  sneezefeld: (ctx, w, h, p) => {
+    // a sniffly observer with a rosy nose, holding out a tissue box (one tissue left, always)
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#7fb3d5', pants: '#2d3a5a', hair: 'swept', hairColor: '#5a3a22' });
+    nose(ctx, hx - hr * 0.1, hy + hr * 0.15, hr * 0.17, '#ff8a8a');
+    arm(ctx, -tw * 0.5, -h * 0.1, -w * 0.4, -h * 0.03 + Math.sin(p.t * 3) * 2, w, '#7fb3d5', SKIN.light);
     ctx.fillStyle = '#4aa3ff';
-    ctx.beginPath();
-    ctx.arc(-w * 0.4, -h * 0.05, w * 0.11, 0, Math.PI);
+    rr(ctx, -w * 0.5, -h * 0.06, w * 0.22, h * 0.09, 2);
     ctx.fill();
-    ctx.fillStyle = '#ffb347';
-    for (let i = -1; i <= 1; i++) {
-      ctx.beginPath();
-      ctx.arc(-w * 0.4 + i * w * 0.05, -h * 0.06, w * 0.025, 0, TAU);
-      ctx.fill();
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillRect(-w * 0.5, -h * 0.025, w * 0.22, h * 0.02);
+    const fl = Math.sin(p.t * 8) * w * 0.02;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.44, -h * 0.06);
+    ctx.quadraticCurveTo(-w * 0.47 + fl, -h * 0.12, -w * 0.39 + fl, -h * 0.15);
+    ctx.quadraticCurveTo(-w * 0.36, -h * 0.1, -w * 0.34, -h * 0.06);
+    ctx.closePath();
+    ctx.fill();
+    // every few seconds: a little ACHOO puff
+    const ph = p.t % 3.2;
+    if (ph < 0.5) {
+      ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - ph / 0.5)})`;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(hx - hr * (1.4 + i * 0.5 + ph * 2), hy + hr * 0.2 + (i - 1) * hr * 0.3, hr * (0.25 + ph * 0.4), 0, TAU);
+        ctx.fill();
+      }
     }
   },
-  larry: (ctx, w, h, p, prop) => {
-    // glasses, a sweater, and a big shrug (both palms up, bobbing)
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#8a9a5b', pants: '#c2b280', hair: 'fringe', hairColor: '#cfcfcf', glasses: true });
+  divot: (ctx, w, h, p, prop) => {
+    // a golfer in a green sun visor, mid-shrug, club at his side and a clump of turf at his feet
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#8a9a5b', pants: '#c2b280', hair: 'short', hairColor: '#7a5a3a' });
+    ctx.fillStyle = '#2e8b57';
+    ctx.beginPath();
+    ctx.ellipse(hx, hy - hr * 0.55, hr * 1.05, hr * 0.32, 0, Math.PI, TAU);
+    ctx.fill();
+    ctx.fillRect(hx - hr * 1.6, hy - hr * 0.62, hr * 0.9, hr * 0.16);
     const bob = Math.sin(p.t * 4) * h * 0.02;
     for (const s of [-1, 1]) arm(ctx, s * tw * 0.5, -h * 0.15, s * w * 0.44, -h * 0.3 + bob, w, '#8a9a5b', SKIN.light);
-    placard(ctx, prop, -w * 0.2, -h * 0.06, w * 0.4, h * 0.1, '#fffbe0', '#555');
+    placard(ctx, prop, -w * 0.2, -h * 0.06, w * 0.4, h * 0.1, '#fffbe0', '#2e8b57');
+    ctx.strokeStyle = '#bfc5cc';
+    ctx.lineWidth = Math.max(2, w * 0.035);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.44, -h * 0.05);
+    ctx.lineTo(w * 0.38, h * 0.42);
+    ctx.stroke();
+    ctx.fillStyle = '#555';
+    ctx.fillRect(w * 0.31, h * 0.41, w * 0.11, h * 0.04);
+    const jump = Math.abs(Math.sin(p.t * 2.5)) * h * 0.04;
+    ctx.fillStyle = '#6b4226';
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.36, h * 0.42 - jump, w * 0.09, h * 0.025, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#3fbf5a';
+    ctx.lineWidth = 1.5;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.36 + i * w * 0.03, h * 0.41 - jump);
+      ctx.lineTo(-w * 0.36 + i * w * 0.035, h * 0.38 - jump);
+      ctx.stroke();
+    }
   },
-  norm: (ctx, w, h, p) => {
-    // a plain suit, a perfectly straight face, and his moth friend fluttering by
-    const { hx, hy, hr } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#4a5568', pants: '#2d3748', hair: 'parted', hairColor: '#6b4a2b', deadpan: true });
+  macdoodle: (ctx, w, h, p) => {
+    // a plain suit, a perfectly straight face, a doodle pad, and the doodled moth fluttering by
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#4a5568', pants: '#2d3748', hair: 'short', hairColor: '#b5651d', deadpan: true });
     ctx.fillStyle = '#c0392b';
     ctx.beginPath();
     ctx.moveTo(-w * 0.03, -h * 0.19);
@@ -773,21 +856,55 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.lineTo(-w * 0.08, -h * 0.02);
     ctx.closePath();
     ctx.fill();
+    // the doodle pad, scribbles appearing
+    arm(ctx, -tw * 0.5, -h * 0.1, -w * 0.36, -h * 0.02, w, '#4a5568', SKIN.light);
+    ctx.fillStyle = '#fffbe0';
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    rr(ctx, -w * 0.5, -h * 0.12, w * 0.2, h * 0.15, 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = '#3366cc';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    const n = 3 + Math.floor((p.t * 2) % 5);
+    for (let i = 0; i < n; i++) {
+      const x = -w * 0.47 + i * w * 0.03;
+      ctx.moveTo(x, -h * 0.08 + (i % 2) * h * 0.03);
+      ctx.lineTo(x + w * 0.025, -h * 0.02 - (i % 3) * h * 0.02);
+    }
+    ctx.stroke();
+    // the moth (drawn in doodle lines)
     const mx = hx + hr * 1.7 + Math.sin(p.t * 2.3) * w * 0.08;
     const my = hy - hr * 1.1 + Math.cos(p.t * 3.1) * h * 0.04;
     const flap = 0.4 + Math.abs(Math.sin(p.t * 18)) * 0.6;
-    ctx.fillStyle = '#b8b0a0';
+    ctx.fillStyle = '#fffbe0';
+    ctx.strokeStyle = '#3366cc';
     for (const s of [-1, 1]) {
       ctx.beginPath();
       ctx.ellipse(mx + s * w * 0.04, my, w * 0.05, w * 0.035 * flap, s * 0.5, 0, TAU);
       ctx.fill();
+      ctx.stroke();
     }
-    ctx.fillStyle = '#6b6050';
+    ctx.fillStyle = '#3366cc';
     ctx.fillRect(mx - 1, my - w * 0.03, 2, w * 0.06);
   },
-  letterman: (ctx, w, h, p, prop) => {
-    // behind the late-night desk with a mug, holding up tonight's TOP 10 card
-    person(ctx, w, h, p, { skin: SKIN.light, shirt: '#2c3e70', pants: '#2c3e70', hair: 'swept', hairColor: '#d8d8d8', glasses: true, noLegs: true });
+  lettuceman: (ctx, w, h, p, prop) => {
+    // behind the late-night desk with a mug, a head of crisp lettuce leaves for hair, holding up tonight's TOP 10 card
+    const lh = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#2c3e70', pants: '#2c3e70', hair: 'none', noLegs: true });
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      ctx.fillStyle = i % 2 ? '#7bd389' : '#4caf50';
+      ctx.beginPath();
+      ctx.ellipse(lh.hx + Math.cos(a) * lh.hr * 0.85, lh.hy + Math.sin(a) * lh.hr * 0.85 - lh.hr * 0.1, lh.hr * 0.42, lh.hr * 0.26, a + Math.PI / 2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#2e7d32';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lh.hx, lh.hy - lh.hr * 1.15);
+    ctx.lineTo(lh.hx, lh.hy - lh.hr * 0.75);
+    ctx.stroke();
     ctx.fillStyle = '#7a4b2a';
     rr(ctx, -w * 0.48, -h * 0.02, w * 0.96, h * 0.49, 4);
     ctx.fill();
@@ -807,8 +924,8 @@ const BODY: Record<Design, MiniDraw> = {
     placard(ctx, prop, -w * 0.2, -h * 0.07, w * 0.4, h * 0.14, '#fff', '#ff3355');
     ctx.restore();
   },
-  brody: (ctx, w, h, p, prop) => {
-    // a baseball cap (brim to the dogs), a HYPE jersey, and a big fist pump
+  rowdy: (ctx, w, h, p, prop) => {
+    // a baseball cap (brim to the dogs), a ROWDY jersey, and a big fist pump
     const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#f5f5f5', pants: '#555', hair: 'none' });
     ctx.fillStyle = '#e63946';
     ctx.beginPath();
@@ -819,34 +936,40 @@ const BODY: Record<Design, MiniDraw> = {
     const pump = Math.abs(Math.sin(p.t * 5)) * h * 0.06;
     arm(ctx, tw * 0.5, -h * 0.15, w * 0.36, -h * 0.36 - pump, w, '#f5f5f5', SKIN.light);
   },
-  pryor: (ctx, w, h, p, prop) => {
-    // a bright shirt, a warm smile, and his toy chest (a teddy peeking out)
-    ctx.fillStyle = '#a0522d';
-    rr(ctx, w * 0.2, h * 0.12, w * 0.32, h * 0.3, 4);
+  fryer: (ctx, w, h, p, prop) => {
+    // a cheerful cook in a tall chef's hat and apron, flipping a pancake high out of his pan
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.brown, shirt: '#ff8c42', pants: '#3b2f2f', hair: 'short', hairColor: '#1a1a1a' });
+    ctx.fillStyle = '#fff';
+    rr(ctx, -tw * 0.38, -h * 0.12, tw * 0.76, h * 0.34, 4);
     ctx.fill();
-    ctx.fillStyle = '#8b4513';
-    ctx.save();
-    ctx.translate(w * 0.2, h * 0.12);
-    ctx.rotate(-0.25 - Math.abs(Math.sin(p.t * 2)) * 0.15);
-    ctx.fillRect(0, -h * 0.06, w * 0.32, h * 0.06);
-    ctx.restore();
-    ctx.fillStyle = '#c68642';
+    propText(ctx, prop, 0, h * 0.04, tw * 0.6, Math.max(7, w * 0.11), '#ff8c42');
     ctx.beginPath();
-    ctx.arc(w * 0.38, h * 0.1, w * 0.07, 0, TAU);
-    ctx.arc(w * 0.32, h * 0.04, w * 0.03, 0, TAU);
-    ctx.arc(w * 0.44, h * 0.04, w * 0.03, 0, TAU);
+    ctx.ellipse(hx, hy - hr * 0.8, hr * 0.85, hr * 0.25, 0, 0, TAU);
     ctx.fill();
-    propText(ctx, prop, w * 0.36, h * 0.28, w * 0.28, Math.max(7, w * 0.11), '#ffd23f');
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.brown, shirt: '#ff8c42', pants: '#3b2f2f', hair: 'short', hairColor: '#1a1a1a', mustache: '#1a1a1a' });
-    ctx.fillStyle = '#ffd23f';
-    for (let i = 0; i < 3; i++) {
+    for (const dx of [-0.45, 0, 0.45]) {
       ctx.beginPath();
-      ctx.arc(-tw * 0.2 + i * tw * 0.2, -h * 0.05 + (i % 2) * h * 0.08, w * 0.025, 0, TAU);
+      ctx.arc(hx + dx * hr, hy - hr * 1.35, hr * 0.5, 0, TAU);
       ctx.fill();
     }
+    ctx.fillRect(hx - hr * 0.8, hy - hr * 1.3, hr * 1.6, hr * 0.5);
+    arm(ctx, -tw * 0.5, -h * 0.12, -w * 0.34, -h * 0.08, w, '#ff8c42', SKIN.brown);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-w * 0.36, -h * 0.09, w * 0.06, h * 0.02);
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.42, -h * 0.08, w * 0.08, h * 0.025, 0, 0, TAU);
+    ctx.fill();
+    const up = Math.abs(Math.sin(p.t * 2.2));
+    ctx.save();
+    ctx.translate(-w * 0.42, -h * 0.11 - up * h * 0.16);
+    ctx.rotate(p.t * 2.2 * Math.PI);
+    ctx.fillStyle = '#e0a458';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.07, h * 0.018, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
   },
-  foxx: (ctx, w, h, p, prop) => {
-    // rocking in a junkyard rocking chair, flat cap and grey beard, a JUNK sign beside him
+  socks: (ctx, w, h, p, prop) => {
+    // rocking in a rocking chair in red socks, flat cap, a chatty sock puppet on one hand, a SOCKS sign beside him
     ctx.save();
     ctx.translate(0, h * 0.45);
     ctx.rotate(Math.sin(p.t * 2) * 0.06);
@@ -863,7 +986,7 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.stroke();
     ctx.fillStyle = '#8b5a2b';
     ctx.fillRect(-w * 0.3, h * 0.06, w * 0.6, h * 0.07);
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.deep, shirt: '#8b6f47', pants: '#4a4a4a', hair: 'none', beard: '#cfcfcf', mustache: '#d9d9d9', noLegs: true });
+    const { hr: phr, tw } = person(ctx, w, h, p, { skin: SKIN.deep, shirt: '#8b6f47', pants: '#4a4a4a', hair: 'none', noLegs: true });
     // legs bent over the seat edge
     ctx.strokeStyle = '#4a4a4a';
     ctx.lineWidth = Math.max(3, w * 0.08);
@@ -873,6 +996,31 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.lineTo(-w * 0.32, h * 0.14);
     ctx.lineTo(-w * 0.34, h * 0.38);
     ctx.stroke();
+    ctx.fillStyle = '#e63946';
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.38, h * 0.4, w * 0.08, w * 0.045, 0, 0, TAU);
+    ctx.fill();
+    // the sock puppet (red sock, googly eyes, it talks)
+    arm(ctx, -tw * 0.5, -h * 0.12, -w * 0.36, -h * 0.2, w, '#8b6f47', SKIN.deep);
+    const talk = Math.abs(Math.sin(p.t * 6)) * phr * 0.25;
+    ctx.fillStyle = '#e63946';
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.4, -h * 0.22, phr * 0.6, phr * 0.38, -0.2, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#7a1020';
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.4 - phr * 0.45, -h * 0.22 + phr * 0.1, phr * 0.2, talk + 1, 0, 0, TAU);
+    ctx.fill();
+    for (const dx of [-0.1, 0.12]) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-w * 0.4 + dx * phr, -h * 0.22 - phr * 0.25, phr * 0.13, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(-w * 0.4 + dx * phr - 1, -h * 0.22 - phr * 0.25, phr * 0.06, 0, TAU);
+      ctx.fill();
+    }
     // flat cap
     const hr = Math.min(w * 0.22, h * 0.115);
     const hy = -h * 0.2 - hr * 0.85;
@@ -890,9 +1038,17 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.stroke();
     placard(ctx, prop, w * 0.22, -h * 0.3, w * 0.36, h * 0.12, '#d2a96a', '#5a3a1a');
   },
-  rogan: (ctx, w, h, p, prop) => {
-    // a stocky host in a black tee behind a comically huge microphone on a boom arm
-    const { hx, hy, hr } = person(ctx, w, h, p, { skin: SKIN.tan, shirt: '#222', pants: '#3a3a5a', hair: 'bald', torsoW: 0.6 });
+  yogan: (ctx, w, h, p, prop) => {
+    // a calm host in a stretchy tee and headband, on a rolled-out yoga mat, behind a comically huge microphone
+    ctx.fillStyle = '#9b5de5';
+    rr(ctx, -w * 0.46, h * 0.44, w * 0.92, h * 0.05, 3);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(w * 0.44, h * 0.44, h * 0.04, 0, TAU);
+    ctx.fill();
+    const { hx, hy, hr } = person(ctx, w, h, p, { skin: SKIN.tan, shirt: '#2a9d8f', pants: '#3a3a5a', hair: 'short', hairColor: '#3a2a1a', torsoW: 0.5 });
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fillRect(hx - hr * 1.02, hy - hr * 0.6, hr * 2.04, hr * 0.22);
     placard(ctx, prop, w * 0.08, -h * 0.48, w * 0.4, h * 0.09, '#e63946', '#fff', '#7a1020');
     ctx.strokeStyle = '#444';
     ctx.lineWidth = Math.max(2, w * 0.04);
@@ -915,9 +1071,17 @@ const BODY: Record<Design, MiniDraw> = {
       ctx.stroke();
     }
   },
-  gaffigan: (ctx, w, h, p, prop) => {
-    // a pocket snack in hand (still steaming) and a SNACKS lunchbox at his feet
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.fair, shirt: '#6fa8dc', pants: '#34495e', hair: 'light', hairColor: '#f0dc9a' });
+  gigglegan: (ctx, w, h, p, prop) => {
+    // a pocket snack in hand (still steaming), a SNACKS lunchbox, and a little giggle cloud overhead
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.fair, shirt: '#6fa8dc', pants: '#34495e', hair: 'parted', hairColor: '#6b4a2b' });
+    const gy = hy - hr * 2.1 + Math.sin(p.t * 3) * 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    for (const [dx, dy, rr2] of [[-0.7, 0.1, 0.55], [0, -0.15, 0.7], [0.7, 0.1, 0.55]]) {
+      ctx.beginPath();
+      ctx.arc(hx + w * 0.12 + dx * hr, gy + dy * hr, rr2 * hr, 0, TAU);
+      ctx.fill();
+    }
+    propText(ctx, 'HEE HEE', hx + w * 0.12, gy, hr * 2.2, Math.max(6, hr * 0.5), '#ff4ec8');
     arm(ctx, -tw * 0.5, -h * 0.12, -w * 0.4, -h * 0.05, w, '#6fa8dc', SKIN.fair);
     ctx.fillStyle = '#e8b062';
     rr(ctx, -w * 0.5, -h * 0.11, w * 0.18, h * 0.08, 3);
@@ -930,9 +1094,9 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.stroke();
     placard(ctx, prop, w * 0.14, h * 0.3, w * 0.34, h * 0.12, '#e63946', '#fff');
   },
-  brooks: (ctx, w, h, p) => {
-    // a royal robe with fluffy trim, a too-big crown that pops up when bonked, and a sceptre
-    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#b22234', pants: '#333', hair: 'fringe', hairColor: '#bdbdbd', glasses: true, torsoW: 0.58 });
+  brooms: (ctx, w, h, p) => {
+    // a royal robe with fluffy trim, a too-big crown that pops up when bonked, and a royal broom
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#b22234', pants: '#333', hair: 'short', hairColor: '#8b6b4a', torsoW: 0.58 });
     ctx.fillStyle = '#fff';
     ctx.fillRect(-tw * 0.5, h * 0.18, tw, h * 0.06);
     ctx.fillRect(-tw * 0.5, -h * 0.2, tw, h * 0.05);
@@ -955,20 +1119,34 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.arc(hx, cy + hr * 0.1, hr * 0.12, 0, TAU);
     ctx.fill();
     arm(ctx, tw * 0.5, -h * 0.12, w * 0.36, -h * 0.02, w, '#b22234', SKIN.light);
-    ctx.strokeStyle = '#ffd23f';
-    ctx.lineWidth = Math.max(2, w * 0.04);
+    const sw = Math.sin(p.t * 3) * 0.12;
+    ctx.save();
+    ctx.translate(w * 0.36, -h * 0.02);
+    ctx.rotate(sw);
+    ctx.strokeStyle = '#a0703c';
+    ctx.lineWidth = Math.max(2, w * 0.035);
     ctx.beginPath();
-    ctx.moveTo(w * 0.36, h * 0.12);
-    ctx.lineTo(w * 0.36, -h * 0.3);
+    ctx.moveTo(0, -h * 0.3);
+    ctx.lineTo(0, h * 0.3);
     ctx.stroke();
-    ctx.fillStyle = '#ffd23f';
+    ctx.fillStyle = '#e9c46a';
     ctx.beginPath();
-    ctx.arc(w * 0.36, -h * 0.32, w * 0.05, 0, TAU);
+    ctx.moveTo(-w * 0.04, h * 0.28);
+    ctx.lineTo(w * 0.04, h * 0.28);
+    ctx.lineTo(w * 0.1, h * 0.46);
+    ctx.lineTo(-w * 0.1, h * 0.46);
+    ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = '#b22234';
+    ctx.fillRect(-w * 0.05, h * 0.28, w * 0.1, h * 0.03);
+    ctx.restore();
   },
-  carl: (ctx, w, h, p, prop) => {
-    // the two-thousand-year-old man: a long robe, a long white beard, a wobbly cane, a 2000 sign
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.light, shirt: '#8b7355', pants: '#8b7355', hair: 'fringe', hairColor: '#f2f2f2', beard: '#f5f5f5', noLegs: true });
+  elder: (ctx, w, h, p, prop) => {
+    // the original reindeer (ROB REINDEER's dad): grey antlers, a red nose, a long robe, a fluffy white beard, a wobbly cane, a DAD sign
+    const ehr = Math.min(w * 0.22, h * 0.115);
+    antlers(ctx, -w * 0.03, -h * 0.2 - ehr * 0.85, ehr, '#b5a48a');
+    const { hx, hy, hr, tw } = person(ctx, w, h, p, { skin: '#c89a6a', shirt: '#8b7355', pants: '#8b7355', hair: 'none', beard: '#f5f5f5', noLegs: true });
+    nose(ctx, hx - hr * 0.1, hy + hr * 0.18, hr * 0.2);
     ctx.fillStyle = '#8b7355';
     ctx.beginPath();
     ctx.moveTo(-tw * 0.5, h * 0.1);
@@ -1138,34 +1316,20 @@ export function drawMiniShot(ctx: Ctx, s: BossShot, solid: boolean, time: number
         ctx.fill();
       }
       break;
-    case 'cereal':
-      // a little cereal ring
-      ctx.strokeStyle = ['#ffb347', '#ff6b6b', '#7bd389'][Math.floor(s.t * 3) % 3];
-      ctx.lineWidth = Math.max(2.5, r * 0.45);
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.65, 0, TAU);
-      ctx.stroke();
-      break;
-    case 'puffy':
-      // a flying puffy shirt (ruffles flapping)
-      ctx.rotate(Math.sin(s.t * 6) * 0.3);
-      ctx.fillStyle = '#fffaf0';
-      ctx.strokeStyle = '#d9c9a3';
+    case 'tissue':
+      // a fluttering tissue
+      ctx.rotate(Math.sin(s.t * 7) * 0.5);
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#cfe8ff';
       ctx.lineWidth = 1;
-      rr(ctx, -r * 0.6, -r * 0.7, r * 1.2, r * 1.4, r * 0.25);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.8, -r * 0.6);
+      ctx.quadraticCurveTo(0, -r * 0.9 + Math.sin(s.t * 12) * r * 0.2, r * 0.8, -r * 0.6);
+      ctx.lineTo(r * 0.7, r * 0.7);
+      ctx.quadraticCurveTo(0, r * 0.4, -r * 0.7, r * 0.7);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
-      for (const sx of [-1, 1]) {
-        ctx.beginPath();
-        ctx.arc(sx * r * 0.8, -r * 0.45, r * 0.4, 0, TAU);
-        ctx.fill();
-        ctx.stroke();
-      }
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.arc(0, -r * 0.4 + i * r * 0.4, r * 0.18, 0, TAU);
-        ctx.stroke();
-      }
       break;
     case 'golf':
     case 'baseball':
@@ -1258,47 +1422,47 @@ export function drawMiniShot(ctx: Ctx, s: BossShot, solid: boolean, time: number
       ctx.arc(0, -r * 0.5, r * 0.12, 0, TAU);
       ctx.fill();
       break;
-    case 'windup':
-      // a wind-up toy mouse, key turning
-      ctx.fillStyle = '#9aa3ad';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r * 0.85, r * 0.55, 0, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = '#ffb6c1';
-      ctx.beginPath();
-      ctx.arc(-r * 0.45, -r * 0.45, r * 0.22, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = '#222';
-      ctx.beginPath();
-      ctx.arc(-r * 0.6, -r * 0.1, r * 0.08, 0, TAU);
-      ctx.fill();
-      ctx.save();
-      ctx.translate(r * 0.85, 0);
-      ctx.rotate(s.t * 12);
-      ctx.fillStyle = '#ffd23f';
-      ctx.fillRect(-r * 0.05, -r * 0.35, r * 0.1, r * 0.7);
-      ctx.restore();
-      break;
-    case 'duck':
+    case 'egg':
+      // a sunny-side-up egg, wobbling
       ctx.rotate(Math.sin(s.t * 6) * 0.3);
-      ctx.fillStyle = '#ffd23f';
+      ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.ellipse(r * 0.1, r * 0.2, r * 0.8, r * 0.5, 0, 0, TAU);
+      ctx.ellipse(0, 0, r * 0.95, r * 0.75, 0, 0, TAU);
       ctx.fill();
+      ctx.fillStyle = '#ffc93c';
       ctx.beginPath();
-      ctx.arc(-r * 0.35, -r * 0.35, r * 0.4, 0, TAU);
+      ctx.arc(-r * 0.1, -r * 0.05, r * 0.38, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = '#ff7a1a';
+      break;
+    case 'pancake':
+      // a flipping pancake with a pat of butter
+      ctx.rotate(spin);
+      ctx.fillStyle = '#e0a458';
       ctx.beginPath();
-      ctx.moveTo(-r * 0.7, -r * 0.4);
-      ctx.lineTo(-r * 1.05, -r * 0.3);
-      ctx.lineTo(-r * 0.7, -r * 0.2);
+      ctx.ellipse(0, 0, r, r * 0.45, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#c47f32';
+      ctx.beginPath();
+      ctx.ellipse(0, r * 0.12, r * 0.9, r * 0.25, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#fff3a0';
+      ctx.fillRect(-r * 0.2, -r * 0.3, r * 0.4, r * 0.22);
+      break;
+    case 'sock':
+      // a flying red sock
+      ctx.rotate(Math.sin(s.t * 8) * 0.6);
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, -r);
+      ctx.lineTo(r * 0.4, -r);
+      ctx.lineTo(r * 0.4, r * 0.2);
+      ctx.quadraticCurveTo(r * 0.4, r * 0.8, -r * 0.35, r * 0.75);
+      ctx.quadraticCurveTo(-r, r * 0.7, -r * 0.8, r * 0.3);
+      ctx.lineTo(-r * 0.2, r * 0.2);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#222';
-      ctx.beginPath();
-      ctx.arc(-r * 0.4, -r * 0.45, r * 0.07, 0, TAU);
-      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-r * 0.2, -r, r * 0.6, r * 0.25);
       break;
     case 'hubcap':
     case 'wheel':

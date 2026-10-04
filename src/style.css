@@ -2952,3 +2952,381 @@ body:not(.touch-device) #legal-links { left: auto; right: 16px; bottom: 10px; tr
   body.touch-device.hand-left #legal-links { left: calc(25% + 36px + env(safe-area-inset-left, 0px) / 2); }
   body.touch-device #legal-links a { padding: 3px 4px; }
 }
+
+/* —— TRY DEV MODE (title screen): the featured call to action for ON A MISSION + its DEV BOARD.
+   A police-light accent (red / blue) with a gentle pulse; never over the other title buttons. —— */
+#devmode {
+  display: none;
+  position: absolute;
+  z-index: 16;
+  /* Desktop (mouse): centred, its own row above MODES / the gold clone button. */
+  left: 50%;
+  bottom: 136px;
+  transform: translateX(-50%);
+  width: 300px;
+  gap: 6px;
+  align-items: stretch;
+  pointer-events: auto;
+}
+body.title-screen #devmode {
+  display: flex;
+}
+body.congrats-open #devmode,
+body.clone-open #devmode,
+body.modes-open #devmode {
+  display: none !important;
+}
+#devmode button,
+#mission-nudge {
+  position: relative;
+  margin: 0;
+  border-radius: 14px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  line-height: 1.15;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+#devmode button:active,
+#mission-nudge:active {
+  transform: scale(0.96);
+}
+#devmode-big {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 7px 10px 8px;
+  border: 2px solid #f2f2f2;
+  color: #fff;
+  background: linear-gradient(90deg, #ff2244 0 50%, #2266ff 50% 100%) top / 100% 4px no-repeat,
+    radial-gradient(ellipse at 50% 0%, rgba(255, 60, 120, 0.3), rgba(12, 6, 30, 0.94) 75%);
+  animation: devmode-pulse 2.2s ease-in-out infinite;
+}
+#devmode-big .dm-try {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 10px rgba(255, 80, 120, 0.9);
+  white-space: nowrap;
+}
+#devmode-big .dm-mode {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #ffe66d;
+  white-space: nowrap;
+}
+#devmode-big .dm-tag {
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #cfe3ff;
+  text-align: center;
+}
+#devboard-link {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  border: 2px solid rgba(255, 34, 68, 0.8);
+  background: rgba(20, 4, 20, 0.9);
+  color: #ffd1dc;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+#devboard-link .dev-badge {
+  margin: 0;
+}
+@keyframes devmode-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(255, 34, 68, 0.45), 0 0 4px rgba(34, 102, 255, 0.4), inset 0 0 10px rgba(255, 34, 68, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(34, 102, 255, 0.7), 0 0 30px rgba(255, 34, 68, 0.45), inset 0 0 14px rgba(34, 102, 255, 0.2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #devmode-big {
+    animation: none;
+  }
+}
+
+/* Touch, wide screens (tablets): on the difficulty control's side, just above it. */
+body.touch-device #devmode {
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: auto;
+  transform: none;
+  width: 288px;
+  bottom: calc(max(28px, calc(env(safe-area-inset-bottom, 0px) + 10px)) + 60px + 62px);
+}
+body.touch-device.hand-left #devmode {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right, 0px));
+}
+
+/* Narrow portrait phones: the free band between the difficulty control and the hand toggle,
+   beside START (same side as the toggle). */
+@media (max-width: 500px) and (orientation: portrait) {
+  body.touch-device #devmode {
+    width: min(236px, calc(100vw - var(--boost-size) - 62px));
+    bottom: calc(max(52px, calc(env(safe-area-inset-bottom, 0px) + 28px)) + 48px + 8px);
+    gap: 4px;
+  }
+  body.touch-device #devmode-big {
+    padding: 5px 6px 6px;
+    gap: 1px;
+  }
+  body.touch-device #devmode-big .dm-try {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+  }
+  body.touch-device #devmode-big .dm-mode {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+  body.touch-device #devmode-big .dm-tag {
+    font-size: 11px;
+    line-height: 1.05;
+  }
+  body.touch-device #devboard-link {
+    width: 48px;
+    font-size: 8px;
+    padding: 3px 2px;
+  }
+}
+
+/* Landscape phones: above the difficulty control (its side), clear of the centred title text. */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch-device #devmode {
+    width: 260px;
+    bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 104px);
+  }
+  body.touch-device #devmode-big {
+    padding: 4px 8px 5px;
+    gap: 1px;
+  }
+  body.touch-device #devmode-big .dm-try {
+    font-size: 14px;
+  }
+  body.touch-device #devmode-big .dm-mode {
+    font-size: 9px;
+  }
+  body.touch-device #devmode-big .dm-tag {
+    font-size: 11px;
+    line-height: 1.05;
+  }
+  body.touch-device #devboard-link {
+    width: 52px;
+    font-size: 8px;
+  }
+}
+
+/* —— Game-over nudge (normal runs only): a small pill under mute, clear of VALUE FOR VALUE —— */
+#mission-nudge {
+  display: none;
+  position: absolute;
+  z-index: 16;
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 66px);
+  right: max(12px, env(safe-area-inset-right, 0px));
+  max-width: 190px;
+  padding: 8px 12px;
+  border: 2px solid rgba(242, 242, 242, 0.85);
+  color: #fff;
+  background: linear-gradient(90deg, #ff2244 0 50%, #2266ff 50% 100%) top / 100% 3px no-repeat, rgba(12, 6, 30, 0.92);
+  box-shadow: 0 0 12px rgba(255, 34, 68, 0.4);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+body.gameover #mission-nudge {
+  display: block;
+}
+body.mission-over #mission-nudge,
+body.congrats-open #mission-nudge,
+body.clone-open #mission-nudge,
+body.modes-open #mission-nudge {
+  display: none !important;
+}
+/* Landscape phones, left-hand: VALUE FOR VALUE sits under mute, so the nudge goes top-left. */
+@media (max-height: 420px) and (orientation: landscape) {
+  body.touch-device.hand-left.gameover #mission-nudge {
+    right: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+}
+/* Portrait: HOW TO PLAY / MODES sit under mute, so the nudge takes the left side. */
+body.portrait #mission-nudge {
+  right: auto;
+  left: max(12px, env(safe-area-inset-left, 0px));
+}
+/* Narrow portrait phones: the band beside RIDE, between the difficulty control and the toggle. */
+@media (max-width: 500px) and (orientation: portrait) {
+  body.touch-device #mission-nudge {
+    top: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: calc(max(52px, calc(env(safe-area-inset-bottom, 0px) + 28px)) + 48px + 14px);
+    max-width: min(200px, calc(100vw - var(--boost-size) - 62px));
+    font-size: 10px;
+  }
+  body.touch-device.hand-left #mission-nudge {
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* —— MODES: ON A MISSION is the featured card at the top (TRY IT badge + invite), bigger DEV BOARD —— */
+#modes-menu #mission-row .mission-pick {
+  flex: 2 1 0;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  animation: devmode-pulse 2.2s ease-in-out infinite;
+}
+#modes-menu #mission-row .mission-pick .mode-name {
+  font-size: 15px;
+  letter-spacing: 0.14em;
+}
+#modes-menu #mission-row .try-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #ffe66d;
+  color: #1a0a00;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+}
+#modes-menu #mission-row .mode-invite {
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #cfe3ff;
+  text-transform: none;
+}
+#modes-menu #mission-row .devboard-btn {
+  flex: 1 1 0;
+  min-height: 78px;
+  font-size: 13px;
+  border-width: 2px;
+  border-color: rgba(255, 34, 68, 0.95);
+  box-shadow: 0 0 14px rgba(255, 34, 68, 0.45);
+}
+#modes-menu #mission-row .devboard-btn .dev-badge {
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  #modes-menu #mission-row .mission-pick {
+    animation: none;
+  }
+}
+
+/* —— Title / MODES chips: mini-boss countdown toward v2.2 + the live world record —— */
+.chips {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: none;
+}
+.chips .mb-chip,
+.chips .wr-chip {
+  box-sizing: border-box;
+  padding: 4px 10px 5px;
+  border: 1.5px solid rgba(127, 255, 255, 0.55);
+  border-radius: 10px;
+  background: rgba(10, 0, 25, 0.82);
+  color: #bff7ff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-align: center;
+}
+.chips .wr-chip {
+  border-color: rgba(255, 220, 110, 0.7);
+  color: #ffe66d;
+}
+.chips .wr-chip[hidden] {
+  display: none;
+}
+.chips .chip-text {
+  display: block;
+}
+.chips .chip-bar {
+  display: block;
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: rgba(127, 255, 255, 0.18);
+  overflow: hidden;
+}
+.chips .chip-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7fffff, #ff4ec8);
+}
+#title-chips {
+  display: none;
+  position: absolute;
+  z-index: 15;
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 66px);
+  right: max(12px, env(safe-area-inset-right, 0px));
+  width: 280px;
+}
+body.title-screen #title-chips {
+  display: flex;
+}
+body.congrats-open #title-chips,
+body.clone-open #title-chips,
+body.modes-open #title-chips {
+  display: none !important;
+}
+/* Narrow portrait phones: the title is full, so the chips live on the MODES screen only. */
+@media (max-width: 500px) and (orientation: portrait) {
+  #title-chips {
+    display: none !important;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #title-chips {
+    width: 250px;
+    top: calc(max(8px, env(safe-area-inset-top, 0px)) + 62px);
+  }
+  .chips .mb-chip,
+  .chips .wr-chip {
+    font-size: 9px;
+    padding: 3px 8px 4px;
+  }
+}
+#modes-chips {
+  margin: 0 0 8px;
+}
