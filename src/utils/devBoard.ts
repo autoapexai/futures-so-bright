@@ -5,6 +5,7 @@
  * Same failure rule as the public board: every call resolves to null on any failure (offline,
  * timeout, table not created yet) and the game falls back to this device's mission board.
  */
+import { isValidInitials, maskInitials } from './initials';
 import type { LeaderboardEntry } from './storage';
 import { SCORE_CAP } from './difficulty';
 import { remoteEnabled, rpc } from './remoteBoard';
@@ -22,8 +23,10 @@ function parseDevRows(data: unknown): { board: LeaderboardEntry[]; index: number
     if (!row || typeof row !== 'object') continue;
     const r = row as { initials?: unknown; score?: unknown; level?: unknown; start_level?: unknown; is_new?: unknown };
     const score = Math.floor(Number(r.score));
-    const initials = String(r.initials ?? '');
-    if (!Number.isFinite(score) || score <= 0 || !/^[A-Z]{3}$/.test(initials)) continue;
+    const rawIni = String(r.initials ?? '');
+    // Union of the language sets (or the server's own *** mask); rude initials show as ***.
+    if (!Number.isFinite(score) || score <= 0 || !(rawIni === '***' || isValidInitials(rawIni))) continue;
+    const initials = maskInitials(rawIni);
     if (r.is_new === true && index < 0) index = board.length;
     const lvl = Math.round(Number(r.level));
     const e: LeaderboardEntry = lvl >= 1 && lvl <= 111 ? { score, initials, difficulty: lvl } : { score, initials };

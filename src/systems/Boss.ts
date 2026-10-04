@@ -22,6 +22,7 @@ import { groceryTaunt } from './silly';
 import { hasCjk, t as tr, tp } from '../i18n';
 import { TOON_POPS, TOON_SKINS, drawMindShot, drawToon, drawToonShot, hasToon } from './bossToons';
 import { drawMime, drawMimeShot } from './bossMime';
+import { MINI_EASE, drawMini, drawMiniShot, miniGateText, miniTaunt, miniTitle, miniTuning, type MiniSpec } from './miniBoss';
 
 /** Flat points for beating any boss (not multiplied; the score is still clamped to SCORE_CAP). */
 export const BOSS_BONUS = 1_000_000;
@@ -43,9 +44,10 @@ export type Signature =
   | 'bang'
   | 'homing'
   | 'behind'
-  | 'mind';
+  | 'mind'
+  | 'mini';
 
-type Pattern = 'aimed' | 'spray' | 'wall' | 'mirror' | 'slam' | 'rain' | 'kick' | 'blink' | 'split' | 'homing' | 'behind' | 'dots' | 'buckles' | 'glitch' | 'static' | 'countdown' | 'lasso' | 'tumble' | 'chicken' | 'wave' | 'beam';
+export type Pattern = 'aimed' | 'spray' | 'wall' | 'mirror' | 'slam' | 'rain' | 'kick' | 'blink' | 'split' | 'homing' | 'behind' | 'dots' | 'buckles' | 'glitch' | 'static' | 'countdown' | 'lasso' | 'tumble' | 'chicken' | 'wave' | 'beam';
 
 export interface BossDef {
   level: number;
@@ -61,6 +63,8 @@ export interface BossDef {
   blurb: string;
   patterns: Pattern[];
   taunts: string[];
+  /** MINI-BOSS (every level that has no big boss; see miniBoss.ts). Big bosses leave this unset. */
+  mini?: MiniSpec;
 }
 
 const SIG: Record<string, { signature: Signature; blurb: string; patterns: Pattern[]; taunts: string[] }> = {
@@ -301,6 +305,8 @@ export const EASE: Record<string, BossEase> = {
   toosuccessful: { slant: 0.4, extra: 1 },
   cbb: { hp: 0.8, fire: 1.3, volley: 0.75, big: 1, bang: true, tele: 0.5, hopPx: 230, ringNear: 380 },
   itm: { tele: 0.6, hopPx: 120, ringNear: 130, spdCap: 0.8, tallStun: 1.05, realTele: 0.5, realSpot: 0.35, realDwell: 0.9, realFire: 0.4, realShot: 1200 },
+  // MINI-BOSSES (ids 'mini-*'): wall-clock floors so they stay beatable at any GAME SPEED.
+  ...MINI_EASE,
 };
 const easeOf = (id: string): BossEase => EASE[id] ?? {};
 
@@ -485,12 +491,12 @@ export class BossFight {
   constructor(def: BossDef, runSeed: number, jabs: string[] = []) {
     this.jabs = jabs;
     this.def = def;
-    this.tune = easedTuning(def);
+    this.tune = def.mini ? miniTuning(def.level) : easedTuning(def);
     this.seed = subSeed(runSeed, def.level);
     this.rng = mulberry32(this.seed);
     this.fxRng = mulberry32(this.seed ^ 0x5eed);
-    this.enterS = def.signature === 'mirror' ? 3 : ENTER_S;
-    this.exitS = def.signature === 'mirror' ? 2.4 : EXIT_S;
+    this.enterS = def.mini ? 1.1 : def.signature === 'mirror' ? 3 : ENTER_S;
+    this.exitS = def.mini ? 1.7 : def.signature === 'mirror' ? 2.4 : EXIT_S;
     this.maxHp = this.tune.hp;
     this.hp = this.maxHp;
     this.fireT = 0.6 + this.rng() * 0.6;
@@ -498,7 +504,7 @@ export class BossFight {
     this.ringT = this.tune.ringEvery * (0.35 + this.rng() * 0.3);
     const n = def.signature === 'twins' || def.signature === 'decoy' ? 2 : 1;
     for (let i = 0; i < n; i++) {
-      this.boards.push({ x: 0, y: 0, w: 0, h: 0, real: def.signature !== 'decoy' || i === 0, rows: n === 2 ? 3 : 5, spot: 0, bob: this.rng() * 6.28 });
+      this.boards.push({ x: 0, y: 0, w: 0, h: 0, real: def.signature !== 'decoy' || i === 0, rows: def.mini ? 3 : n === 2 ? 3 : 5, spot: 0, bob: this.rng() * 6.28 });
     }
     for (const b of this.boards) b.spot = Math.floor(this.rng() * b.rows);
     this.sayTaunt();
@@ -539,7 +545,7 @@ export class BossFight {
   private sayTaunt(text?: string): void {
     // Every taunt is a grocery list read like a movie trailer (silly.ts), with the player's own
     // local history folded in as list items.
-    let line = text ?? groceryTaunt(this.def.modeId, this.rng, this.jabs);
+    let line = text ?? (this.def.mini ? miniTaunt(this.def, this.rng) : groceryTaunt(this.def.modeId, this.rng, this.jabs));
     if (this.def.signature === 'vj') line = stutter(line, this.rng);
     this.taunt = line;
     this.tauntT = 3.6;
@@ -568,13 +574,14 @@ export class BossFight {
     this.shots.length = 0;
     this.slam = 0;
     this.events.push({ type: 'stunned' });
-    if (isCharacterBoss(this.def)) this.addPop(TOON_POPS[this.def.modeId]?.stun ?? 'BOING!', this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
+    if (this.def.mini) this.addPop(this.def.mini.stunPop(), this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
+    else if (isCharacterBoss(this.def)) this.addPop(TOON_POPS[this.def.modeId]?.stun ?? 'BOING!', this.main.x, this.main.y - this.main.h * 0.3, 'boing', '#7fffff');
     return true;
   }
 
   /** A random slapstick burst on a weak-spot hit (throttled so the screen stays readable). */
   private comicPop(x: number, y: number): void {
-    const words: [string, PopSfx][] = TOON_POPS[this.def.modeId]?.hit ?? [['BONK!', 'honk'], ['BOING!', 'boing'], ['HONK!', 'honk'], ['SPLAT!', 'boing']];
+    const words: [string, PopSfx][] = this.def.mini?.pops() ?? TOON_POPS[this.def.modeId]?.hit ?? [['BONK!', 'honk'], ['BOING!', 'boing'], ['HONK!', 'honk'], ['SPLAT!', 'boing']];
     // Cosmetic picks use their own RNG so the seeded fight (spots, volleys, timings) replays exactly
     // as before the cartoon redesign (the mime keeps the fight RNG, as shipped).
     const pick = this.def.signature === 'mirror' ? this.rng() : this.fxRng();
@@ -602,6 +609,11 @@ export class BossFight {
     if (sig === 'strut') w = Math.min(this.W * 0.3, w * 1.6);
     if (sig === 'vj') w = Math.min(this.W * 0.26, w * 1.35);
     h = Math.min(h, laneH * 0.82);
+    if (this.def.mini) {
+      // MINI-BOSS: a smaller body than any big boss.
+      h = Math.min(laneH * (laneH < 420 ? 0.46 : 0.36), 260);
+      w = Math.min(Math.max(this.W * 0.13, 56), 120, h * 0.72);
+    }
     i.w = w;
     i.h = h;
     i.bob += dt * (sig === 'strut' ? 0.8 : this.def.modeId === 'slackerman' ? 0.8 : 1.1);
@@ -667,7 +679,7 @@ export class BossFight {
       }
     } else if (this.state === 'defeated' || this.state === 'bored') {
       // The mime deflates in place (drawn), everyone else slides off.
-      this.slideX = isCharacterBoss(this.def) && this.state === 'defeated' ? 0 : Math.min(1, this.stateT / this.exitS);
+      this.slideX = (isCharacterBoss(this.def) || this.def.mini) && this.state === 'defeated' ? 0 : Math.min(1, this.stateT / this.exitS);
       if (this.stateT >= this.exitS) {
         this.state = 'gone';
         this.events.push({ type: 'gone' });
@@ -739,7 +751,7 @@ export class BossFight {
         this.hurtT = 0.35;
         if (this.def.signature === 'cowboy' && this.hatT <= 0 && this.rng() < 0.06) this.hatT = 1.2;
         this.events.push({ type: 'hit', x: k.x, y: k.y, crit: onSpot || this.stunT > 0, decoy: false });
-        if (isCharacterBoss(this.def) && onSpot && this.popCd <= 0) this.comicPop(k.x, k.y);
+        if ((isCharacterBoss(this.def) || this.def.mini) && onSpot && this.popCd <= 0) this.comicPop(k.x, k.y);
         break;
       }
     }
@@ -753,14 +765,14 @@ export class BossFight {
       this.slam = 0;
       this.tauntT = 0;
       this.events.push({ type: 'defeated' });
-      if (isCharacterBoss(this.def)) this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'whistleDown' });
+      if (isCharacterBoss(this.def) || this.def.mini) this.events.push({ type: 'pop', text: '', x: this.main.x, y: this.main.y, sfx: 'whistleDown' });
       return;
     }
     const ph = this.hp <= this.maxHp / 3 ? 3 : this.hp <= (this.maxHp * 2) / 3 ? 2 : 1;
     if (ph !== this.phase) {
       this.phase = ph;
       this.events.push({ type: 'phase', phase: ph });
-      this.sayTaunt();
+      if (!this.def.mini || ph === 2) this.sayTaunt();
     }
 
     // Weak spot hops to a different rank slot.
@@ -842,7 +854,7 @@ export class BossFight {
 
   private shot(x: number, y: number, vx: number, vy: number, r: number, kind: BossShot['kind'], life = 6): void {
     if (this.def.signature === 'mirror' && kind === 'orb') kind = this.pattern === 'mirror' ? 'pie' : this.pattern === 'spray' ? 'balloon' : 'glove';
-    const skin = TOON_SKINS[this.def.modeId]?.[this.pattern];
+    const skin = this.def.mini ? this.def.mini.skins[this.pattern] ?? this.def.mini.skins[this.def.patterns[0]] : TOON_SKINS[this.def.modeId]?.[this.pattern];
     this.shots.push({ x, y, vx, vy, r, kind, t: 0, life, alive: true, skin });
   }
 
@@ -1235,6 +1247,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   // Shots under the boards.
   for (const s of f.shots) {
     if (!s.alive) continue;
+    if (d.mini && drawMiniShot(ctx, s, BossFight.harmful(s), time)) continue;
     if (drawMindShot(ctx, f, s, W, u, time, lite)) continue;
     if (drawMimeShot(ctx, s)) continue;
     if (s.kind === 'warn') {
@@ -1353,6 +1366,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
 
   f.boards.forEach((b, idx) => {
     if (d.signature === 'mirror') drawMime(ctx, f, b, time);
+    else if (d.mini) drawMini(ctx, f, b, time, W);
     else drawToon(ctx, f, b, idx, time, W);
     // Telegraph: the slot the weak spot is about to hop to twinkles (eased bosses only).
     const nx = f.nextSpots?.[idx];
@@ -1410,7 +1424,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = d.tint;
-  const title = bossTitle(d);
+  const title = d.mini ? miniTitle(d) : bossTitle(d);
   let size = u(14);
   ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
   while (ctx.measureText(title).width > safeR - safeL - u(8) && size > 8) {
@@ -1526,7 +1540,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e8c25a';
     ctx.font = `700 ${Math.max(8, ts * 0.72)}px ${serif}`;
-    ctx.fillText(kicker || tr('taunt_soon'), ccx, bandY + ts * 1.15);
+    ctx.fillText(kicker || (d.mini ? miniGateText(d.level) : tr('taunt_soon')), ccx, bandY + ts * 1.15);
     ctx.fillStyle = '#ffffff';
     ctx.font = `700 ${ts}px ${serif}`;
     ls.forEach((l, i) => ctx.fillText(l, ccx, bandY + ts * (2.35 + i * 1.25)));

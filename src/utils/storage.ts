@@ -1,3 +1,5 @@
+import { ALLOWED, chars } from './initials';
+
 const HIGH_KEY = 'fsb-highscore-v1';
 const BOARD_KEY = 'fsb-leaderboard-v1';
 const HAND_KEY = 'futures-so-bright-hand';
@@ -23,10 +25,12 @@ const MAX_BOARD = 11;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export function sanitizeInitials(raw: string): string {
-  const up = (raw || '')
-    .toUpperCase()
-    .replace(/[^A-Z]/g, '')
-    .slice(0, 3);
+  // Any character from the union of the language sets (A-Z, Ñ / accents, Vietnamese letters,
+  // the curated Chinese characters, ★ and the emojis); counted in code points.
+  const up = chars((raw || '').toUpperCase())
+    .filter((c) => ALLOWED.has(c))
+    .slice(0, 3)
+    .join('');
   return up.length > 0 ? up : 'AAA';
 }
 

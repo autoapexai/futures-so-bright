@@ -22,7 +22,6 @@ import {
   qualifiesForBoard,
   addEntry,
   insertEntry,
-  nextLetter,
   saveDifficulty,
   loadClaimTokens,
   addClaimToken,
@@ -44,8 +43,11 @@ import { DesertSearch, DESERT_SEARCH_ON_MISSION } from './desertSearch';
 import { trackRunStart } from '../utils/track';
 import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed, fmtSpeed, loadSpeed, saveSpeed, scalePoints, speedSubsteps } from '../utils/speed';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
+import { boardTaunt } from './boardTaunt';
+import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
+import { miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText } from './miniBoss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -162,6 +164,12 @@ export class Game {
   private initialsChars = ['A', 'A', 'A'];
   private initialsSlot = 0;
   private initialsCooldown = 0;
+  /** Seconds left on the friendly "pick different initials" nudge (rude initials blocked). */
+  private initialsWarn = 0;
+  /** Stick held on up / down: consecutive steps (the scroll speeds up through long sets like Chinese). */
+  private initialsHold = 0;
+  /** Which leaderboard-screen taunt line this game over shows (systems/boardTaunt.ts). */
+  private boardTauntPick = 0;
   private pendingScore = 0;
   /** Simulated play time of the current run (sum of dt while playing; pauses excluded). */
   private runTime = 0;
@@ -263,6 +271,8 @@ export class Game {
   /** This level's boss has been fought (beaten or bored), so the level can now be cleared. */
   private bossDone = false;
   bossesBeaten = 0;
+  /** MINI-BOSSES beaten this run (every level without a big boss ends in one; see miniBoss.ts). */
+  minisBeaten = 0;
   /** Per-run seed (boss randomness + random mode swaps); logged at run start. */
   runSeed = 0;
   private runRng: Rng = Math.random;
@@ -880,7 +890,7 @@ export class Game {
       const li = document.createElement('li');
       const cells: [string, string][] = [
         ['dev-rank', String(i + 1)],
-        ['dev-ini', e.initials],
+        ['dev-ini', maskInitials(e.initials)],
         ['dev-score', fmtNum(e.score)],
         ['dev-lvl', e.difficulty ? `${tr('lb_lvl')} ${e.start && e.start !== e.difficulty ? `${e.start}→${e.difficulty}` : e.difficulty}` : ''],
       ];
@@ -1861,6 +1871,7 @@ export class Game {
     this.boss = null;
     this.bossDone = false;
     this.bossesBeaten = 0;
+    this.minisBeaten = 0;
     this.modesUsed = new Set(mode ? [mode.id] : []);
     this.modeFullShips = mode ? mode.ships : 0;
     this.world.spawnObstacles = true;
@@ -1934,9 +1945,13 @@ export class Game {
   }
 
   private enterInitials(): void {
-    this.initialsChars = ['A', 'A', 'A'];
+    // Only the current game language's characters (en / es / vi start on A, zh on its first character).
+    const c0 = firstChar(lang());
+    this.initialsChars = [c0, c0, c0];
     this.initialsSlot = 0;
     this.initialsCooldown = 0.25;
+    this.initialsWarn = 0;
+    this.initialsHold = 0;
     this.highlightIndex = -1;
     this.state = 'initials';
     this.setBodyFlags();
@@ -1945,6 +1960,7 @@ export class Game {
 
   private endRun(): void {
     this.input.clearTouch();
+    this.boardTauntPick = Math.floor(Math.random() * 1e6);
     this.audio.playGameOver();
     // The shared board's cap (SCORE_CAP, one constant; the SQL has the same single value).
     this.pendingScore = Math.min(SCORE_CAP, Math.floor(this.score));
@@ -2087,6 +2103,12 @@ export class Game {
 
   private confirmInitials(): void {
     if (this.state !== 'initials') return;
+    // G-rated board: rude combos (en / es / vi / zh) get a friendly nudge instead of a submit.
+    if (isRude(this.initialsChars.join(''))) {
+      this.initialsWarn = 3;
+      this.audio.playUi();
+      return;
+    }
     if (this.pendingMission) {
       this.confirmMissionInitials(this.initialsChars.join(''));
       return;
@@ -2149,6 +2171,7 @@ export class Game {
     this.renderer.update(dt, 40);
     this.particles.update(dt);
     this.initialsCooldown = Math.max(0, this.initialsCooldown - dt);
+    this.initialsWarn = Math.max(0, this.initialsWarn - dt);
 
     if (this.input.consume(' ') || this.input.consume('enter')) {
       this.confirmInitials();
@@ -2168,10 +2191,10 @@ export class Game {
       moved = true;
     }
     if (this.input.consume('arrowup') || this.input.consume('w')) {
-      this.initialsChars[this.initialsSlot] = nextLetter(this.initialsChars[this.initialsSlot], 1);
+      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, lang());
       moved = true;
     } else if (this.input.consume('arrowdown') || this.input.consume('s')) {
-      this.initialsChars[this.initialsSlot] = nextLetter(this.initialsChars[this.initialsSlot], -1);
+      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, lang());
       moved = true;
     }
 
@@ -2186,17 +2209,21 @@ export class Game {
         this.initialsCooldown = 0.22;
         moved = true;
       } else if (axis.y <= -thresh) {
-        this.initialsChars[this.initialsSlot] = nextLetter(this.initialsChars[this.initialsSlot], 1);
-        this.initialsCooldown = 0.18;
+        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, lang());
+        this.initialsCooldown = Math.max(0.05, 0.18 * Math.pow(0.88, this.initialsHold++));
         moved = true;
       } else if (axis.y >= thresh) {
-        this.initialsChars[this.initialsSlot] = nextLetter(this.initialsChars[this.initialsSlot], -1);
-        this.initialsCooldown = 0.18;
+        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, lang());
+        this.initialsCooldown = Math.max(0.05, 0.18 * Math.pow(0.88, this.initialsHold++));
         moved = true;
       }
     }
 
-    if (moved) this.audio.playUi();
+    if (Math.abs(axis.y) < thresh) this.initialsHold = 0;
+    if (moved) {
+      this.audio.playUi();
+      this.initialsWarn = Math.min(this.initialsWarn, 0.8);
+    }
     this.input.clearJustPressed();
   }
 
@@ -2437,11 +2464,13 @@ export class Game {
     // over; gold levels 11+ also multiply the clone swarm). Exactly one level per pass.
     // Every tenth level (and 111) ends with a boss: the level timer holds at the end while
     // the boss is up, and the level clears once it is beaten (or gets bored and leaves).
+    // Every other level ends with a MINI-BOSS, the level's gate: it never leaves, so the level
+    // is only passed once it is beaten (miniBoss.ts).
     this.levelTime += dt;
     if (this.boss) {
       this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
     } else if (this.levelTime >= LEVEL_SECONDS) {
-      const def = this.bossDone ? null : bossForLevel(this.runDifficulty);
+      const def = this.bossDone ? null : bossForLevel(this.runDifficulty) ?? miniBossForLevel(this.runDifficulty);
       if (def) {
         this.levelTime = LEVEL_SECONDS;
         this.startBoss(def);
@@ -3065,11 +3094,13 @@ export class Game {
     const bestLvl = local.reduce((a, e) => Math.max(a, e.difficulty ?? 0), 0);
     this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length));
     this.bossRightT = -1e9;
-    this.bossesFought.push(def);
+    // (The group photo is of the big bosses only.)
+    if (!def.mini) this.bossesFought.push(def);
     this.world.spawnObstacles = false;
-    this.bannerText = def.name;
+    this.bannerText = def.mini ? miniBanner(def) : def.name;
     this.bannerT = BANNER_SECONDS;
     this.audio.playPromote();
+    if (def.mini) this.spawnFloater(this.player.x + 40, this.player.y - 40, miniGateText(def.level), '#ffe66d');
     console.info(`[fsb] boss L${def.level} ${def.modeId} seed ${this.boss.seed}`);
   }
 
@@ -3151,6 +3182,20 @@ export class Game {
           this.renderer.bumpFlash(0.25);
           break;
         case 'defeated':
+          if (bf.def.mini) {
+            // MINI-BOSS: 1,000 x level, times the GAME SPEED, still capped. Then the level clears.
+            const pts = scalePoints(miniBonus(bf.def.level), this.speedTenths);
+            this.score = Math.min(SCORE_CAP, this.score + pts);
+            this.minisBeaten++;
+            this.audio.playPromote();
+            this.renderer.bumpShake(8);
+            this.renderer.bumpFlash(0.3);
+            this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 12 : 30, 260);
+            this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, `+${fmtNum(pts)}`, '#ffe66d');
+            this.bannerText = miniBeatenText(pts);
+            this.bannerT = BANNER_SECONDS;
+            break;
+          }
           // Flat bonus (no level multiplier) times the GAME SPEED, still capped.
           this.score = Math.min(SCORE_CAP, this.score + scalePoints(BOSS_BONUS, this.speedTenths));
           this.bossesBeaten++;
@@ -3682,6 +3727,7 @@ export class Game {
         this.initialsChars,
         this.initialsSlot,
         this.pulse,
+        this.initialsWarn > 0 ? rudePrompt(lang()) : '',
       );
     }
     if (this.state === 'gameover') {
@@ -3695,6 +3741,7 @@ export class Game {
         this.highlightIndex,
         this.pendingMission ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local')) : this.boardIsRemote ? tr('lb_global') : tr('lb_top'),
         this.victory ? tr('go_victory', { n: MAX_LEVEL }) : this.pendingMission ? tr('go_mission') : tr('go_headline'),
+        boardTaunt(lang(), this.highlightIndex, this.boardTauntPick, this.leaderboard.length),
       );
     }
   }

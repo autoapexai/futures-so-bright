@@ -3,6 +3,7 @@
  * Every call has a short timeout and resolves to null on any failure, so the
  * game can always fall back to the local board.
  */
+import { isValidInitials, maskInitials } from './initials';
 import type { LeaderboardEntry } from './storage';
 import { SCORE_CAP } from './difficulty';
 import { MISSION_MODE } from './modes';
@@ -65,8 +66,10 @@ function parseRows(data: unknown): { board: LeaderboardEntry[]; index: number; c
     if (!row || typeof row !== 'object') continue;
     const r = row as { initials?: unknown; score?: unknown; difficulty?: unknown; start_level?: unknown; is_new?: unknown; claim_token?: unknown };
     const score = Math.floor(Number(r.score));
-    const initials = String(r.initials ?? '');
-    if (!Number.isFinite(score) || score <= 0 || !/^[A-Z]{3}$/.test(initials)) continue;
+    const rawIni = String(r.initials ?? '');
+    // Union of the language sets (or the server's own *** mask); rude initials show as ***.
+    if (!Number.isFinite(score) || score <= 0 || !(rawIni === '***' || isValidInitials(rawIni))) continue;
+    const initials = maskInitials(rawIni);
     if (typeof r.claim_token === 'string' && /^[0-9a-f]{64}$/.test(r.claim_token)) claimToken = r.claim_token;
     if (r.is_new === true && index < 0) index = board.length;
     const d = Math.round(Number(r.difficulty));

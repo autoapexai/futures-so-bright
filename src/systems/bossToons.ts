@@ -116,7 +116,7 @@ function wobble(f: BossFight, b: Board, time: number): Wob {
 // ---------------------------------------------------------------------------------------------
 
 /** Two big googly eyes (spiral when stunned, spinning when bonked, wobbling otherwise). */
-function eyes(ctx: Ctx, x: number, y: number, r: number, p: Pose, gap = 1.05, ink = '#140022'): void {
+export function eyes(ctx: Ctx, x: number, y: number, r: number, p: Pose, gap = 1.05, ink = '#140022'): void {
   for (const s of [-1, 1]) {
     const ex = x + s * r * gap;
     ctx.fillStyle = '#fff';
@@ -149,7 +149,7 @@ function eyes(ctx: Ctx, x: number, y: number, r: number, p: Pose, gap = 1.05, in
 }
 
 /** Over-acted mouth: huge grin, "O" when bonked or stunned, wobbly frown when beaten. */
-function mouth(ctx: Ctx, x: number, y: number, w: number, p: Pose, color = '#e0002a'): void {
+export function mouth(ctx: Ctx, x: number, y: number, w: number, p: Pose, color = '#e0002a'): void {
   ctx.fillStyle = color;
   ctx.beginPath();
   if (p.hurt || p.stun) ctx.ellipse(x, y, w * 0.32, w * 0.42, 0, 0, TAU);
@@ -167,7 +167,7 @@ function mouth(ctx: Ctx, x: number, y: number, w: number, p: Pose, color = '#e00
 }
 
 /** Pulsing gold glow behind a weak spot. */
-function glow(ctx: Ctx, x: number, y: number, r: number, p: Pose): void {
+export function glow(ctx: Ctx, x: number, y: number, r: number, p: Pose): void {
   if (!p.glow) return;
   const k = 0.6 + 0.4 * Math.sin(p.t * 10);
   ctx.fillStyle = `rgba(255,214,63,${0.22 + 0.25 * k})`;
@@ -183,7 +183,7 @@ function squash(p: Pose, speed = 8, amt = 0.05): [number, number] {
   return [1 / sy, sy];
 }
 
-function star(ctx: Ctx, x: number, y: number, r: number, n = 5): void {
+export function star(ctx: Ctx, x: number, y: number, r: number, n = 5): void {
   ctx.beginPath();
   for (let i = 0; i < n * 2; i++) {
     const a = (i * Math.PI) / n - Math.PI / 2;
@@ -241,7 +241,7 @@ function duck(ctx: Ctx, x: number, y: number, r: number, rot = 0): void {
   ctx.restore();
 }
 
-function speech(ctx: Ctx, text: string, x: number, y: number, size: number, color = '#ffffff'): void {
+export function speech(ctx: Ctx, text: string, x: number, y: number, size: number, color = '#ffffff'): void {
   ctx.save();
   ctx.font = `900 ${size}px 'Orbitron', sans-serif`;
   if (nonEnglish()) {

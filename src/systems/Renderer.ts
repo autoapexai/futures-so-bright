@@ -1,3 +1,4 @@
+import { GLYPH_FALLBACK, maskInitials } from '../utils/initials';
 import type { Player } from '../entities/Player';
 import { drawAppliance } from './silly';
 import { drawDuckText, duckWidth } from '../render/duckDigits';
@@ -1384,6 +1385,7 @@ export class Renderer {
     chars: string[],
     slot: number,
     pulse: number,
+    warn = '',
   ): void {
     const big = this.touchUi;
     const portrait = this.H > this.W * 1.1;
@@ -1450,11 +1452,12 @@ export class Renderer {
     for (let i = 0; i < 3; i++) {
       const active = i === slot;
       const bob = active ? Math.sin(pulse * 6) * 3 : 0;
-      ctx.font = `900 ${letterSize}px 'Orbitron', sans-serif`;
+      // Vietnamese letters, Chinese characters, ★ and emojis fall back to fonts that have them.
+      ctx.font = `900 ${letterSize}px 'Orbitron', ${GLYPH_FALLBACK}`;
       ctx.fillStyle = active ? COL.cyan : COL.pink;
       ctx.shadowBlur = this.lite ? 0 : active ? 18 : 8;
       ctx.shadowColor = active ? COL.cyan : COL.magenta;
-      ctx.fillText(chars[i] || 'A', lx, lettersY + bob);
+      ctx.fillText(chars[i] || 'A', lx, lettersY + bob, letterSize * 1.25);
       // underline slot
       const uw = letterSize * 0.7;
       ctx.shadowBlur = 0;
@@ -1472,6 +1475,12 @@ export class Renderer {
     const floor = H - this.padBottom - H * (big ? (portrait ? 0.22 : 0.3) : 0.1);
     const alpha = 0.55 + Math.sin(pulse * 4) * 0.35;
     ctx.fillStyle = `rgba(200, 180, 255, ${alpha})`;
+    if (warn) {
+      // Rude initials were blocked: a friendly G-rated nudge right under the letters.
+      ctx.fillStyle = COL.sunCore;
+      this.fillFitted(ctx, warn, cx, lettersY + this.u(big ? (portrait ? 44 : 38) : 40), '700', this.u(big ? (portrait ? 16 : 14) : 15), "'Rajdhani', sans-serif", maxTw, this.u(10));
+      ctx.fillStyle = `rgba(200, 180, 255, ${alpha})`;
+    }
     const help =
       big
         ? tr('ini_help_touch')
@@ -1498,6 +1507,7 @@ export class Renderer {
     highlightIndex = -1,
     boardTitle = 'TOP 11',
     headline = 'TOO BRIGHT!',
+    taunt = '',
   ): void {
     const big = this.touchUi;
     const portrait = this.H > this.W * 1.1;
@@ -1551,7 +1561,15 @@ export class Renderer {
     // fit; the big RIDE button is the cue there too.
     const compact = portrait && this.cardTopY > 0;
     const sideways = big && !portrait;
-    const boardTop = overY + this.u(big ? (portrait ? 64 : 60) : 68);
+    let boardTop = overY + this.u(big ? (portrait ? 64 : 60) : 68);
+    if (taunt) {
+      // Playful line for everyone who isn't #1 (systems/boardTaunt.ts), between BEST and the board.
+      const ty = boardTop + this.u(big && !portrait ? 1 : 2);
+      ctx.fillStyle = COL.sunCore;
+      ctx.shadowBlur = 0;
+      this.fillFitted(ctx, taunt, cx, ty, '700', this.u(big ? (portrait ? 14 : 12) : 14), "'Rajdhani', sans-serif", maxTw, this.u(9));
+      boardTop += this.u(big && !portrait ? 15 : 19);
+    }
     let boardBottom = floor - this.u(big ? (portrait ? 36 : 32) : 40);
     if (compact) boardBottom = Math.min(boardBottom, this.cardTopY - this.u(4));
     if (sideways) boardBottom = H - this.padBottom - Math.max(this.u(64), H * 0.15);
@@ -1625,13 +1643,13 @@ export class Renderer {
       const titleRight = cx + ctx.measureText(title).width / 2;
       ctx.font = rowFont(fs, false);
       const hdrLeft = xLvl - ctx.measureText(lvlHdr).width;
-      return { rowH, fs, xRank, xIni, xScore, xLvl, headerFitsTitleLine: hdrLeft > titleRight + fs * 0.8 };
+      return { rowH, fs, xRank, xIni, xScore, xLvl, wIni, headerFitsTitleLine: hdrLeft > titleRight + fs * 0.8 };
     };
     // Prefer the LVL header on the title line (rows stay as large as before); else its own header row.
     let L = layout(false);
     const headerRow = showLvl && !L.headerFitsTitleLine;
     if (headerRow) L = layout(true);
-    const { rowH, fs: fontSize, xRank: cRank, xIni: cIni, xScore: cScore, xLvl } = L;
+    const { rowH, fs: fontSize, xRank: cRank, xIni: cIni, xScore: cScore, xLvl, wIni: wIniCol } = L;
 
     ctx.textAlign = 'center';
     ctx.fillStyle = COL.pink;
@@ -1675,7 +1693,13 @@ export class Renderer {
       ctx.textAlign = 'right';
       ctx.fillText(String(idx + 1), cRank, y);
       ctx.textAlign = 'left';
-      ctx.fillText(entry ? entry.initials : '---', cIni, y);
+      if (entry) {
+        // Any language's initials (or emojis) in one aligned column: glyph fallbacks + squeeze to WWW.
+        const f0 = ctx.font;
+        ctx.font = `${hi ? '700' : '600'} ${fontSize}px 'Rajdhani', ${GLYPH_FALLBACK}`;
+        ctx.fillText(maskInitials(entry.initials), cIni, y, wIniCol);
+        ctx.font = f0;
+      } else ctx.fillText('---', cIni, y);
       ctx.textAlign = 'right';
       if (entry) drawDuckText(ctx, fmtScore(entry.score), cScore, y);
       else ctx.fillText('------', cScore, y);
