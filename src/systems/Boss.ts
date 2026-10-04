@@ -98,7 +98,7 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
     signature: 'strut',
     blurb: 'Huge slow board that body-slams across the screen',
     patterns: ['wall', 'slam', 'aimed'],
-    taunts: ['MORE BOARD TO LOVE.', 'MAKE ROOM.', "I'M BIG-BONED. AND BIG-SCORED.", 'INCOMING!'],
+    taunts: ['MORE BOARD TO GO AROUND.', 'MAKE ROOM.', "I'M BIG-HEARTED. AND BIG-SCORED.", 'INCOMING!'],
   },
   daly: {
     signature: 'cowboy',
@@ -110,7 +110,7 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
     signature: 'coins',
     blurb: 'GOLDBOT 3000: a gold trophy robot on rocket boots; slanted coin rain, gold bars, money bags; loose-gold-bolt weak spot',
     patterns: ['rain', 'aimed', 'wall'],
-    taunts: ['MONEY RAIN, BABY.', 'BEEP BOOP, I AM RICH.', 'MAKE IT RAIN.', 'GOLD LOOKS GOOD ON ME.'],
+    taunts: ['MONEY RAIN, BABY.', 'BEEP BOOP, I AM RICH.', "IT'S RAINING GOLD.", 'GOLD LOOKS GOOD ON ME.'],
   },
   alw: {
     signature: 'chorus',
@@ -128,7 +128,7 @@ const SIG: Record<string, { signature: Signature; blurb: string; patterns: Patte
     signature: 'bang',
     blurb: 'CAPTAIN KABOOM: a clown on a cannon atop a drum tower, arrives in a tiny car; confetti bombs that burst into rubber ducks, whoopee cushions, inflatable flamingos; fuse-spark weak spot',
     patterns: ['split', 'aimed', 'wall'],
-    taunts: ['KA-BOOM! KA-BOOM!', 'HONK IF YOU LOVE CANNONS.', 'YES AND... BOOM.', 'BIG BOOM ENERGY.'],
+    taunts: ['KA-BOOM! KA-BOOM!', 'HONK IF YOU LOVE CANNONS.', 'YES AND... BOOM.', 'BIG CONFETTI ENERGY.'],
   },
   curry: {
     signature: 'vj',

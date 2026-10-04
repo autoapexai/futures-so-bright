@@ -1891,7 +1891,7 @@ function defeatFx(ctx: Ctx, id: string, k: number, cx: number, cy: number, w: nu
         else for (let j = 0; j < 6; j++) ctx.lineTo(x + Math.cos(j * 1.05) * 4, y + Math.sin(j * 1.05) * 4);
         ctx.fill();
       }
-      if (k < 0.6) speech(ctx, 'CLANK! CLONK! TINKLE.', cx - w * 0.2, cy - h / 2 - 12, 12, '#ffd23f');
+      if (k < 0.6) speech(ctx, 'CLANK! CLONK! CLINK.', cx - w * 0.2, cy - h / 2 - 12, 12, '#ffd23f');
       break;
     }
     case 'alw':

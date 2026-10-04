@@ -202,11 +202,11 @@ const cache = new Map<number, BossDef>();
 
 /**
  * ROLLOUT IN BATCHES BY DECADE: mini-bosses are live on levels 1..MINI_LIVE_MAX only.
- * Batch 1 = levels 1-9. Next batches: 19, 29 ... 109 (every mini level). Levels above it play
+ * Live: 1-9 (batch 1), 11-19 (batch 2). Next: 29, 39 ... 109 (every mini level). Levels above it play
  * exactly as before (no mini, no gate). The server bound (supabase/fsb_minis_initials.sql)
  * already allows every mini level, so raising this needs no migration.
  */
-export const MINI_LIVE_MAX = 9;
+export const MINI_LIVE_MAX = 19;
 
 /** The mini-boss at the end of this level, or null (levels 10, 20 ... 110 and 111 have big bosses). */
 export function miniBossForLevel(level: number, ignoreRollout = false): BossDef | null {
@@ -576,7 +576,7 @@ function person(ctx: Ctx, w: number, h: number, p: Pose, k: Look): { hx: number;
     ctx.fillStyle = k.beard;
     ctx.beginPath();
     ctx.moveTo(hx - hr * 0.85, hy + hr * 0.1);
-    ctx.quadraticCurveTo(hx, hy + hr * 2.2, hx + hr * 0.85, hy + hr * 0.1);
+    ctx.quadraticCurveTo(hx, hy + hr * 3.4, hx + hr * 0.85, hy + hr * 0.1);
     ctx.closePath();
     ctx.fill();
   }
@@ -916,12 +916,8 @@ const BODY: Record<Design, MiniDraw> = {
     }
   },
   gaffigan: (ctx, w, h, p, prop) => {
-    // a round belly, a pocket snack in hand (still steaming) and a lunchbox at his feet
-    const { tw } = person(ctx, w, h, p, { skin: SKIN.fair, shirt: '#6fa8dc', pants: '#34495e', hair: 'light', hairColor: '#f0dc9a', torsoW: 0.56 });
-    ctx.fillStyle = '#6fa8dc';
-    ctx.beginPath();
-    ctx.ellipse(-w * 0.04, h * 0.08, tw * 0.55, h * 0.16, 0, 0, TAU);
-    ctx.fill();
+    // a pocket snack in hand (still steaming) and a SNACKS lunchbox at his feet
+    const { tw } = person(ctx, w, h, p, { skin: SKIN.fair, shirt: '#6fa8dc', pants: '#34495e', hair: 'light', hairColor: '#f0dc9a' });
     arm(ctx, -tw * 0.5, -h * 0.12, -w * 0.4, -h * 0.05, w, '#6fa8dc', SKIN.fair);
     ctx.fillStyle = '#e8b062';
     rr(ctx, -w * 0.5, -h * 0.11, w * 0.18, h * 0.08, 3);
