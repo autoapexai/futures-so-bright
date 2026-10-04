@@ -44,8 +44,8 @@ export const MODES: readonly ModeDef[] = [
   { id: 'cbb', name: 'COMEDY BANG BANG', ships: 668, scale: areaTenScale(668), tint: '#ffaa44', style: 'solid', behavior: 'none', spacing: 1 },
   { id: 'slackerman', name: 'SNOT SLACKERMAN', ships: 447, scale: areaTenScale(447), tint: '#00ffdc', style: 'outline', behavior: 'none', spacing: 1 },
   { id: 'itm', name: 'ITM', ships: 3333, scale: areaTenScale(3333), tint: '#b4f0ff', style: 'dot', behavior: 'none', spacing: 1 },
-  { id: 'dvorak', name: 'JOHN C DVORAK', ships: 888, scale: areaTenScale(888), tint: '#c020a0', style: 'solid', behavior: 'none', spacing: 1 },
-  { id: 'curry', name: 'ADAM CURRY', ships: 777, scale: areaTenScale(777), tint: '#7fffff', style: 'solid', behavior: 'none', spacing: 1 },
+  { id: 'dvorak', name: 'JOHN S E E DVOR SNACK', ships: 888, scale: areaTenScale(888), tint: '#c020a0', style: 'solid', behavior: 'none', spacing: 1 },
+  { id: 'curry', name: 'ADAM SLURRY', ships: 777, scale: areaTenScale(777), tint: '#7fffff', style: 'solid', behavior: 'none', spacing: 1 },
 ];
 
 /**

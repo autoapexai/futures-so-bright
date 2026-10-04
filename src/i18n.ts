@@ -3,7 +3,7 @@
  *
  * English values are exactly the strings the game always showed, so English output is unchanged.
  * Kept in English on purpose (not in this table): the game title, mode names, boss names,
- * JOHN C DVORAK / ADAM CURRY, THE DUCHESS OF PASADENA and the Venmo handle.
+ * JOHN S E E DVOR SNACK / ADAM SLURRY, THE DUCHESS OF PASADENA and the Venmo handle.
  */
 export type Lang = 'en' | 'es' | 'vi' | 'zh';
 
