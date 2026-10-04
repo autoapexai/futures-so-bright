@@ -3329,33 +3329,49 @@ body.modes-open #title-chips {
 }
 #modes-chips {
   margin: 0 0 8px;
+}
+
 /* —— LEVEL SELECT (title / game-over) ——
    The LEVELS tab sits on top of the difficulty control. The picker is a full-screen dialog:
    portrait = header, chips, grid, preview card at the bottom; landscape / desktop = grid on the
    left, card on the right. */
 #lvl-open {
+  /* Desktop: a pill just right of the difficulty control. */
   position: absolute;
-  right: 10px;
-  bottom: calc(100% - 2px);
-  height: 24px;
-  padding: 0 10px;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  height: 34px;
+  padding: 0 12px;
   border: 2px solid rgba(255, 230, 109, 0.75);
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
+  border-radius: 12px;
   background: rgba(30, 10, 45, 0.92);
   color: #ffe66d;
-  font: 700 10px/20px 'Orbitron', sans-serif;
+  font: 700 11px/30px 'Orbitron', sans-serif;
   letter-spacing: 0.08em;
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+/* Touch: a tab hanging under the control on its inner side (clear of the hand toggle). */
+body.touch-device #lvl-open {
+  left: auto; right: 8px; top: calc(100% - 2px); transform: none; height: 24px; padding: 0 10px;
+  border-top: none; border-radius: 0 0 10px 10px; font-size: 10px; line-height: 20px;
+}
+body.touch-device.hand-left #lvl-open { right: auto; left: 8px; }
+/* Sideways game-over: the control sits on the bottom edge, so the tab becomes a pill beside it. */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch-device.gameover #lvl-open, body.touch-device.hand-left.gameover #lvl-open {
+    left: calc(100% + 6px); right: auto; top: 50%; transform: translateY(-50%); height: 32px; line-height: 28px;
+    border: 2px solid rgba(255, 230, 109, 0.75); border-radius: 12px;
+  }
+  body.touch-device.gameover #lvl-open::after { inset: -6px; }
+}
 #lvl-open::before { content: '▦ '; }
-#lvl-open::after { content: ''; position: absolute; inset: -8px -6px 0; }
+#lvl-open::after { content: ''; position: absolute; inset: -6px; }
+body.touch-device #lvl-open::after { inset: 0 -6px -8px; }
 #lvl-open:hover, #lvl-open:focus-visible { background: rgba(60, 30, 70, 0.95); box-shadow: 0 0 12px rgba(255, 230, 109, 0.4); }
 #diff-label { cursor: pointer; }
-body.touch-device #lvl-open { right: 8px; }
-body.touch-device.hand-left #lvl-open { right: auto; left: 8px; }
 body.lvl-open #diff-ctl, body.lvl-open #donate, body.lvl-open .touch-action, body.lvl-open .joy-zone, body.lvl-open #touch-hint { visibility: hidden; }
 
 #lvl-select {
@@ -3478,13 +3494,9 @@ body.touch-device #lvl-select .ls-hint { display: none; }
   #lvl-select .ls-play, #lvl-select .ls-fight { min-height: 42px; font-size: 11px; }
 }
 @media (max-width: 500px) and (orientation: portrait) {
-  #lvl-select .ls-title { font-size: 14px; }
+  #lvl-select .ls-title { font-size: 13px; letter-spacing: 0.02em; }
   #lvl-select .ls-go { font-size: 10px; gap: 4px; }
   #lvl-select .ls-grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
-  /* Narrow portrait: the clone button sits right above the difficulty control, so the LEVELS tab
-     hangs below it instead (free space between START and the hand toggle). */
-  body.touch-device #lvl-open { bottom: auto; top: calc(100% - 2px); border: 2px solid rgba(255, 230, 109, 0.75); border-top: none; border-radius: 0 0 10px 10px; }
-  body.touch-device #lvl-open::after { inset: 0 -6px -8px; }
 }
 @media (max-width: 360px) and (orientation: portrait) {
   #lvl-select .ls-go-label { display: none; }

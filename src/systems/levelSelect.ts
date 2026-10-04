@@ -44,17 +44,6 @@ interface Info {
 const PICK_KEY = 'fsb-level-pick-v1';
 const CHIPS = [1, ...BOSS_LEVELS];
 
-/** Display-name safety net: mini-boss ids from before the pun-name rewrite map to the pun names. */
-const PUN_ALIAS: Record<string, string> = {
-  reiner: 'reindeer', seinfeld: 'sneezefeld', larry: 'divot', norm: 'macdoodle', letterman: 'lettuceman', brody: 'rowdy',
-  pryor: 'fryer', foxx: 'socks', rogan: 'yogan', gaffigan: 'gigglegan', brooks: 'brooms', carl: 'elder',
-};
-const PUN_NAME: Record<string, string> = {
-  reindeer: 'ROB REINDEER', sneezefeld: 'JERRY SNEEZEFELD', divot: 'LARRY DIVOT', macdoodle: 'NORM MACDOODLE', lettuceman: 'DAVID LETTUCEMAN',
-  rowdy: 'ROWDY STEVENS', fryer: 'RICHARD FRYER', socks: 'RED SOCKS', yogan: 'JOE YOGAN', gigglegan: 'JIM GIGGLEGAN', brooms: 'MEL BROOMS',
-  elder: 'CARL REINDEER',
-};
-
 /** One-line G-rated blurbs (preview card), by boss id / mini-boss character. */
 const BLURB: Record<Lang, Record<string, string>> = {
   en: {
@@ -164,8 +153,7 @@ const BLURB: Record<Lang, Record<string, string>> = {
 };
 
 function designOf(n: number): string {
-  const d = miniDesignForLevel(n) ?? '';
-  return PUN_ALIAS[d] ?? d;
+  return miniDesignForLevel(n) ?? '';
 }
 
 const infoCache = new Map<number, Info>();
@@ -178,9 +166,7 @@ function info(n: number): Info {
   else {
     const live = miniBossForLevel(n);
     const design = designOf(n);
-    // Old internal ids show their pun name; current defs already carry it.
-    const old = PUN_ALIAS[live?.mini?.design ?? ''];
-    if (live) out = { n, kind: 'mini', def: live, name: old ? PUN_NAME[old] : live.name, key: `m-${design}`, design };
+    if (live) out = { n, kind: 'mini', def: live, name: live.name, key: `m-${design}`, design };
     else out = { n, kind: 'soon', def: miniBossForLevel(n, true), name: '', key: `s-${design}`, design };
   }
   infoCache.set(n, out);
@@ -320,6 +306,7 @@ export function createLevelSelect(host: LevelSelectHost): LevelSelect {
   let openNow = false;
   let sel = loadPick();
   let lastDigitAt = 0;
+  let openedAt = 0;
   let raf = 0;
   let io: IntersectionObserver | null = null;
   const tiles: HTMLButtonElement[] = [];
@@ -361,7 +348,7 @@ export function createLevelSelect(host: LevelSelectHost): LevelSelect {
     fight.textContent = tr('ls_fight');
     for (const tile of tiles) {
       const i = info(Number(tile.dataset.n));
-      tile.querySelector('.ls-tname')!.textContent = nameOf(i);
+      tile.querySelector('.ls-tname')!.textContent = i.kind === 'soon' ? tr('ls_soon_tile') : nameOf(i);
       tile.setAttribute('aria-label', tr('ls_tile_aria', { n: i.n, k: tr(i.kind === 'boss' ? 'ls_boss' : 'ls_mini'), b: nameOf(i) }));
       const badge = tile.querySelector('.ls-badge');
       if (badge) badge.textContent = i.kind === 'boss' ? tr('ls_boss') : '';
@@ -614,6 +601,17 @@ export function createLevelSelect(host: LevelSelectHost): LevelSelect {
     // blocks touchmove to stop page scroll, which would freeze the grid).
     const stop = (e: Event): void => e.stopPropagation();
     for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'touchmove', 'wheel', 'keyup']) root.addEventListener(ev, stop);
+    // The tap that opened the picker can land a ghost click on whatever is now under the finger.
+    root.addEventListener(
+      'click',
+      (e) => {
+        if (performance.now() - openedAt < 450) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      },
+      true,
+    );
     root.addEventListener('click', (e) => {
       if (e.target === root) close();
     });
@@ -663,6 +661,7 @@ export function createLevelSelect(host: LevelSelectHost): LevelSelect {
     if (!root) build();
     if (!root) return;
     openNow = true;
+    openedAt = performance.now();
     root.classList.add('open');
     root.setAttribute('aria-hidden', 'false');
     window.addEventListener('keydown', onKey, true);
