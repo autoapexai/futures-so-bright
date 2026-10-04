@@ -31,7 +31,7 @@ export interface ModeDef {
 export const areaTenScale = (n: number): number => Math.sqrt(10 / n);
 
 export const MODES: readonly ModeDef[] = [
-  { id: 'alw', name: 'ANDREW LLOYD WEBBER', ships: 239, scale: areaTenScale(239), tint: '#9b5cff', style: 'solid', behavior: 'none', spacing: 1 },
+  { id: 'alw', name: 'ANDREW FLOYD WEBBER', ships: 239, scale: areaTenScale(239), tint: '#9b5cff', style: 'solid', behavior: 'none', spacing: 1 },
   { id: 'toosuccessful', name: 'TOO SUCCESSFUL', ships: 57, scale: areaTenScale(57), tint: '#ffe66d', style: 'solid', behavior: 'none', spacing: 1 },
   { id: 'daly', name: 'THE ANDY DALY PODCAST SHOW TRYOUT', ships: 44, scale: areaTenScale(44), tint: '#ff6b35', style: 'solid', behavior: 'none', spacing: 1 },
   // TOO FAT is deliberately EXEMPT from the total-area-of-10 rule: 16 ships at 2.0x

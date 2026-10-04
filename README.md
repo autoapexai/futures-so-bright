@@ -1,6 +1,6 @@
 # Future’s So Bright
 
-A slick synthwave endless runner. The future is so bright you literally gotta wear shades.
+A slick synthwave endless runner.
 
 Dodge blinding light beams, solar flares, and neon bars while collecting spare sunglasses to keep your **Shade Charge** from washing out.
 

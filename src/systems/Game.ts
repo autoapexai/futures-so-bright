@@ -547,7 +547,9 @@ export class Game {
     // VALUE FOR VALUE card (game-over / victory only; hidden entirely while VENMO_HANDLE is empty).
     const donate = document.getElementById('donate-btn') as HTMLAnchorElement | null;
     if (donate && DONATE_URL) {
-      donate.href = DONATE_URL;
+      // TREASURE never opens Venmo directly: it opens the ask-a-grown-up card (bindGrownUp), whose
+      // "Continue to Venmo" link carries DONATE_URL and runs openVenmo().
+      donate.href = '#';
       const msg = document.getElementById('v4v-msg');
       const note = document.getElementById('donate-note');
       const syncDonate = (): void => {
@@ -559,12 +561,26 @@ export class Game {
       document.body.classList.add('has-donate');
       document.getElementById('donate')?.setAttribute('aria-hidden', 'false');
       donate.addEventListener('pointerdown', (e) => e.stopPropagation());
-      donate.addEventListener('click', (e) => this.openVenmo(e));
+      donate.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void this.audio.unlock();
+        this.audio.stopSadTrombone();
+        this.askGrownUp('venmo');
+      });
     } else {
       document.getElementById('donate')?.remove();
     }
 
+    // Keyboard on the VALUE FOR VALUE card's own buttons (Enter / Space) activates them instead of
+    // reaching the game's "ride again" keys.
+    const card = document.getElementById('donate');
+    for (const ev of ['keydown', 'keyup']) card?.addEventListener(ev, (e) => e.stopPropagation());
+    this.bindGrownUp();
     this.bindV4V();
+    // Privacy / Terms footer (title screen): taps there never start a run.
+    const legal = document.getElementById('legal-links');
+    for (const ev of ['pointerdown', 'pointerup', 'keydown', 'keyup', 'touchstart']) legal?.addEventListener(ev, (e) => e.stopPropagation());
 
     // MODES (title & game-over menus): fan modes list; Play (START / any key) stays primary.
     const list = document.getElementById('modes-list');
@@ -1561,7 +1577,7 @@ export class Game {
       this.dismissClone();
       return;
     }
-    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl')) return;
+    if (t?.closest?.('#mute-btn, #pause-btn, #quit-btn, #quit-confirm, #hand-btn, #menu-btns, #modes-big, #tut-skip, #clone-btn, #demo, #diff-ctl, #donate, #speed-ctl, #legal-links, #grownup')) return;
     // Walkthrough's last step: a tap (outside the stick / BOOST) finishes it.
     if (this.tutStep === TUT_STEPS - 1 && this.state === 'playing' && !t?.closest?.('#joy-zone, [data-action="boost"]')) {
       if (e.cancelable) e.preventDefault();
@@ -2927,7 +2943,145 @@ export class Game {
     return false;
   }
 
-  /** VALUE FOR VALUE: TIME (suggestion) and TALENT (resume) panels; TREASURE is the Venmo link. */
+  /** Opens the ask-a-grown-up card (set by bindGrownUp). */
+  private askGrownUp: (kind: 'venmo' | 'talent' | 'time', onPass?: () => void) => void = () => {};
+
+  /**
+   * ASK A GROWN-UP: the card in front of TREASURE (Venmo), the TALENT form and the TIME form's
+   * optional name / email. A random two-digit x one-digit sum (the answer is never shown); right
+   * reveals Continue, wrong asks a new one. Cancel / Escape close it. Nothing is stored or sent.
+   */
+  private bindGrownUp(): void {
+    const el = document.getElementById('grownup');
+    const form = document.getElementById('gu-form') as HTMLFormElement | null;
+    const input = document.getElementById('gu-answer') as HTMLInputElement | null;
+    const q = document.getElementById('gu-q');
+    const err = document.getElementById('gu-err');
+    const passBox = document.getElementById('gu-pass');
+    const venmo = document.getElementById('gu-venmo') as HTMLAnchorElement | null;
+    const go = document.getElementById('gu-go') as HTMLButtonElement | null;
+    if (!el || !form || !input || !q || !err || !passBox || !venmo || !go) return;
+    const stop = (e: Event): void => e.stopPropagation();
+    for (const ev of ['pointerdown', 'pointerup', 'click', 'keydown', 'keyup', 'touchstart', 'touchend']) el.addEventListener(ev, stop);
+    if (DONATE_URL) venmo.href = DONATE_URL;
+    let kind: 'venmo' | 'talent' | 'time' = 'venmo';
+    let onPass: (() => void) | undefined;
+    let answer = -1;
+    let a = 0;
+    let b = 0;
+    let opener: HTMLElement | null = null;
+    const sync = (): void => {
+      const set = (sel: string, k: Parameters<typeof tr>[0]): void => {
+        el.querySelectorAll<HTMLElement>(sel).forEach((n) => {
+          const v = tr(k);
+          if (n.textContent !== v) n.textContent = v;
+        });
+      };
+      set('#gu-title', 'gu_title');
+      set('#gu-msg', kind === 'venmo' ? 'gu_venmo' : kind === 'talent' ? 'gu_talent' : 'gu_time');
+      set('.gu-cancel', 'gu_cancel');
+      set('#gu-check', 'gu_check');
+      set('#gu-ok', 'gu_ok');
+      set('#gu-venmo', 'gu_go_venmo');
+      set('#gu-go', 'gu_go');
+      q.textContent = tr('gu_q', { a, b });
+    };
+    const ask = (): void => {
+      a = 12 + Math.floor(Math.random() * 88); // 12-99
+      b = 3 + Math.floor(Math.random() * 7); // 3-9
+      answer = a * b;
+      input.value = '';
+      sync();
+    };
+    const focusables = (): HTMLElement[] =>
+      [...el.querySelectorAll<HTMLElement>('input, button, a[href]')].filter((n) => n.offsetParent !== null && !n.hidden);
+    const close = (): void => {
+      if (!el.classList.contains('open')) return;
+      el.classList.remove('open');
+      el.setAttribute('aria-hidden', 'true');
+      answer = -1;
+      input.value = '';
+      this.input.clearTouch();
+      this.input.clearJustPressed();
+      const back = opener;
+      opener = null;
+      if (back && back.isConnected && back.offsetParent !== null) back.focus();
+    };
+    this.askGrownUp = (k, cb) => {
+      kind = k;
+      onPass = cb;
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      el.dataset.kind = k;
+      form.hidden = false;
+      passBox.hidden = true;
+      err.textContent = '';
+      ask();
+      el.classList.add('open');
+      el.setAttribute('aria-hidden', 'false');
+      this.input.clearTouch();
+      window.setTimeout(() => input.focus(), 60);
+    };
+    onLang(() => sync());
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (!/^\d{1,4}$/.test(v)) {
+        err.textContent = tr('gu_empty');
+        input.focus();
+        return;
+      }
+      if (answer > 0 && Number(v) === answer) {
+        err.textContent = '';
+        form.hidden = true;
+        passBox.hidden = false;
+        venmo.hidden = kind !== 'venmo';
+        go.hidden = kind === 'venmo';
+        (kind === 'venmo' ? venmo : go).focus();
+      } else {
+        ask();
+        err.textContent = tr('gu_wrong');
+        input.focus();
+      }
+    });
+    el.querySelectorAll('.gu-cancel').forEach((n) => n.addEventListener('click', close));
+    el.addEventListener('keydown', (e) => {
+      const k = e as KeyboardEvent;
+      if (k.key === 'Escape') {
+        k.preventDefault();
+        close();
+      } else if (k.key === 'Tab') {
+        // Keep keyboard focus inside the card.
+        const f = focusables();
+        if (f.length === 0) return;
+        const i = f.indexOf(document.activeElement as HTMLElement);
+        if (k.shiftKey && i <= 0) {
+          k.preventDefault();
+          f[f.length - 1].focus();
+        } else if (!k.shiftKey && i === f.length - 1) {
+          k.preventDefault();
+          f[0].focus();
+        }
+      }
+    });
+    venmo.addEventListener('click', (e) => {
+      if (kind !== 'venmo' || passBox.hidden || !DONATE_URL) {
+        e.preventDefault();
+        return;
+      }
+      this.openVenmo(e); // phones: app deep link, then the web profile; desktop: this link's new tab
+      window.setTimeout(close, 0);
+    });
+    go.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (kind === 'venmo' || passBox.hidden) return;
+      const cb = onPass;
+      opener = null;
+      close();
+      cb?.();
+    });
+  }
+
+  /** VALUE FOR VALUE: TIME (suggestion) and TALENT (resume) panels; TREASURE goes through the grown-up card. */
   private bindV4V(): void {
     const modal = document.getElementById('v4v-modal');
     if (!modal) return;
@@ -2944,9 +3098,32 @@ export class Game {
       this.input.clearTouch();
       window.setTimeout(() => (modal.querySelector(view === 'time' ? '#v4v-msg-in' : '#v4v-rname') as HTMLElement | null)?.focus(), 60);
     };
+    // TIME: a plain message needs no check; the optional name / email stay hidden until a grown-up passes.
+    const personal = document.getElementById('v4v-time-personal');
+    const grownBtn = document.getElementById('v4v-time-grownup');
+    let timeUnlocked = false;
+    const lockPersonal = (): void => {
+      timeUnlocked = false;
+      if (personal) personal.hidden = true;
+      if (grownBtn) grownBtn.hidden = false;
+      for (const id of ['v4v-name-in', 'v4v-email-in']) {
+        const f = document.getElementById(id) as HTMLInputElement | null;
+        if (f) f.value = '';
+      }
+    };
+    grownBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.askGrownUp('time', () => {
+        timeUnlocked = true;
+        if (personal) personal.hidden = false;
+        grownBtn.hidden = true;
+        window.setTimeout(() => document.getElementById('v4v-name-in')?.focus(), 30);
+      });
+    });
     const close = (): void => {
       modal.classList.remove('open');
       modal.setAttribute('aria-hidden', 'true');
+      lockPersonal();
       this.input.clearTouch();
       this.input.clearJustPressed();
     };
@@ -2967,7 +3144,11 @@ export class Game {
         e.stopPropagation();
         void this.audio.unlock();
         this.audio.stopSadTrombone();
-        open(view);
+        if (view === 'talent') this.askGrownUp('talent', () => open('talent'));
+        else {
+          lockPersonal();
+          open('time');
+        }
       });
     }
     modal.querySelectorAll('.v4v-cancel').forEach((b) => b.addEventListener('click', close));
@@ -3001,7 +3182,11 @@ export class Game {
           });
       });
     };
-    submit('v4v-time-form', () => sendSuggestion(val('#v4v-msg-in'), val('#v4v-name-in'), val('#v4v-email-in'), val('#v4v-time-form .v4v-hp')), () => tr('v4v_thanks_time'));
+    submit(
+      'v4v-time-form',
+      () => sendSuggestion(val('#v4v-msg-in'), timeUnlocked ? val('#v4v-name-in') : '', timeUnlocked ? val('#v4v-email-in') : '', val('#v4v-time-form .v4v-hp')),
+      () => tr('v4v_thanks_time'),
+    );
     const file = document.getElementById('v4v-rfile') as HTMLInputElement | null;
     file?.addEventListener('change', () => {
       const r = checkResume(file.files?.[0]);

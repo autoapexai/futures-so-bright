@@ -59,6 +59,7 @@ button[disabled]{opacity:.7;cursor:progress}
 .is-done form,.is-done .intro{display:none}
 .is-done .done{display:block}
 footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--mute);opacity:.85;padding:0 16px calc(16px + env(safe-area-inset-bottom))}
+footer a{color:var(--cyan);padding:4px 2px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (min-width:900px){main{max-width:600px}.card{padding:28px 28px 24px}}
 @media (orientation:landscape) and (max-height:520px){
@@ -68,7 +69,7 @@ footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--
  h1{font-size:18px;margin-bottom:2px}.lede{margin-bottom:6px;font-size:14px;line-height:1.35}
  form{gap:6px}label{margin-bottom:3px;font-size:14px}input{min-height:42px;padding:8px 12px}button{min-height:46px}.privacy{font-size:12.5px}
  .sun{bottom:18vh;width:min(40vw,300px)}.grid{height:22vh}
- footer{display:none}
+ footer{font-size:12px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
 }
 @media (prefers-reduced-motion:reduce){.sun{animation:none}button{transition:none}}
 @media (forced-colors:active){.card{border:2px solid CanvasText}.title,.tag,h1{text-shadow:none}}
@@ -80,7 +81,6 @@ footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--
 <main id="main">
   <header class="hero">
     <p class="title" aria-label="Future's So Bright"><span>Future's So</span><span>Bright</span></p>
-    <p class="tag" aria-hidden="true">… gotta wear shades!</p>
   </header>
   <div class="uc" role="status">
     <strong>🚧 Under construction 🚧</strong>
@@ -118,7 +118,7 @@ footer{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--
     </div>
   </section>
 </main>
-<footer>Future's So Bright · autoapexai.com</footer>
+<footer>Future's So Bright · autoapexai.com · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
 <p class="sr" id="live" role="status" aria-live="polite"></p>
 <script>
 (function () {

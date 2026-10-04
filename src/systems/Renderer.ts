@@ -1136,25 +1136,10 @@ export class Renderer {
       y += titleSize * 1.05;
       this.fillFitted(ctx, 'BRIGHT', cx, y, '900', titleSize, "'Orbitron', sans-serif", maxTw, this.u(22));
 
-      ctx.shadowColor = COL.cyan;
-      ctx.fillStyle = COL.cyan;
-      const bob = Math.sin(pulse * 3) * (portrait ? 3 : 2);
-      y = Math.min(y + this.u(portrait ? 30 : 22) + bob, floor - this.u(portrait ? 150 : 96));
-      this.fillFitted(
-        ctx,
-        tr('title_tag'),
-        cx,
-        y,
-        '700',
-        this.u(portrait ? 20 : 16),
-        "'Orbitron', sans-serif",
-        maxTw,
-        this.u(14),
-      );
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = 'rgba(255,255,255,0.94)';
-      y = Math.min(y + this.u(portrait ? 34 : 24), floor - this.u(portrait ? 120 : 78));
+      y = Math.min(y + this.u(portrait ? 44 : 32), floor - this.u(portrait ? 120 : 78));
       this.fillFitted(
         ctx,
         portrait ? tr('title_dodge_p') : tr('title_dodge_l'),
@@ -1233,11 +1218,6 @@ export class Renderer {
       ctx.font = `900 ${titleSize}px 'Orbitron', sans-serif`;
       ctx.fillText("FUTURE'S SO", W / 2, titleY);
       ctx.fillText('BRIGHT', W / 2, titleY + titleSize * 1.05);
-      ctx.shadowColor = COL.cyan;
-      ctx.fillStyle = COL.cyan;
-      ctx.font = `700 28px 'Orbitron', sans-serif`;
-      const bob = Math.sin(pulse * 3) * 4;
-      fillMax(ctx, tr('title_tag'), W / 2, titleY + titleSize * 1.05 + 48 + bob, W * 0.94);
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       ctx.font = `700 18px 'Rajdhani', sans-serif`;
