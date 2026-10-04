@@ -36,8 +36,8 @@ interface PartInfo {
 
 export const PARTS: readonly PartInfo[] = [
   { id: 'hubcapR', cx: -20, cy: 7, pop: 'mis_pop_hubcap', sfx: 'boing', color: '#7fffff' },
-  // Drawn before the light bar so the bar covers the speaker's mounting post.
-  { id: 'speaker', cx: 1, cy: -27.5, pop: 'mis_pop_speaker', sfx: 'squeal', color: '#ffffff' },
+  // Painted after the other parts (see paintCar), so its rack sits over the light bar.
+  { id: 'speaker', cx: -2, cy: -26, pop: 'mis_pop_speaker', sfx: 'squeal', color: '#ffffff' },
   { id: 'siren', cx: 0, cy: -20.2, pop: 'mis_pop_siren', sfx: 'siren', color: '#ff4ec8' },
   { id: 'door', cx: -0.2, cy: -0.9, pop: 'mis_pop_door', sfx: 'clang', color: '#ffe66d' },
   { id: 'mirror', cx: 14.5, cy: -11, pop: 'mis_pop_mirror', sfx: 'tinkle', color: '#7fffff' },
@@ -631,14 +631,20 @@ function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, 
     }
   }
 
-  for (const p of PARTS) if (on.has(p.id)) paintPart(ctx, p.id, time, wheelA, lite);
-  if (on.has('speaker')) paintSoundWaves(ctx, time);
+  for (const p of PARTS) if (p.id !== 'speaker' && on.has(p.id)) paintPart(ctx, p.id, time, wheelA, lite);
+  // The roof loudspeaker goes on last: its rack stands on the roof, over the light bar.
+  if (on.has('speaker')) {
+    paintPart(ctx, 'speaker', time, wheelA, lite);
+    paintSoundWaves(ctx, time);
+  }
 }
 
-/** The roof loudspeaker's horn transform (car units): on a post above the light bar, aimed ahead. */
+/**
+ * The roof loudspeaker's horn transform (car units): lying level along the roof on its rack,
+ * centred over the cabin (the roof runs x -11..6.5), mouth at the roof's front edge, aimed ahead.
+ */
 function hornFrame(ctx: CanvasRenderingContext2D): void {
-  ctx.translate(0.6, -28.2);
-  ctx.rotate(-0.1);
+  ctx.translate(0, -29);
 }
 
 /** Pulsing ")))" ahead of the horn's mouth while the speaker is on (only on the car). */
@@ -652,7 +658,7 @@ function paintSoundWaves(ctx: CanvasRenderingContext2D, time: number): void {
     ctx.strokeStyle = i % 2 === 0 ? '#ffffff' : '#7fffff';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.arc(7.6, 0, 2.4 + ph * 6, -0.75, 0.75);
+    ctx.arc(6.4, 0, 2.6 + ph * 5, -0.7, 0.7);
     ctx.stroke();
   }
   ctx.restore();
@@ -662,23 +668,58 @@ function paintSoundWaves(ctx: CanvasRenderingContext2D, time: number): void {
 function paintPart(ctx: CanvasRenderingContext2D, id: PartId, time: number, spin: number, lite: boolean): void {
   switch (id) {
     case 'speaker': {
-      // Classic PA horn: a chrome post through the light bar, a driver can and a white flared
-      // cone with a dark mouth; a soft halo + dark edge keep it crisp on the purple lanes.
-      ctx.fillStyle = CHROME;
-      ctx.fillRect(-0.1, -26.4, 1.4, 10);
+      // The big roof horn (a nod to the 1974 movie car): a long flared cone lying level on a
+      // chrome roof rack, the driver can + upright motor housing at the back, the mouth at the
+      // roof's front edge. The rack's legs stand on the roof's corners, straddling the light bar.
+      // A soft halo + dark edge keep it crisp on the purple lanes (no shadowBlur needed on phones).
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      const rack = (): void => {
+        ctx.beginPath();
+        ctx.moveTo(-11, -16.7); // rear leg, on the roof's back corner
+        ctx.lineTo(-11.8, -24.2);
+        ctx.lineTo(8.2, -24.2); // the deck over the light bar
+        ctx.lineTo(6.2, -16.7); // front leg, on the roof's front corner
+      };
+      ctx.strokeStyle = HALO;
+      ctx.lineWidth = 3.4;
+      rack();
+      ctx.stroke();
+      ctx.strokeStyle = '#0c0c12';
+      ctx.lineWidth = 1.9;
+      rack();
+      ctx.stroke();
+      ctx.strokeStyle = CHROME;
+      ctx.lineWidth = 1.1;
+      rack();
+      ctx.stroke();
+      ctx.fillStyle = '#0c0c12'; // feet
+      ctx.fillRect(-12.6, -17.4, 3, 1.1);
+      ctx.fillRect(4.8, -17.4, 3, 1.1);
       ctx.save();
       hornFrame(ctx);
+      // Saddles from the deck up to the horn.
+      ctx.fillStyle = '#0c0c12';
+      ctx.fillRect(-8.4, 2, 2.4, 3.6);
+      ctx.fillRect(0.4, 2.6, 2.4, 3);
+      ctx.fillStyle = '#8a92a2';
+      ctx.fillRect(-8, 2, 1.6, 3.4);
+      ctx.fillRect(0.8, 2.6, 1.6, 2.8);
       const horn = (): void => {
         ctx.beginPath();
-        ctx.moveTo(-6.4, -2.3);
-        ctx.lineTo(-2.6, -2.3);
-        ctx.lineTo(7.4, -4.9);
-        ctx.lineTo(7.4, 4.9);
-        ctx.lineTo(-2.6, 2.3);
-        ctx.lineTo(-6.4, 2.3);
+        ctx.moveTo(-12.4, -2.6); // driver can
+        ctx.lineTo(-9.4, -2.6);
+        ctx.lineTo(-9.4, -1.9);
+        ctx.lineTo(-4, -1.9); // throat
+        ctx.lineTo(6.4, -5); // flare to the mouth
+        ctx.lineTo(6.4, 5);
+        ctx.lineTo(-4, 1.9);
+        ctx.lineTo(-9.4, 1.9);
+        ctx.lineTo(-9.4, 2.6);
+        ctx.lineTo(-12.4, 2.6);
         ctx.closePath();
+        ctx.rect(-12, -4.6, 2.2, 2.2); // upright motor housing on the can
       };
-      ctx.lineJoin = 'round';
       ctx.strokeStyle = HALO;
       ctx.lineWidth = 3;
       horn();
@@ -691,29 +732,34 @@ function paintPart(ctx: CanvasRenderingContext2D, id: PartId, time: number, spin
       horn();
       ctx.fill();
       ctx.shadowBlur = 0;
-      // Shading: the cone's lower half and the driver can.
+      // Shading: the horn's lower half and the driver can.
       ctx.fillStyle = WHITE_SH;
       ctx.beginPath();
-      ctx.moveTo(-2.6, 0.6);
-      ctx.lineTo(7.4, 1.4);
-      ctx.lineTo(7.4, 4.9);
-      ctx.lineTo(-2.6, 2.3);
+      ctx.moveTo(-9.4, 0.5);
+      ctx.lineTo(-4, 0.5);
+      ctx.lineTo(6.4, 1.3);
+      ctx.lineTo(6.4, 5);
+      ctx.lineTo(-4, 1.9);
+      ctx.lineTo(-9.4, 1.9);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#c4cad6';
-      ctx.fillRect(-6.4, -2.3, 3.8, 4.6);
+      ctx.fillStyle = '#b4bccb';
+      ctx.fillRect(-12.4, -2.6, 3, 5.2);
+      ctx.fillRect(-12, -4.6, 2.2, 2.2);
       ctx.strokeStyle = '#0c0c12';
       ctx.lineWidth = 0.55;
       horn();
       ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(-2.6, -2.3);
-      ctx.lineTo(-2.6, 2.3);
+      ctx.beginPath(); // seams: can / throat, throat / flare
+      ctx.moveTo(-9.4, -1.9);
+      ctx.lineTo(-9.4, 1.9);
+      ctx.moveTo(-4, -1.9);
+      ctx.lineTo(-4, 1.9);
       ctx.stroke();
       // Mouth: dark inside, white lip.
       ctx.fillStyle = '#1a1a26';
       ctx.beginPath();
-      ctx.ellipse(7.4, 0, 1.5, 4.9, 0, 0, Math.PI * 2);
+      ctx.ellipse(6.4, 0, 1.7, 5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = WHITE;
       ctx.lineWidth = 0.7;
