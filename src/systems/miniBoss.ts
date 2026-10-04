@@ -15,6 +15,11 @@
  * Difficulty rises smoothly with the level (miniTuning) and always stays well below the big
  * bosses, including the eased L60 and L90 fights, so there is no spike next to them.
  * The fight itself reuses BossFight (barks, weak spot, stun rings, shots) with a def.mini spec.
+ *
+ * ON A MISSION ONLY: the run's first mini-boss (level 1 on a normal start) is BRIDGE TROLLS
+ * instead (missionFirstMiniForLevel): a few ordinary, mismatched cartoon people in everyday
+ * clothes hogging a little bridge, who get bumped off and SPLASH harmlessly into the river. Same
+ * slot, same level tuning, gate and bonus; every other mode and every later mini is unchanged.
  */
 import type { Board, BossDef, BossFight, BossShot, BossTuning, Pattern, PopSfx } from './Boss';
 import { fmtNum, lang, type Lang } from '../i18n';
@@ -31,7 +36,7 @@ export interface MiniSpec {
   stunPop: () => string;
 }
 
-type Design = 'reindeer' | 'sneezefeld' | 'divot' | 'macdoodle' | 'lettuceman' | 'rowdy' | 'fryer' | 'socks' | 'yogan' | 'gigglegan' | 'brooms' | 'elder';
+type Design = 'reindeer' | 'sneezefeld' | 'divot' | 'macdoodle' | 'lettuceman' | 'rowdy' | 'fryer' | 'socks' | 'yogan' | 'gigglegan' | 'brooms' | 'elder' | 'bridgetrolls';
 
 /** Points per level for beating a mini-boss (x level, x GAME SPEED). */
 export const MINI_POINTS_PER_LEVEL = 1000;
@@ -58,6 +63,8 @@ const DESIGNS: Record<Design, DesignDef> = {
   gigglegan: { name: 'JIM GIGGLEGAN', tint: '#ffd6a5', sig: 'rain', skins: { rain: 'pocket', aimed: 'bacon', wall: 'pocket', spray: 'bacon' }, sfx: ['boing', 'honk', 'whistleDown'] },
   brooms: { name: 'MEL BROOMS', tint: '#e3b5ff', sig: 'tumble', skins: { tumble: 'crown', aimed: 'tophat', wall: 'tophat', spray: 'crown' }, sfx: ['honk', 'boing', 'whistleUp'] },
   elder: { name: 'CARL REINDEER', tint: '#e6e6e6', sig: 'dots', skins: { dots: 'wheel', aimed: 'hourglass', wall: 'wheel', spray: 'hourglass' }, sfx: ['whistleDown', 'boing', 'honk'] },
+  // ON A MISSION's first mini-boss only (never in ROTATION): see missionFirstMiniForLevel.
+  bridgetrolls: { name: 'BRIDGE TROLLS', tint: '#7ec8e3', sig: 'spray', skins: { spray: 'cone', aimed: 'bobber', wall: 'cone', dots: 'bobber' }, sfx: ['honk', 'boing', 'whistleDown'] },
 };
 
 /**
@@ -87,6 +94,8 @@ interface Words {
   fall: string;
   /** Prop text drawn on the character (a sign, a card, a cap), if any. */
   prop?: string;
+  /** A second little sign (BRIDGE TROLLS has two). */
+  prop2?: string;
 }
 
 interface LangText {
@@ -114,6 +123,7 @@ const TEXT: Record<Lang, LangText> = {
       gigglegan: { taunts: ['I WAS GOING TO EXERCISE TODAY. THEN I SAW A SNACK.', 'THIS POCKET SNACK IS FROZEN ON THE OUTSIDE AND LAVA IN THE MIDDLE.', 'BACON IS JUST BREAKFAST WITH A DRUMROLL.', "ARE THOSE DOGS RUNNING? ON PURPOSE? I'M SO TIRED FOR THEM.", "I'LL DODGE AFTER SECOND LUNCH. OR THIRD.", "HEE HEE. SORRY, I GIGGLE WHEN I'M HUNGRY. I'M ALWAYS HUNGRY."], pops: ['MMM!', 'HEE HEE!', 'NOM!'], stun: 'FOOD COMA!', fall: 'NAP TIME!', prop: 'SNACKS' },
       brooms: { taunts: ['HEAR YE! THE KING DECLARES: NO RUNNING IN THE KINGDOM! ALSO, SWEEP UP.', 'I HAVE A HAT FOR EVERY OCCASION. THIS IS MY THROWING HAT.', 'BRING ME MY CROWN! NO, THE SILLY ONE!', 'ROYAL DECREE: ALL DOGS MUST WEAR SUNGLASSES. OH. THEY DO.', "I'VE BEEN A KING, A COWBOY AND A CHEF. TODAY I'M A BROOM.", 'HALT, IN THE NAME OF THE BROOM! I SHALL SWEEP YOU OFF YOUR PAWS!'], pops: ['OY!', 'MY HAT!', 'SWISH!'], stun: 'THE CROWN SLIPPED!', fall: 'EXIT, STAGE LEFT!', prop: 'BROOM' },
       elder: { taunts: ["I'M THE ORIGINAL REINDEER. MY SON GOT HIS ANTLERS FROM ME.", "BACK IN MY DAY, WE DIDN'T HAVE LEVELS. WE HAD ROCKS.", 'THIS CANE IS OLDER THAN THE WHEEL. I CHECKED.', 'I REMEMBER WHEN THE SUN WAS A LITTLE SMALLER.', 'SLOW DOWN, YOUNG PUPS! SOME OF US ARE ANCIENT!', 'I INVENTED THE NAP. NOBODY EVER GIVES ME CREDIT.'], pops: ['OOF!', 'HMPH!', 'TAP TAP!'], stun: "WHERE'S MY CANE?", fall: 'TIME FOR A NAP!', prop: 'DAD' },
+      bridgetrolls: { taunts: ['THIS IS OUR BRIDGE! GO AROUND!', 'NO HONKING! WE ARE GRUMBLING IN PEACE HERE.', 'THIS BRIDGE IS CLOSED... FOR FUN!'], pops: ['HEY!', 'HMPH!', 'NO HONKING!'], stun: 'WOBBLY BRIDGE!', fall: 'SPLASH! ON PURPOSE!', prop: 'NO FUN', prop2: 'NO HONKING' },
     },
   },
   es: {
@@ -133,6 +143,7 @@ const TEXT: Record<Lang, LangText> = {
       gigglegan: { taunts: ['HOY IBA A HACER EJERCICIO. LUEGO VI UNA BOTANA.', 'ESTA EMPANADA DE BOLSILLO ESTÁ CONGELADA POR FUERA Y ES LAVA POR DENTRO.', 'EL TOCINO ES SOLO DESAYUNO CON REDOBLE DE TAMBOR.', '¿ESOS PERROS ESTÁN CORRIENDO? ¿A PROPÓSITO? QUÉ CANSANCIO ME DAN.', 'ESQUIVARÉ DESPUÉS DEL SEGUNDO ALMUERZO. O DEL TERCERO.', 'JI, JI. PERDÓN, ME DA LA RISA CUANDO TENGO HAMBRE. SIEMPRE TENGO HAMBRE.'], pops: ['¡MMM!', '¡JI, JI!', '¡ÑAM!'], stun: '¡SIESTA DIGESTIVA!', fall: '¡HORA DE LA SIESTA!', prop: 'BOTANAS' },
       brooms: { taunts: ['¡OÍD, OÍD! EL REY DECLARA: ¡PROHIBIDO CORRER EN EL REINO! Y A BARRER.', 'TENGO UN SOMBRERO PARA CADA OCASIÓN. ESTE ES MI SOMBRERO PARA LANZAR.', '¡TRAEDME MI CORONA! ¡NO, LA CHISTOSA!', 'DECRETO REAL: TODOS LOS PERROS DEBEN USAR GAFAS DE SOL. AH. YA LAS USAN.', 'HE SIDO REY, VAQUERO Y CHEF. HOY SOY UNA ESCOBA.', '¡ALTO, EN NOMBRE DE LA ESCOBA! ¡OS BARRERÉ DE VUESTRAS PATAS!'], pops: ['¡AY!', '¡MI SOMBRERO!', '¡FIUU!'], stun: '¡SE ME RESBALÓ LA CORONA!', fall: '¡MUTIS POR LA IZQUIERDA!', prop: 'ESCOBA' },
       elder: { taunts: ['SOY EL RENO ORIGINAL. MI HIJO SACÓ LAS ASTAS DE MÍ.', 'EN MIS TIEMPOS NO HABÍA NIVELES. HABÍA PIEDRAS.', 'ESTE BASTÓN ES MÁS VIEJO QUE LA RUEDA. LO COMPROBÉ.', 'RECUERDO CUANDO EL SOL ERA UN POQUITO MÁS PEQUEÑO.', '¡MÁS DESPACIO, CACHORROS! ¡ALGUNOS SOMOS ANTIQUÍSIMOS!', 'YO INVENTÉ LA SIESTA. NADIE ME DA EL CRÉDITO.'], pops: ['¡UF!', '¡HMPF!', '¡TOC, TOC!'], stun: '¿DÓNDE ESTÁ MI BASTÓN?', fall: '¡HORA DE LA SIESTA!', prop: 'PAPÁ' },
+      bridgetrolls: { taunts: ['¡ESTE ES NUESTRO PUENTE! ¡DA LA VUELTA!', '¡NADA DE BOCINAZOS! AQUÍ REFUNFUÑAMOS EN PAZ.', 'ESTE PUENTE ESTÁ CERRADO... ¡A LA DIVERSIÓN!'], pops: ['¡OYE!', '¡HMPF!', '¡SIN BOCINAZOS!'], stun: '¡EL PUENTE SE TAMBALEA!', fall: '¡CHAPUZÓN! ¡A PROPÓSITO!', prop: 'SIN DIVERSIÓN', prop2: 'SIN BOCINAS' },
     },
   },
   vi: {
@@ -152,6 +163,7 @@ const TEXT: Record<Lang, LangText> = {
       gigglegan: { taunts: ['HÔM NAY TÔI ĐỊNH TẬP THỂ DỤC. RỒI TÔI THẤY ĐỒ ĂN VẶT.', 'CÁI BÁNH KẸP NÀY NGOÀI THÌ ĐÔNG ĐÁ, TRONG THÌ NÓNG NHƯ DUNG NHAM.', 'THỊT XÔNG KHÓI CHỈ LÀ BỮA SÁNG CÓ TIẾNG TRỐNG DẠO ĐẦU.', 'MẤY CON CHÓ ĐÓ ĐANG CHẠY À? CỐ Ý LUÔN? TÔI MỆT THAY CHO CHÚNG.', 'ĂN TRƯA LẦN HAI XONG TÔI SẼ NÉ. HOẶC LẦN BA.', 'HI HI. XIN LỖI, ĐÓI LÀ TÔI CƯỜI KHÚC KHÍCH. MÀ TÔI LÚC NÀO CŨNG ĐÓI.'], pops: ['NGON!', 'HI HI!', 'MĂM!'], stun: 'NO QUÁ BUỒN NGỦ!', fall: 'GIỜ NGỦ TRƯA!', prop: 'ĐỒ ĂN VẶT' },
       brooms: { taunts: ['NGHE ĐÂY! NHÀ VUA TUYÊN BỐ: CẤM CHẠY TRONG VƯƠNG QUỐC! VÀ NHỚ QUÉT DỌN.', 'TÔI CÓ MŨ CHO MỌI DỊP. ĐÂY LÀ MŨ ĐỂ NÉM.', 'MANG VƯƠNG MIỆN RA ĐÂY! KHÔNG, CÁI NGỘ NGHĨNH CƠ!', 'CHIẾU CHỈ: MỌI CON CHÓ PHẢI ĐEO KÍNH RÂM. Ồ. CHÚNG ĐEO RỒI.', 'TÔI TỪNG LÀ VUA, CAO BỒI VÀ ĐẦU BẾP. HÔM NAY TÔI LÀ CÂY CHỔI.', 'ĐỨNG LẠI, NHÂN DANH CÂY CHỔI! TA SẼ QUÉT CÁC NGƯƠI BAY ĐI!'], pops: ['ÔI!', 'MŨ CỦA TA!', 'VÚT VÚT!'], stun: 'VƯƠNG MIỆN TUỘT RỒI!', fall: 'XIN LUI VÀO CÁNH GÀ!', prop: 'CHỔI' },
       elder: { taunts: ['TÔI LÀ CHÚ TUẦN LỘC ĐẦU TIÊN. CON TRAI TÔI ĐƯỢC CẶP GẠC LÀ NHỜ TÔI.', 'HỒI XƯA LÀM GÌ CÓ MÀN CHƠI. CHỈ CÓ ĐÁ THÔI.', 'CÂY GẬY NÀY CÒN GIÀ HƠN CẢ BÁNH XE. TÔI KIỂM TRA RỒI.', 'TÔI CÒN NHỚ HỒI MẶT TRỜI NHỎ HƠN MỘT CHÚT.', 'CHẬM LẠI NÀO, MẤY CÚN CON! CÓ NGƯỜI CỔ XƯA LẮM RỒI!', 'TÔI PHÁT MINH RA GIẤC NGỦ TRƯA. CHẲNG AI GHI CÔNG TÔI CẢ.'], pops: ['ỐI!', 'HỪM!', 'CỘC CỘC!'], stun: 'GẬY CỦA TÔI ĐÂU?', fall: 'ĐẾN GIỜ NGỦ TRƯA!', prop: 'BỐ' },
+      bridgetrolls: { taunts: ['ĐÂY LÀ CẦU CỦA CHÚNG TÔI! ĐI ĐƯỜNG KHÁC ĐI!', 'CẤM BÓP CÒI! CHÚNG TÔI ĐANG CẰN NHẰN YÊN BÌNH Ở ĐÂY.', 'CẦU NÀY ĐÓNG CỬA... KHÔNG TIẾP NIỀM VUI!'], pops: ['NÀY!', 'HỨ!', 'CẤM BÓP CÒI!'], stun: 'CẦU RUNG RINH!', fall: 'ÙM! CỐ Ý ĐẤY!', prop: 'CẤM VUI', prop2: 'CẤM BÓP CÒI' },
     },
   },
   zh: {
@@ -171,6 +183,7 @@ const TEXT: Record<Lang, LangText> = {
       gigglegan: { taunts: ['我今天本来要去锻炼。然后我看到了零食。', '这个口袋点心外面冻得硬邦邦，里面烫得像岩浆。', '培根就是配了鼓声的早餐。', '那些狗在跑步？主动跑？我替它们累。', '等我吃完第二顿午饭再躲。或者第三顿。', '嘻嘻。抱歉，我一饿就傻笑。而我总是饿。'], pops: ['嗯——！', '嘻嘻！', '吧唧！'], stun: '吃撑犯困！', fall: '午睡时间！', prop: '零食' },
       brooms: { taunts: ['听着！国王宣布：王国里禁止奔跑！还有，扫扫地。', '我每种场合都有一顶帽子。这顶是用来扔的。', '把我的王冠拿来！不，要那顶搞笑的！', '皇家法令：所有狗都必须戴墨镜。哦，它们戴了。', '我当过国王、牛仔和厨师。今天我是一把扫帚。', '以扫帚之名，站住！我要把你们扫得四脚朝天！'], pops: ['哎哟！', '我的帽子！', '唰！'], stun: '王冠滑下来了！', fall: '从舞台左侧退场！', prop: '扫帚' },
       elder: { taunts: ['我是元祖驯鹿。我儿子的鹿角就是随我。', '想当年，我们没有关卡。我们只有石头。', '这根拐杖比轮子还老。我查过。', '我记得太阳以前还小一点。', '慢点，小狗们！我们有些人可是老古董！', '午睡是我发明的。可从来没人记得我的功劳。'], pops: ['哎哟！', '哼！', '笃笃！'], stun: '我的拐杖呢？', fall: '该打盹了！', prop: '老爸' },
+      bridgetrolls: { taunts: ['这是我们的桥！绕道走！', '禁止按喇叭！我们在这儿安安静静地发牢骚。', '这座桥关闭了……不许好玩！'], pops: ['喂！', '哼！', '禁止鸣笛！'], stun: '桥在晃！', fall: '扑通！故意的！', prop: '禁止玩乐', prop2: '禁止鸣笛' },
     },
   },
 };
@@ -225,6 +238,29 @@ export function miniBossForLevel(level: number, ignoreRollout = false): BossDef 
   if (!design) return null;
   const hit = cache.get(level);
   if (hit) return hit;
+  const def = buildMini(level, design, miniAppearance(level));
+  cache.set(level, def);
+  return def;
+}
+
+const missionCache = new Map<number, BossDef>();
+
+/**
+ * ON A MISSION ONLY: the run's first mini-boss (Game asks for it while minisBeaten is 0, so it is
+ * level 1 on a normal start) is BRIDGE TROLLS instead of that level's usual character. It takes the
+ * slot as it is: same level, same miniTuning, same gate and the same 1,000 x level bonus. Null
+ * wherever miniBossForLevel is null (big-boss levels, levels past the rollout).
+ */
+export function missionFirstMiniForLevel(level: number, ignoreRollout = false): BossDef | null {
+  if (!miniBossForLevel(level, ignoreRollout)) return null;
+  const hit = missionCache.get(level);
+  if (hit) return hit;
+  const def = buildMini(level, 'bridgetrolls', 0);
+  missionCache.set(level, def);
+  return def;
+}
+
+function buildMini(level: number, design: Design, appearance: number): BossDef {
   const dd = DESIGNS[design];
   // Attack pool grows with the level: signature + aimed, walls from 11, sprays from 31.
   const patterns: Pattern[] = [dd.sig, 'aimed'];
@@ -244,13 +280,12 @@ export function miniBossForLevel(level: number, ignoreRollout = false): BossDef 
     taunts: [],
     mini: {
       design,
-      appearance: miniAppearance(level),
+      appearance,
       skins: dd.skins,
       pops: () => words(design).pops.map((w, i) => [w, dd.sfx[i]] as [string, PopSfx]),
       stunPop: () => words(design).stun,
     },
   };
-  cache.set(level, def);
   return def;
 }
 
@@ -356,6 +391,26 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
   ctx.save();
   ctx.translate(x, y);
   switch (design) {
+    case 'bridgetrolls': {
+      // a squeaky rubber duck (the only honking allowed on their bridge)
+      ctx.rotate(Math.sin(p.t * 3) * 0.12);
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath();
+      ctx.ellipse(r * 0.1, r * 0.25, r * 0.75, r * 0.5, 0, 0, TAU);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-r * 0.3, -r * 0.35, r * 0.4, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#ff8c1a';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.75, -r * 0.28, r * 0.25, r * 0.12, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(-r * 0.4, -r * 0.45, r * 0.08, 0, TAU);
+      ctx.fill();
+      break;
+    }
     case 'reindeer': {
       // megaphone
       ctx.fillStyle = '#ffd23f';
@@ -592,6 +647,8 @@ interface Look {
   torsoW?: number;
   /** No legs drawn (behind a desk, in a chair, in a long robe). */
   noLegs?: boolean;
+  /** Cross little eyebrows and a frown (a grin again when bonked, stunned or beaten). */
+  grumpy?: boolean;
 }
 
 function person(ctx: Ctx, w: number, h: number, p: Pose, k: Look): { hx: number; hy: number; hr: number; tw: number } {
@@ -674,7 +731,25 @@ function person(ctx: Ctx, w: number, h: number, p: Pose, k: Look): { hx: number;
     rr(ctx, hx - hr * 0.45, hy + hr * 0.22, hr * 0.8, hr * 0.18, hr * 0.09);
     ctx.fill();
   }
-  if (k.deadpan) {
+  if (k.grumpy) {
+    ctx.strokeStyle = '#3a2a1a';
+    ctx.lineWidth = Math.max(1.5, hr * 0.14);
+    ctx.lineCap = 'round';
+    for (const s of [-1, 1]) {
+      const ex = hx - hr * 0.05 + s * hr * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(ex + s * hr * 0.3, hy - hr * 0.62);
+      ctx.lineTo(ex - s * hr * 0.22, hy - hr * 0.44);
+      ctx.stroke();
+    }
+  }
+  if (k.grumpy && !p.hurt && !p.stun && p.beaten <= 0) {
+    ctx.strokeStyle = '#5a2a1a';
+    ctx.lineWidth = Math.max(1.5, hr * 0.14);
+    ctx.beginPath();
+    ctx.arc(hx, hy + hr * 0.78, hr * 0.32, Math.PI * 1.2, Math.PI * 1.8);
+    ctx.stroke();
+  } else if (k.deadpan) {
     ctx.strokeStyle = '#5a3a2a';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -749,6 +824,298 @@ function nose(ctx: Ctx, x: number, y: number, r: number, color = '#ff3b3b'): voi
 const SKIN = { light: '#f2c7a5', fair: '#ffe0cc', tan: '#e8b896', brown: '#8d5524', deep: '#6b4423' };
 
 type MiniDraw = (ctx: Ctx, w: number, h: number, p: Pose, prop: string) => void;
+
+/** Two plain legs planted in a relaxed stance (no walking swing: these folks are not going anywhere). */
+function standLegs(ctx: Ctx, w: number, h: number, pants: string, shoe: string, stance: number): void {
+  ctx.strokeStyle = pants;
+  ctx.lineWidth = Math.max(3, w * 0.13);
+  ctx.lineCap = 'round';
+  for (const s of [-1, 1]) {
+    const fx = s * w * (0.13 + stance * 0.06) + (s > 0 ? stance * w * 0.04 : 0);
+    ctx.beginPath();
+    ctx.moveTo(s * w * 0.11, h * 0.2);
+    ctx.lineTo(fx, h * 0.45);
+    ctx.stroke();
+    ctx.fillStyle = shoe;
+    ctx.beginPath();
+    ctx.ellipse(fx - w * 0.05, h * 0.47, w * 0.11, w * 0.06, 0, 0, TAU);
+    ctx.fill();
+  }
+}
+
+/** A hand-lettered cardboard sign (a little crooked: homemade, not official). */
+function cardboard(ctx: Ctx, s: string, x: number, y: number, w: number, h: number, tilt: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt);
+  ctx.fillStyle = '#d9b26f';
+  ctx.strokeStyle = '#8a6a3a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h / 2 + 1);
+  ctx.lineTo(w / 2 - 2, -h / 2);
+  ctx.lineTo(w / 2, h / 2 - 1);
+  ctx.lineTo(-w / 2 + 1, h / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  propText(ctx, s, 0, 0, w * 0.86, Math.max(7, h * 0.6), '#3a2a6a');
+  ctx.restore();
+}
+
+/**
+ * BRIDGE TROLLS (ON A MISSION's first mini-boss): three ordinary, mismatched folks in everyday
+ * clothes hogging a little wooden bridge over a river. A sun hat and an ice cream cone, an orange
+ * hoodie with a hand-lettered NO HONKING sign, and a grandpa with a fishing pole; a cardboard
+ * NO FUN sign leans on the rail. Each stands and sways in their own way (no formation, no
+ * matching anything). Beaten: one by one they get bumped off the bridge and SPLASH into the
+ * river, then bob back up, grumpy and perfectly fine.
+ */
+function drawBridgeTrolls(ctx: Ctx, w: number, h: number, p: Pose, prop: string): void {
+  // folks sized from the width (tall portrait boxes would stretch them); the scene sits mid-box
+  const pw = w * 0.52;
+  const ph = Math.min(h * 0.58, w * 1.25);
+  const deckY = ph * 0.285;
+  const waterY = deckY + ph * 0.38;
+  const bottomY = waterY + ph * 0.3;
+  const L = -w * 0.95;
+  const R = w * 0.95;
+  // the river
+  ctx.fillStyle = '#2f80d0';
+  ctx.fillRect(L, waterY, R - L, bottomY - waterY);
+  ctx.strokeStyle = 'rgba(190,230,255,0.85)';
+  ctx.lineWidth = 2;
+  for (let row = 0; row < 2; row++) {
+    ctx.beginPath();
+    for (let x = L; x <= R; x += 4) {
+      const y = waterY + 3 + row * ph * 0.12 + Math.sin(x * 0.12 + p.t * (2.2 + row) + row) * 2;
+      if (x === L) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // the little wooden bridge: an arch, a plank deck, a simple rail behind the people
+  ctx.fillStyle = '#8b5a2b';
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.82, deckY);
+  ctx.lineTo(w * 0.82, deckY);
+  ctx.lineTo(w * 0.72, waterY + 2);
+  ctx.lineTo(w * 0.55, waterY + 2);
+  ctx.quadraticCurveTo(0, deckY + ph * 0.04, -w * 0.55, waterY + 2);
+  ctx.lineTo(-w * 0.72, waterY + 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#b07840';
+  ctx.fillRect(-w * 0.86, deckY - ph * 0.02, w * 1.72, ph * 0.08);
+  ctx.strokeStyle = '#6b4226';
+  ctx.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * w * 0.19, deckY - ph * 0.02);
+    ctx.lineTo(i * w * 0.19, deckY + ph * 0.06);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#a0703c';
+  ctx.lineWidth = Math.max(2, w * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.84, deckY - ph * 0.18);
+  ctx.lineTo(w * 0.84, deckY - ph * 0.18);
+  for (let i = -2; i <= 2; i++) {
+    ctx.moveTo(i * w * 0.42, deckY);
+    ctx.lineTo(i * w * 0.42, deckY - ph * 0.18);
+  }
+  ctx.stroke();
+  // a cardboard NO FUN sign tied to the side of the bridge
+  const b = p.beaten;
+  cardboard(ctx, prop, -w * 0.08, deckY + (waterY - deckY) * 0.42, w * 0.56, ph * 0.13, -0.06 + Math.sin(p.t * 1.1) * 0.04);
+
+  const hrOf = Math.min(pw * 0.22, ph * 0.115);
+  const sign2 = words('bridgetrolls').prop2 ?? '';
+  const folks: { x: number; look: Look; extra: (hx: number, hy: number, hr: number, tw: number) => void; pre?: (hx: number, hy: number, hr: number) => void; stance: number; sway: number }[] = [
+    {
+      // sun hat, teal t-shirt, jeans, an ice cream cone held out
+      x: -w * 0.42,
+      stance: 0.6,
+      sway: 1.3,
+      look: { skin: SKIN.tan, shirt: '#2ec4b6', pants: '#3d5a80', shoe: '#f1f1f1', hair: 'short', hairColor: '#6b3e1f', noLegs: true, grumpy: true },
+      extra: (hx, hy, hr, tw) => {
+        ctx.fillStyle = '#f2d16b';
+        ctx.beginPath();
+        ctx.ellipse(hx, hy - hr * 0.55, hr * 1.7, hr * 0.32, 0, 0, TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(hx, hy - hr * 0.85, hr * 0.85, hr * 0.5, 0, Math.PI, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#ff6fa8';
+        ctx.fillRect(hx - hr * 0.85, hy - hr * 0.72, hr * 1.7, hr * 0.16);
+        const ax = -pw * 0.46;
+        const ay = -ph * 0.06;
+        arm(ctx, -tw * 0.5, -ph * 0.12, ax, ay, pw, '#2ec4b6', SKIN.tan);
+        ctx.fillStyle = '#d9a35b';
+        ctx.beginPath();
+        ctx.moveTo(ax - pw * 0.08, ay - pw * 0.04);
+        ctx.lineTo(ax + pw * 0.08, ay - pw * 0.04);
+        ctx.lineTo(ax, ay + pw * 0.2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ff9ec7';
+        ctx.beginPath();
+        ctx.arc(ax, ay - pw * 0.09, pw * 0.09, 0, TAU);
+        ctx.fill();
+      },
+    },
+    {
+      // orange hoodie (hood up), grey sweatpants, a hand-lettered NO HONKING sign on a stick
+      x: w * 0.02,
+      stance: 0.2,
+      sway: 0.9,
+      look: { skin: SKIN.brown, shirt: '#ff8c42', pants: '#8d99ae', shoe: '#e63946', hair: 'none', noLegs: true, grumpy: true, torsoW: 0.56 },
+      pre: (hx, hy, hr) => {
+        ctx.fillStyle = '#e8762c';
+        ctx.beginPath();
+        ctx.arc(hx, hy - hr * 0.05, hr * 1.28, 0, TAU);
+        ctx.fill();
+      },
+      extra: (hx, hy, hr, tw) => {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(hx - hr * 0.25, hy + hr * 1.05);
+        ctx.lineTo(hx - hr * 0.3, hy + hr * 1.6);
+        ctx.moveTo(hx + hr * 0.25, hy + hr * 1.05);
+        ctx.lineTo(hx + hr * 0.3, hy + hr * 1.6);
+        ctx.stroke();
+        const sx = tw * 0.62;
+        arm(ctx, tw * 0.5, -ph * 0.12, sx, -ph * 0.3, pw, '#ff8c42', SKIN.brown);
+        ctx.strokeStyle = '#8b5a2b';
+        ctx.lineWidth = Math.max(2, pw * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(sx, -ph * 0.22);
+        ctx.lineTo(sx, -ph * 0.62);
+        ctx.stroke();
+        cardboard(ctx, sign2, sx, -ph * 0.7, pw * 1.25, ph * 0.13, 0.08 + Math.sin(p.t * 1.7) * 0.05);
+      },
+    },
+    {
+      // grandpa in a purple polo with a fishing pole over the rail
+      x: w * 0.44,
+      stance: 0.4,
+      sway: 1.7,
+      look: { skin: SKIN.fair, shirt: '#9b5de5', pants: '#5c677d', shoe: '#3a2a1a', hair: 'bald', glasses: true, mustache: '#d8d8d8', noLegs: true, grumpy: true },
+      extra: (_hx, _hy, _hr, tw) => {
+        const hx2 = tw * 0.55;
+        const hy2 = -ph * 0.02;
+        arm(ctx, tw * 0.4, -ph * 0.12, hx2, hy2, pw, '#9b5de5', SKIN.fair);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(1.5, pw * 0.035);
+        const tipX = pw * 0.75;
+        const tipY = -ph * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(hx2 - pw * 0.05, hy2 + ph * 0.05);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+      },
+    },
+  ];
+  folks.forEach((f, i) => {
+    const d = 0.05 + i * 0.08;
+    const k = clamp01((b - d) / 0.3);
+    const footY = deckY;
+    if (k < 1) {
+      ctx.save();
+      const hop = Math.sin(Math.min(1, k * 1.6) * Math.PI) * ph * 0.12;
+      const drop = k * k * (waterY - deckY + ph * 0.9);
+      if (k > 0) {
+        // falling: everything below the water line is hidden (in they go)
+        ctx.beginPath();
+        ctx.rect(L - w, -h * 2, (R - L) + w * 2, waterY + 1 + h * 2);
+        ctx.clip();
+      }
+      ctx.translate(f.x + k * w * 0.08, footY - hop + drop);
+      ctx.rotate(k * (0.9 + i * 0.3) + Math.sin(p.t * f.sway + i * 2.1) * 0.035);
+      ctx.translate(0, -ph * 0.47);
+      standLegs(ctx, pw, ph, f.look.pants, f.look.shoe ?? '#222', f.stance);
+      const hx = -pw * 0.03;
+      const hy = -ph * 0.2 - hrOf * 0.85;
+      f.pre?.(hx, hy, hrOf);
+      const r = person(ctx, pw, ph, p, f.look);
+      f.extra(r.hx, r.hy, r.hr, r.tw);
+      ctx.restore();
+      if (i === 2 && k <= 0) {
+        // the fishing line drops from the pole tip to a red-and-white bobber
+        const tx = f.x + pw * 0.75;
+        const ty = footY - ph * 0.47 - ph * 0.42;
+        const by = waterY + 2 + Math.sin(p.t * 2.5) * 1.5;
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(tx + 2, by - 3);
+        ctx.stroke();
+        bobber(ctx, tx + 2, by, Math.max(3, w * 0.035));
+      }
+    } else {
+      // SPLASH! (a ring of droplets and a ripple), then they bob up grumpy and perfectly fine
+      const x = f.x + w * 0.08;
+      const st = (b - d - 0.3) / 0.25;
+      if (st < 1) {
+        ctx.fillStyle = 'rgba(200,235,255,0.95)';
+        for (let j = 0; j < 7; j++) {
+          const a = Math.PI * (0.15 + (0.7 * j) / 6);
+          const v = ph * (0.3 + (j % 3) * 0.08);
+          ctx.beginPath();
+          ctx.arc(x + Math.cos(a) * v * st * 0.9, waterY - Math.sin(a) * v * st + st * st * v * 0.8, Math.max(2, w * 0.04) * (1 - st * 0.5), 0, TAU);
+          ctx.fill();
+        }
+      }
+      ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - clamp01(st / 2))})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, waterY + 3, w * (0.1 + 0.25 * clamp01(st / 2)), ph * 0.03 + ph * 0.02 * clamp01(st), 0, 0, TAU);
+      ctx.stroke();
+      if (st > 0.5) {
+        const bob = Math.sin(p.t * 4 + i) * 1.5;
+        const hr = hrOf * 0.9;
+        const hy = waterY + hr * 0.15 + bob;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - hr * 2, hy - hr * 2.5, hr * 4, waterY + 1 - (hy - hr * 2.5));
+        ctx.clip();
+        if (i === 1) {
+          ctx.fillStyle = '#e8762c';
+          ctx.beginPath();
+          ctx.arc(x, hy, hr * 1.25, 0, TAU);
+          ctx.fill();
+        }
+        head(ctx, x, hy, hr, f.look.skin, p);
+        if (i === 0) {
+          ctx.fillStyle = '#f2d16b';
+          ctx.beginPath();
+          ctx.ellipse(x, hy - hr * 0.6, hr * 1.5, hr * 0.28, 0.2, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+  });
+}
+
+function bobber(ctx: Ctx, x: number, y: number, r: number): void {
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath();
+  ctx.arc(x, y, r, Math.PI, TAU);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x, y - r * 1.6);
+  ctx.stroke();
+}
 
 /** Each draws around (0, 0) = box centre, filling about w x h, facing left (toward the dogs). */
 const BODY: Record<Design, MiniDraw> = {
@@ -1180,6 +1547,7 @@ const BODY: Record<Design, MiniDraw> = {
     ctx.stroke();
     placard(ctx, prop, w * 0.2, -h * 0.28, w * 0.36, h * 0.12, '#f5e6c8', '#8b5a2b');
   },
+  bridgetrolls: (ctx, w, h, p, prop) => drawBridgeTrolls(ctx, w, h, p, prop),
 };
 
 /** Draw a mini-boss: entrance slide is the board's x; hurt wobble, stun birdies, pratfall defeat. */
@@ -1221,11 +1589,15 @@ export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: numb
   const prop = words(design).prop ?? '';
   ctx.save();
   // pratfall: tips over backwards about the feet, bounces once, fades
+  // (BRIDGE TROLLS: the bridge stays put; they get bumped off it and splash, see drawBridgeTrolls)
+  const splashy = design === 'bridgetrolls';
   const feetY = b.y + h / 2;
   let rot = 0;
   let alpha = 1;
   let dy = 0;
-  if (beaten > 0) {
+  if (splashy) {
+    alpha = beaten > 0.88 ? 1 - (beaten - 0.88) / 0.12 : 1;
+  } else if (beaten > 0) {
     const k = clamp01(beaten / 0.45);
     rot = k * k * 1.5;
     dy = beaten > 0.45 ? -Math.sin(((beaten - 0.45) / 0.25) * Math.PI) * h * 0.08 * (beaten < 0.7 ? 1 : 0) : 0;
@@ -1236,7 +1608,7 @@ export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: numb
   ctx.translate(b.x, feetY + dy);
   ctx.rotate(rot);
   // a banana peel under the feet during the pratfall (the classic)
-  if (beaten > 0) {
+  if (beaten > 0 && !splashy) {
     ctx.save();
     ctx.rotate(-rot);
     drawPeel(ctx, -w * 0.15, 0, Math.max(6, w * 0.12), 0.3);
@@ -1256,7 +1628,19 @@ export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: numb
       star(ctx, b.x + Math.cos(a) * w * 0.4, b.y - h / 2 - 8 + Math.sin(a) * 5, 5);
     }
   }
-  if (beaten > 0.15 && beaten < 0.95) speech(ctx, words(design).fall, Math.max(60, Math.min(W - 60, b.x)), b.y - h / 2 - 12, 15, '#ffe14d');
+  if (beaten > 0.15 && beaten < 0.95) {
+    const fall = words(design).fall;
+    let sx = Math.max(60, Math.min(W - 60, b.x));
+    if (splashy) {
+      // the SPLASH line is a little longer: keep the whole bubble on screen
+      ctx.save();
+      ctx.font = `900 15px 'Orbitron', sans-serif`;
+      const half = ctx.measureText(fall).width / 2 + 8;
+      ctx.restore();
+      sx = Math.max(half, Math.min(W - half, b.x));
+    }
+    speech(ctx, fall, sx, b.y - h / 2 - 12, 15, '#ffe14d');
+  }
 }
 
 function drawPeel(ctx: Ctx, x: number, y: number, r: number, rot: number): void {
@@ -1599,6 +1983,38 @@ export function drawMiniShot(ctx: Ctx, s: BossShot, solid: boolean, time: number
       ctx.lineTo(0, r * 0.28);
       ctx.closePath();
       ctx.fill();
+      break;
+    case 'cone':
+      // an ice cream cone, tumbling (BRIDGE TROLLS)
+      ctx.rotate(spin * 0.6);
+      ctx.fillStyle = '#d9a35b';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.55, -r * 0.1);
+      ctx.lineTo(r * 0.55, -r * 0.1);
+      ctx.lineTo(0, r * 1.1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#a8742f';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.3, -r * 0.1);
+      ctx.lineTo(r * 0.15, r * 0.6);
+      ctx.moveTo(r * 0.3, -r * 0.1);
+      ctx.lineTo(-r * 0.15, r * 0.6);
+      ctx.stroke();
+      ctx.fillStyle = '#ff9ec7';
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.35, r * 0.6, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.arc(r * 0.1, -r * 0.95, r * 0.16, 0, TAU);
+      ctx.fill();
+      break;
+    case 'bobber':
+      // a red-and-white fishing bobber (BRIDGE TROLLS)
+      ctx.rotate(Math.sin(s.t * 8) * 0.4);
+      bobber(ctx, 0, 0, r * 0.9);
       break;
     default:
       ctx.restore();

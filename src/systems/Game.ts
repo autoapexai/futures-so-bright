@@ -47,7 +47,7 @@ import { boardTaunt } from './boardTaunt';
 import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
-import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount } from './miniBoss';
+import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel } from './miniBoss';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -2610,7 +2610,11 @@ export class Game {
     if (this.boss) {
       this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
     } else if (this.levelTime >= LEVEL_SECONDS) {
-      const def = this.bossDone ? null : bossForLevel(this.runDifficulty) ?? miniBossForLevel(this.runDifficulty);
+      // ON A MISSION only: the run's first mini-boss is BRIDGE TROLLS (same slot, tuning and bonus).
+      const firstMissionMini = this.missionRun && this.minisBeaten === 0;
+      const def = this.bossDone
+        ? null
+        : bossForLevel(this.runDifficulty) ?? (firstMissionMini ? missionFirstMiniForLevel(this.runDifficulty) : miniBossForLevel(this.runDifficulty));
       if (def) {
         this.levelTime = LEVEL_SECONDS;
         this.startBoss(def);
