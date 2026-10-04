@@ -2900,7 +2900,8 @@ body.portrait #ds-ticker { width: calc(100% - 110px); }
   background: radial-gradient(ellipse at 50% 0%, rgba(0,240,255,0.14), rgba(20,5,35,0) 70%), #14052a; border: 2px solid rgba(0,240,255,0.7);
   border-radius: 16px; color: #fff; font-family: 'Rajdhani', sans-serif; text-align: center; box-shadow: 0 0 28px rgba(0,240,255,0.25); }
 #grownup .gu-title { margin: 0 0 6px; font: 900 24px 'Orbitron', sans-serif; letter-spacing: 1px; color: #ffe66d; text-shadow: 0 0 12px rgba(255,180,60,0.6); }
-#grownup .gu-msg { margin: 0 0 12px; font-size: 17px; font-weight: 600; line-height: 1.3; color: rgba(255,255,255,0.94); }
+#grownup .gu-msg { margin: 0 0 8px; font-size: 17px; font-weight: 600; line-height: 1.3; color: rgba(255,255,255,0.94); }
+#grownup .gu-v4v { margin: 0 0 12px; font-size: 15px; font-weight: 600; line-height: 1.3; color: #ffe66d; }
 #grownup .gu-q { display: block; margin: 0 0 6px; font-weight: 700; font-size: 18px; color: #7fffff; }
 #grownup input { display: block; width: 9em; max-width: 100%; margin: 0 auto; box-sizing: border-box; padding: 9px 10px; text-align: center;
   font: 700 22px 'Rajdhani', sans-serif; color: #fff; background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.35); border-radius: 10px;
@@ -2921,7 +2922,8 @@ body.portrait #ds-ticker { width: calc(100% - 110px); }
 @media (orientation: landscape) and (max-height: 520px) {
   #grownup .gu-card { width: min(560px, 100%); padding: 10px 14px 8px; }
   #grownup .gu-title { font-size: 19px; margin-bottom: 2px; }
-  #grownup .gu-msg { font-size: 15px; margin-bottom: 6px; }
+  #grownup .gu-msg { font-size: 15px; margin-bottom: 3px; }
+  #grownup .gu-v4v { font-size: 13.5px; line-height: 1.25; margin-bottom: 6px; }
   #grownup .gu-q { font-size: 16px; margin-bottom: 4px; }
   #grownup input { padding: 5px 8px; font-size: 19px; }
   #grownup .gu-err { margin: 3px 0; }

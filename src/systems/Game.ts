@@ -2979,6 +2979,9 @@ export class Game {
       };
       set('#gu-title', 'gu_title');
       set('#gu-msg', kind === 'venmo' ? 'gu_venmo' : kind === 'talent' ? 'gu_talent' : 'gu_time');
+      set('#gu-v4v', 'gu_v4v');
+      const v4v = el.querySelector<HTMLElement>('#gu-v4v');
+      if (v4v) v4v.hidden = kind !== 'venmo';
       set('.gu-cancel', 'gu_cancel');
       set('#gu-check', 'gu_check');
       set('#gu-ok', 'gu_ok');
