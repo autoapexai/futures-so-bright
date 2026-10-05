@@ -1,4 +1,5 @@
 import { pet } from './utils/pets';
+import { FLAG_CN, FLAG_MX, FLAG_US, FLAG_VN } from './flags';
 /**
  * Player-facing strings (English, Spanish, Vietnamese, Simplified Chinese) and the language preference.
  *
@@ -8,18 +9,21 @@ import { pet } from './utils/pets';
  */
 export type Lang = 'en' | 'es' | 'vi' | 'zh';
 
-/** Language row order (MODES screen); each name is written in its own language. */
-export const LANGS: { id: Lang; name: string; html: string }[] = [
-  { id: 'en', name: 'English', html: 'en' },
-  { id: 'es', name: 'Español', html: 'es' },
-  { id: 'vi', name: 'Tiếng Việt', html: 'vi' },
-  { id: 'zh', name: '简体中文', html: 'zh-Hans' },
+/**
+ * LANGUAGE dropdown order (MODES screen); each name is written in its own language, shown after
+ * its flag (inline SVG from flags.ts). A new language: add it here (with its flag) and to STRINGS.
+ */
+export const LANGS: { id: Lang; name: string; html: string; flag: string }[] = [
+  { id: 'en', name: 'English', html: 'en', flag: FLAG_US },
+  { id: 'es', name: 'Español', html: 'es', flag: FLAG_MX },
+  { id: 'vi', name: 'Tiếng Việt', html: 'vi', flag: FLAG_VN },
+  { id: 'zh', name: '简体中文', html: 'zh-Hans', flag: FLAG_CN },
 ];
 
 const KEY = 'fsb_lang';
 
-function isLang(v: unknown): v is Lang {
-  return v === 'en' || v === 'es' || v === 'vi' || v === 'zh';
+export function isLang(v: unknown): v is Lang {
+  return LANGS.some((l) => l.id === v);
 }
 
 /** Saved choice, else the browser language (es / vi / zh, any region), else English. */
@@ -1674,6 +1678,7 @@ const DOM: [string, Key, string?, boolean?][] = [
   ['#modes-menu .cg-hint', 'dom_modes_menu_cg_hint'],
   ['#modes-back', 'dom_modes_back'],
   ['#lang-row', 'dom_lang_row_aria_label', 'aria-label'],
+  ['#lang-list', 'dom_lang_row_aria_label', 'aria-label'],
   ['#pet-row', 'dom_pet_row_aria_label', 'aria-label'],
   ['#tut-skip', 'dom_tut_skip'],
   ['#tut-skip', 'dom_tut_skip_aria_label', 'aria-label'],
@@ -1730,11 +1735,6 @@ export function applyDomStrings(): void {
       } else if (el.textContent !== v) el.textContent = v;
     });
   }
-  document.querySelectorAll<HTMLElement>('#lang-row .lang-opt').forEach((b) => {
-    const on = b.dataset.lang === current;
-    b.classList.toggle('selected', on);
-    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
   const label = document.getElementById('lang-label');
   if (label && label.textContent !== t('lang_label')) label.textContent = t('lang_label');
   // PETS row (dogs / cats / together)

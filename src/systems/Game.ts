@@ -48,12 +48,13 @@ import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed,
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
 import { boardTaunt } from './boardTaunt';
 import { firstChar, initialsSet, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
-import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang, tPet, modeShipsLabel, modeAriaLabel } from '../i18n';
+import { applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, tPet, modeShipsLabel, modeAriaLabel } from '../i18n';
 import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { APP_VERSION } from '../version';
 import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel, ghostMiniForLevel } from './miniBoss';
 import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
+import { mountLangPicker, type LangPicker } from './langPicker';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -274,6 +275,7 @@ export class Game {
   /** Fan mode of the current run (MODES menu), or null for a normal run. */
   private mode: ModeDef | null = null;
   private modesOpen = false;
+  private langPicker: LangPicker | null = null;
   /** performance.now() when the MODES menu opened: taps just after it are the opening tap's ghost click. */
   private modesOpenedAt = 0;
   /** In-run QUIT confirm (the run is paused under it); MODES can open over it (CHANGE MODE). */
@@ -874,14 +876,14 @@ export class Game {
       });
     }
     bindTap(document.getElementById('dev-back'), () => this.closeDevBoard());
-    // LANGUAGE row (top of MODES): English / Español / Tiếng Việt / 简体中文, remembered on this device.
-    document.querySelectorAll<HTMLElement>('#lang-row .lang-opt').forEach((b) => {
-      bindTap(b, () => {
-        if (this.modesGhostTap()) return;
-        const id = b.dataset.lang as Lang;
-        if (LANGS.some((l) => l.id === id)) setLang(id);
+    // LANGUAGE dropdown (top of MODES): flag + name for each of LANGS, remembered on this device.
+    this.langPicker = mountLangPicker({
+      onPick: (id) => {
+        setLang(id);
         this.audio.playUi();
-      });
+      },
+      onOpen: () => this.audio.playUi(),
+      ignoreTap: () => this.modesGhostTap(),
     });
     // PETS row: Dogs / Cats / "Cats and dogs getting along together", remembered on this device.
     document.querySelectorAll<HTMLElement>('#pet-row .pet-opt').forEach((b) => {
@@ -1080,6 +1082,7 @@ export class Game {
 
   private closeModes(): void {
     if (!this.modesOpen) return;
+    this.langPicker?.close();
     this.closeDevBoard();
     this.modesOpen = false;
     if (this.calvinPickTimer) {

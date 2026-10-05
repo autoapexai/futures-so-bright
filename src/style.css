@@ -2166,13 +2166,16 @@ body:not(.touch-device) #quit-btn {
 #quit-confirm .qc-card #quit-yes { color: #c81e1e; transform: rotate(-1.5deg); }
 #quit-confirm .qc-card #quit-no { color: #136c33; transform: rotate(0.8deg); }
 
-/* LANGUAGE row at the top of MODES: small pills, each language name in its own script. */
+/* LANGUAGE dropdown at the top of MODES: a neon pill showing flag + name; the list (flag + name,
+   each in its own script) opens below it over the rest of the menu. */
 #lang-row {
+  position: relative;
+  z-index: 6;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 5px 6px;
+  gap: 5px 8px;
   margin: 0 0 0.7em;
 }
 #lang-label {
@@ -2181,29 +2184,123 @@ body:not(.touch-device) #quit-btn {
   font-size: 11px;
   letter-spacing: 0.12em;
   color: rgba(255, 220, 160, 0.7);
-  margin-right: 2px;
 }
+#lang-row .lang-dd {
+  position: relative;
+  display: inline-block;
+}
+#lang-row .lang-btn,
 #lang-row .lang-opt {
-  min-height: 28px;
-  padding: 3px 10px;
-  border: 1px solid rgba(255, 220, 110, 0.45);
-  border-radius: 999px;
-  background: rgba(20, 5, 35, 0.6);
-  color: rgba(255, 240, 200, 0.85);
-  font: 600 13px/1.1 system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
-  cursor: pointer;
-  touch-action: manipulation;
+  font: 600 14px/1.15 system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
 }
-#lang-row .lang-opt.selected {
-  border-color: #ffe66d;
-  background: rgba(255, 210, 80, 0.22);
+#lang-row .lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 12px 4px 9px;
+  border: 1px solid #ffe66d;
+  border-radius: 999px;
+  background: rgba(255, 210, 80, 0.14);
   color: #ffe66d;
   box-shadow: 0 0 10px rgba(255, 200, 80, 0.35);
 }
-#lang-row .lang-opt:focus-visible {
+#lang-row .lang-dd.open .lang-btn {
+  border-color: #00f0ff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.45);
+}
+@media (hover: hover) {
+  #lang-row .lang-btn:hover {
+    border-color: #00f0ff;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.45);
+  }
+}
+#lang-row .lang-btn:focus-visible {
   outline: 2px solid #00f0ff;
   outline-offset: 2px;
+}
+#lang-row .lang-flag {
+  flex: none;
+  display: inline-block;
+  width: 24px;
+  height: 16px;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+  line-height: 0;
+}
+#lang-row .lang-flag svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#lang-row .lang-caret {
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid currentColor;
+  transition: transform 0.15s ease;
+}
+#lang-row .lang-dd.open .lang-caret {
+  transform: rotate(180deg);
+}
+#lang-row .lang-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  min-width: max(100%, 180px);
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  text-align: left;
+  border: 1px solid rgba(0, 240, 255, 0.75);
+  border-radius: 16px;
+  background: #0e031c;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35), 0 10px 28px rgba(0, 0, 0, 0.65);
+  outline: none;
+}
+#lang-row .lang-list[hidden] {
+  display: none;
+}
+#lang-row .lang-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px 12px;
+  border-radius: 11px;
+  color: rgba(255, 240, 200, 0.9);
+  white-space: nowrap;
+}
+#lang-row .lang-opt[aria-selected='true'] {
+  color: #ffe66d;
+}
+#lang-row .lang-opt[aria-selected='true']::after {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 10px;
+  margin: -3px 2px 0 auto;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+#lang-row .lang-opt.active {
+  background: rgba(0, 240, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.55);
+}
+#lang-row .lang-list:focus-visible .lang-opt.active {
+  box-shadow: inset 0 0 0 2px #00f0ff;
 }
 
 /* PETS row under LANGUAGE in MODES: dogs / cats / together. */
@@ -2280,12 +2377,16 @@ html[lang='vi'] #pet-row .pet-opt {
 @media (max-height: 500px) and (orientation: landscape) {
   #lang-row {
     margin-bottom: 0.3em;
-    gap: 4px;
+    gap: 4px 6px;
+  }
+  #lang-row .lang-btn {
+    min-height: 28px;
+    padding: 2px 10px 2px 7px;
+    font-size: 13px;
   }
   #lang-row .lang-opt {
-    min-height: 24px;
-    padding: 2px 9px;
-    font-size: 12px;
+    min-height: 34px;
+    font-size: 13px;
   }
 }
 
@@ -2310,7 +2411,10 @@ html[lang='vi'] #quit-confirm .qc-card,
 html[lang='vi'] #quit-confirm .qc-card * {
   font-family: 'Comic Sans MS', 'Chalkboard SE', 'Be Vietnam Pro', 'Segoe UI', Roboto, sans-serif !important;
 }
-html[lang='vi'] #lang-row .lang-opt {
+html[lang='vi'] #lang-row .lang-btn,
+html[lang='vi'] #lang-row .lang-btn *,
+html[lang='vi'] #lang-row .lang-opt,
+html[lang='vi'] #lang-row .lang-opt * {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif !important;
 }
 /* Simplified Chinese: Latin and digits keep their faces; Chinese characters fall back per glyph
@@ -2321,20 +2425,14 @@ html[lang='zh-Hans'] body {
 html[lang='es'] #quit-confirm .qc-card::after { content: 'OCUPADO'; }
 html[lang='vi'] #quit-confirm .qc-card::after { content: 'CÓ NGƯỜI'; }
 html[lang='zh-Hans'] #quit-confirm .qc-card::after { content: '有人'; }
-/* Narrow phones: the four language pills and the label fit on one line. */
+/* Narrow phones: the label and the dropdown stay on one line; a bigger touch target. */
 @media (max-width: 430px) {
-  #lang-row {
-    gap: 4px;
-  }
   #lang-label {
-    flex-basis: 100%;
     font-size: 10px;
     letter-spacing: 0.08em;
-    margin: 0;
   }
-  #lang-row .lang-opt {
-    padding: 3px 7px;
-    font-size: 12px;
+  #lang-row .lang-btn {
+    min-height: 38px;
   }
 }
 
