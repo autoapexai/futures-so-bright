@@ -38,7 +38,7 @@ export const MODES: readonly ModeDef[] = [
   // width and height (~4x area each, ~64 standard ships in total). Its formation is
   // tightened (ships overlap) so 16 of them still fit a portrait phone.
   { id: 'toofat', name: 'TOO BIG', ships: 16, scale: 2.0, tint: '#ff7ad9', style: 'solid', behavior: 'none', spacing: 0.62 },
-  { id: 'mantzoukas', name: 'ADJACENT MANTZOUKAS', ships: 2, scale: areaTenScale(2), tint: '#00f0ff', style: 'solid', behavior: 'mirror', spacing: 1 },
+  { id: 'nextdoor', name: 'NEXT DOOR', ships: 2, scale: areaTenScale(2), tint: '#00f0ff', style: 'solid', behavior: 'mirror', spacing: 1 },
   { id: 'calvin', name: 'THE CALVIN TWINS', ships: 2, scale: areaTenScale(2), tint: '#ff2bd6', style: 'solid', behavior: 'calvin', spacing: 1 },
   { id: 'decoy', name: 'OPERATION DOUBLE DECOY', ships: 2, scale: areaTenScale(2), tint: '#ffffff', style: 'outline', behavior: 'decoy', spacing: 1 },
   { id: 'cbb', name: 'COMEDY BANG BANG', ships: 668, scale: areaTenScale(668), tint: '#ffaa44', style: 'solid', behavior: 'none', spacing: 1 },

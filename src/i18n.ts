@@ -1546,7 +1546,7 @@ export const GROCERIES_I18N: Record<Exclude<Lang, 'en'>, Record<string, string[]
       '(SOLLOZA EN UN GUANTE BLANCO) BAGUETTE',
       'PAYS DE CREMA (PARA EL ARTE)',
     ],
-    mantzoukas: ['HUEVOS', 'LECHE', 'UN (1) MELÓN DEL QUE ME ARREPIENTO', 'UN ESPEJO, QUIÉN SABE POR QUÉ', 'DOS DE TODO', 'QUESO ADYACENTE'],
+    nextdoor: ['HUEVOS', 'LECHE', 'UN (1) MELÓN DEL QUE ME ARREPIENTO', 'UN ESPEJO, QUIÉN SABE POR QUÉ', 'DOS DE TODO', 'QUESO ADYACENTE'],
     calvin: [
       '(SACUDE LA CRIN CON DRAMA) HENO, UNA (1) PACA',
       '(RELINCHA A DOS VOCES) ZANAHORIAS, PAQUETE DOBLE',
@@ -1648,7 +1648,7 @@ export const GROCERIES_I18N: Record<Exclude<Lang, 'en'>, Record<string, string[]
       '(KHÓC VÀO GĂNG TAY TRẮNG) BÁNH MÌ BAGUETTE',
       'BÁNH KEM ĐỂ NÉM (VÌ NGHỆ THUẬT)',
     ],
-    mantzoukas: [
+    nextdoor: [
       'TRỨNG',
       'SỮA',
       'MỘT (1) QUẢ DƯA ĐÁNG TIẾC',
@@ -1763,7 +1763,7 @@ export const GROCERIES_I18N: Record<Exclude<Lang, 'en'>, Record<string, string[]
       '（对着白手套抽泣）法棍',
       '奶油派（为了艺术）',
     ],
-    mantzoukas: [
+    nextdoor: [
       '鸡蛋',
       '牛奶',
       '一（1）个令人后悔的甜瓜',

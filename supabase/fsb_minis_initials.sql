@@ -213,7 +213,7 @@ begin
   end if;
 
   -- Mode info (stored only; never rejects a run): a known mode id or null, and a 1-13 count.
-  v_mode := case when p_mode in ('alw','toosuccessful','daly','toofat','mantzoukas','calvin','decoy',
+  v_mode := case when p_mode in ('alw','toosuccessful','daly','toofat','nextdoor','calvin','decoy',
                                  'cbb','slackerman','itm','dvorak','curry','calvin3') then p_mode end;
   v_modes := case when p_modes between 1 and 13 then p_modes end;
 

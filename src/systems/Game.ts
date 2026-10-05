@@ -3955,7 +3955,7 @@ export class Game {
     this.decoySlot = null;
   }
 
-  /** ADJACENT MANTZOUKAS: the 2nd ship mirrors you top-to-bottom, one ship-width "next door". */
+  /** NEXT DOOR: the 2nd ship mirrors you top-to-bottom, one ship-width "next door". */
   private placeMirror(top: number, bottom: number): void {
     for (const s of this.formation.slots) {
       if (!s.occupied) continue;
