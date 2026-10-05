@@ -1592,6 +1592,7 @@ const DRAW: Record<string, DrawFn> = {
   curry: drawVJ,
   dvorak: drawAngel,
   itm: drawBrain,
+  staypuft: drawStayPuft,
 };
 
 export function hasToon(modeId: string): boolean {
@@ -1819,6 +1820,13 @@ function defeatXf(id: string, k: number, cx: number, cy: number, w: number, h: n
       const sw = k < 0.3 ? 1 : k < 0.6 ? 1 + ((k - 0.3) / 0.3) * 0.35 : Math.max(0.01, 1.35 * (1 - (k - 0.6) / 0.08));
       return [shake, 0, 0, sw, sw, 0, k < 0.68 ? 1 : 0];
     }
+    case 'staypuft': {
+      // Melts into a harmless puddle of marshmallow fluff (G-rated gooey melt, no burning).
+      const melt = clamp01(k);
+      const sy = Math.max(0.08, 1 - melt * 0.92);
+      const sx = 1 + melt * 1.35;
+      return [0, melt * h * 0.35, 0, sx, sy, h / 2, 1 - clamp01((melt - 0.85) / 0.15)];
+    }
     default:
       return [0, 0, 0, 1, 1, 0, 1 - k];
   }
@@ -2035,6 +2043,24 @@ function defeatFx(ctx: Ctx, id: string, k: number, cx: number, cy: number, w: nu
       }
       break;
     }
+    case 'staypuft': {
+      // Harmless marshmallow fluff puddle + toast crumbs (no fire / scary imagery).
+      const puddle = clamp01(k * 1.2);
+      ctx.fillStyle = `rgba(255, 248, 230, ${0.85 * puddle})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + h / 2 + 4, w * (0.45 + puddle * 0.9), 8 + puddle * 10, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255, 214, 170, ${0.7 * puddle})`;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * TAU + t;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * w * 0.55 * puddle, cy + h / 2 + Math.sin(a * 2) * 4, 3 + (i % 3), 0, TAU);
+        ctx.fill();
+      }
+      if (k < 0.55) speech(ctx, 'MELTING... YUM?', cx, cy - h / 2 - 8, 14, '#7ec8ff');
+      else if (k < 0.9) speech(ctx, 'TOASTY FLUFF!', cx, cy - h * 0.1, 15, '#ffe66d');
+      break;
+    }
     default:
       break;
   }
@@ -2158,6 +2184,7 @@ export const TOON_SKINS: Record<string, { [pattern: string]: string }> = {
   toosuccessful: { rain: 'coin', aimed: 'goldbar', wall: 'moneybag' },
   alw: { kick: 'mask', wall: 'rose', aimed: 'note' },
   slackerman: { blink: 'popcorn', spray: 'soda', wall: 'reel' },
+  staypuft: { slam: 'marsh', aimed: 'toast', spray: 'fluff' },
   cbb: { split: 'bomb', aimed: 'whoopee', wall: 'flamingo', '>split': 'duck' },
   curry: { countdown: 'tape', homing: 'plane' },
   dvorak: { aimed: 'harp', wall: 'cloud', '>warn': 'feather' },
@@ -2609,7 +2636,90 @@ export const TOON_POPS: Record<string, { hit: [string, 'honk' | 'boing' | 'whist
   curry: { hit: [['ZZZAP!', 'boing'], ['STATIC!', 'whistleDown'], ['RADICAL!', 'honk']], stun: 'TECHNICAL DIFFICULTIES!' },
   dvorak: { hit: [['HMPH!', 'honk'], ['WRONG!', 'boing'], ['BONK!', 'whistleUp']], stun: 'AGREES (BRIEFLY)!' },
   itm: { hit: [['ZAP!', 'boing'], ['MY NEURONS!', 'honk'], ['FORGOT!', 'whistleDown']], stun: 'BRAIN FREEZE!' },
+  staypuft: { hit: [['SQUISH!', 'boing'], ['FLUFF!', 'honk'], ['TOASTY!', 'whistleUp']], stun: 'STICKY FEET!' },
 };
+
+
+/**
+ * STAY PUFT MARSHMALLOW MAN (GHOST DUSTERS level-10 boss only): giant white marshmallow man in a
+ * blue sailor hat with a red ribbon collar. Cheerful-goofy stomp. G-rated throughout.
+ */
+function drawStayPuft(ctx: Ctx, cx: number, cy: number, w: number, h: number, p: Pose): void {
+  const S = Math.min(w, h);
+  const bob = Math.sin(p.t * 3.2) * S * 0.02 + (p.slam > 0 ? Math.sin(p.slam * 20) * S * 0.04 : 0);
+  const bodyY = cy + bob;
+  // Soft ground shadow
+  ctx.fillStyle = 'rgba(20,0,40,0.28)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + h * 0.48, w * 0.42, S * 0.06, 0, 0, TAU);
+  ctx.fill();
+  // Marshmallow body
+  const bw = w * 0.55;
+  const bh = h * 0.72;
+  const grad = ctx.createLinearGradient(cx, bodyY - bh / 2, cx, bodyY + bh / 2);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.55, '#fff6e0');
+  grad.addColorStop(1, '#ffe0b0');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(cx - bw / 2, bodyY - bh / 2, bw, bh, Math.min(bw, bh) * 0.28);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,180,150,0.7)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Red ribbon collar
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath();
+  ctx.ellipse(cx, bodyY - bh * 0.18, bw * 0.38, S * 0.05, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#ff6b6b';
+  ctx.beginPath();
+  ctx.moveTo(cx, bodyY - bh * 0.12);
+  ctx.lineTo(cx - S * 0.12, bodyY + S * 0.02);
+  ctx.lineTo(cx, bodyY - bh * 0.02);
+  ctx.lineTo(cx + S * 0.12, bodyY + S * 0.02);
+  ctx.closePath();
+  ctx.fill();
+  // Blue sailor hat
+  const hy = bodyY - bh / 2 - S * 0.02;
+  ctx.fillStyle = '#3a86ff';
+  ctx.beginPath();
+  ctx.ellipse(cx, hy, bw * 0.42, S * 0.07, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#265dcc';
+  ctx.beginPath();
+  ctx.ellipse(cx, hy - S * 0.08, bw * 0.28, S * 0.14, 0, Math.PI, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cx - bw * 0.06, hy - S * 0.2, bw * 0.12, S * 0.12);
+  // Cheerful face
+  const faceY = bodyY - bh * 0.05;
+  eyes(ctx, cx, faceY, S * 0.32, p, 1.05);
+  mouth(ctx, cx, faceY + S * 0.12, S * 0.22, p);
+  // Stubby arms
+  ctx.fillStyle = '#fff8e7';
+  ctx.beginPath();
+  ctx.ellipse(cx - bw * 0.55, bodyY + S * 0.02, S * 0.1, S * 0.18, -0.4, 0, TAU);
+  ctx.ellipse(cx + bw * 0.55, bodyY + S * 0.02, S * 0.1, S * 0.18, 0.4, 0, TAU);
+  ctx.fill();
+  // Stompy feet
+  ctx.fillStyle = '#1a1a28';
+  ctx.beginPath();
+  ctx.ellipse(cx - bw * 0.22, bodyY + bh / 2 - S * 0.02, S * 0.14, S * 0.06, 0, 0, TAU);
+  ctx.ellipse(cx + bw * 0.22, bodyY + bh / 2 - S * 0.02, S * 0.14, S * 0.06, 0, 0, TAU);
+  ctx.fill();
+  // Weak-spot glow: golden toast
+  if (p.glow && Number.isFinite(p.spotY)) {
+    glow(ctx, cx + bw * 0.15, p.spotY, S * 0.1, p);
+    ctx.fillStyle = '#ffe66d';
+    ctx.fillRect(cx + bw * 0.08, p.spotY - S * 0.05, S * 0.14, S * 0.1);
+    ctx.fillStyle = '#c9a227';
+    ctx.fillRect(cx + bw * 0.1, p.spotY - S * 0.02, S * 0.1, S * 0.03);
+  }
+  if (p.beaten > 0.15 && p.beaten < 0.7) {
+    speech(ctx, 'OOF... SOFT!', cx - w * 0.35, bodyY - bh / 2 - 10, 13, '#7ec8ff');
+  }
+}
 
 // ---------------------------------------------------------------------------------------------
 // ULTRA CONSCIOUSNESS: thought waves and psychic beams (drawn by drawBoss before other shots)

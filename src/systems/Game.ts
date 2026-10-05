@@ -10,9 +10,11 @@ import { clamp } from '../utils/math';
 import { playerBreedNow, breedScale, type Breed } from '../render/shipSprite';
 import { setPet, onPet, type PetChoice } from '../utils/pets';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
-import { MODES, CALVIN_TRIPLETS, MISSION_MODE, isMission, modeBreeds, type ModeDef } from '../utils/modes';
+import { MODES, CALVIN_TRIPLETS, MISSION_MODE, GHOST_MODE, isMission, isGhost, isRideMode, modeBreeds, type ModeDef } from '../utils/modes';
 import { MissionCar, PARTS as MISSION_PART_LIST, CAR_UP, CAR_DOWN, CAR_HALF, type MissionSfx } from './missionCar';
+import { GhostWagon, PARTS as GHOST_PART_LIST, CAR_UP as GHOST_CAR_UP, CAR_DOWN as GHOST_CAR_DOWN, CAR_HALF as GHOST_CAR_HALF, type GhostSfx } from './ghostWagon';
 import { fetchDevBoard, submitDevScore } from '../utils/devBoard';
+// GHOST DUSTERS board is local-only (no fsb_* SQL mode yet; see final report).
 import {
   loadHighScore,
   saveHighScore,
@@ -33,7 +35,7 @@ import {
   loadTutorialDone,
   saveTutorialDone,
   loadMissionBoard,
-  loadMissionHigh,
+  loadMissionHigh, loadGhostHigh, saveGhostHigh, loadGhostBoard, addGhostEntry,
   saveMissionHigh,
   addMissionEntry,
   type HandPreference,
@@ -49,7 +51,8 @@ import { firstChar, initialsSet, isRude, maskInitials, nextChar, rudePrompt } fr
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang, tPet, modeShipsLabel, modeAriaLabel } from '../i18n';
 import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { APP_VERSION } from '../version';
-import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel } from './miniBoss';
+import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel, ghostMiniForLevel } from './miniBoss';
+import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
@@ -132,6 +135,9 @@ export function packScale(n: number): number {
  */
 const MISSION_CAR_LEN = 52 * 1.8;
 const MISSION_HIT_SCALE = 1.6;
+const GHOST_CAR_LEN = 52 * 1.8;
+const GHOST_HIT_SCALE = 1.6;
+const GHOST_PARTS = GHOST_PART_LIST.length;
 /** The car's top above its centre (roof loudspeaker), and below it (wheels + hover glow), car units. */
 const MISSION_CAR_UP = CAR_UP;
 const MISSION_CAR_DOWN = CAR_DOWN;
@@ -333,6 +339,12 @@ export class Game {
   /** The run that just ended (initials / game over) was ON A MISSION. */
   private pendingMission = false;
   private readonly car = new MissionCar();
+  /** GHOST DUSTERS run: GHOST BOARD only (local), never the public board. */
+  private ghostRun = false;
+  private pendingGhost = false;
+  private readonly wagon = new GhostWagon();
+  /** GHOST BOARD dialog open (mirrors DEV BOARD; local scores only). */
+  private ghostBoardOpen = false;
   /** Last DEV BOARD fetched (null = never / unavailable). */
   private devBoard: LeaderboardEntry[] | null = null;
   /** COMBING THE DESERT: the missed-the-TOP-11 taunt card (systems/desertSearch.ts). */
@@ -695,8 +707,55 @@ export class Game {
       };
       syncMissionText();
       onLang(syncMissionText);
+
       row.append(b, dev);
       list.prepend(row);
+      // GHOST DUSTERS: featured card + GHOST BOARD (local scores), directly under ON A MISSION.
+      const grow = document.createElement('div');
+      grow.id = 'ghost-row';
+      const gb = document.createElement('button');
+      gb.type = 'button';
+      gb.id = 'ghost-pick';
+      gb.className = 'hand-btn mode-pick ghost-pick';
+      gb.draggable = false;
+      const gname = document.createElement('span');
+      gname.className = 'mode-name';
+      gname.textContent = GHOST_MODE.name;
+      const gsub = document.createElement('span');
+      gsub.className = 'mode-ships';
+      const gtry = document.createElement('span');
+      gtry.className = 'try-badge';
+      const ginv = document.createElement('span');
+      ginv.className = 'mode-invite';
+      gb.append(gtry, gname, gsub, ginv);
+      bindTap(gb, () => this.pickMode(GHOST_MODE));
+      const gboard = document.createElement('button');
+      gboard.type = 'button';
+      gboard.id = 'ghostboard-btn';
+      gboard.className = 'hand-btn mode-pick ghostboard-btn';
+      gboard.draggable = false;
+      const gbadge = document.createElement('span');
+      gbadge.className = 'dev-badge ghost-badge';
+      const gboardName = document.createElement('span');
+      gboardName.className = 'mode-name';
+      gboard.append(gbadge, gboardName);
+      bindTap(gboard, () => {
+        if (!this.modesGhostTap()) this.openGhostBoard();
+      });
+      const syncGhostText = (): void => {
+        gsub.textContent = tr('gd_sub');
+        gtry.textContent = tr('gd_tryit');
+        ginv.textContent = tr('gd_tag');
+        gb.setAttribute('aria-label', `${tr('gd_tryit')}: ${tr('gd_aria')}`);
+        gbadge.textContent = tr('ghost_badge');
+        gboardName.textContent = tr('ghost_btn');
+        gboard.setAttribute('aria-label', tr('ghost_btn_aria'));
+        if (this.ghostBoardOpen) this.renderGhostRows();
+      };
+      syncGhostText();
+      onLang(syncGhostText);
+      grow.append(gb, gboard);
+      list.prepend(grow);
     }
     // TRY DEV MODE (title screen): the featured call to action. The big button starts an
     // ON A MISSION run right away (same as its MODES entry); the small DEV BOARD button opens
@@ -761,6 +820,42 @@ export class Game {
         this.openModes();
         if (this.modesOpen) this.openDevBoard();
       });
+      // GHOST DUSTERS title CTA + game-over nudge + board link.
+      const gbig = document.getElementById('ghostmode-big');
+      const glink = document.getElementById('ghostboard-link');
+      const gnudge = document.getElementById('ghost-nudge');
+      for (const el of [document.getElementById('ghostmode'), gnudge])
+        for (const ev of ['keydown', 'keyup']) el?.addEventListener(ev, (e) => e.stopPropagation());
+      const syncGhostMode = (): void => {
+        const set = (sel: string, k: Parameters<typeof tr>[0]): void => {
+          const el = gbig?.querySelector(sel);
+          if (el) el.textContent = tr(k);
+        };
+        set('.dm-try', 'gd_try');
+        set('.dm-tag', 'gd_tag');
+        const mode = gbig?.querySelector('.dm-mode');
+        if (mode) mode.textContent = GHOST_MODE.name;
+        gbig?.setAttribute('aria-label', tr('gd_aria_cta'));
+        const badge = glink?.querySelector('.dev-badge');
+        if (badge) badge.textContent = tr('ghost_badge');
+        const ln = glink?.querySelector('.dm-board-name');
+        if (ln) ln.textContent = tr('ghost_btn');
+        glink?.setAttribute('aria-label', tr('gd_board_aria'));
+        if (gnudge) {
+          gnudge.textContent = tr('gd_nudge');
+          gnudge.setAttribute('aria-label', tr('gd_aria_cta'));
+        }
+      };
+      syncGhostMode();
+      onLang(syncGhostMode);
+      bindTap(gbig, () => this.tryGhostMode());
+      bindTap(gnudge, () => this.tryGhostMode());
+      bindTap(glink, () => {
+        void this.audio.unlock();
+        this.openModes();
+        if (this.modesOpen) this.openGhostBoard();
+      });
+      bindTap(document.getElementById('ghost-back'), () => this.closeGhostBoard());
     }
     const modesTitle = document.getElementById('modes-title');
     if (modesTitle) {
@@ -1000,9 +1095,10 @@ export class Game {
     this.input.clearJustPressed();
   }
 
-  /** Esc on the MODES menu: closes the DEV BOARD first if it's up, else the menu. */
+  /** Esc on the MODES menu: closes the DEV / GHOST BOARD first if it's up, else the menu. */
   private escapeModes(): void {
     if (this.devOpen) this.closeDevBoard();
+    if (this.ghostBoardOpen) this.closeGhostBoard();
     else this.closeModes();
   }
 
@@ -1167,11 +1263,62 @@ export class Game {
     this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, MISSION_MODE);
   }
 
+  /** TRY GHOST DUSTERS (title button / game-over nudge). */
+  private tryGhostMode(): void {
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.modesOpen) return;
+    void this.audio.unlock();
+    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false, GHOST_MODE);
+  }
+
+  /** GHOST BOARD (over MODES): this device's GHOST DUSTERS top 11 (local; no remote SQL yet). */
+  private openGhostBoard(): void {
+    if (!this.modesOpen || this.ghostBoardOpen) return;
+    this.ghostBoardOpen = true;
+    const el = document.getElementById('ghost-board');
+    if (el) {
+      el.setAttribute('aria-hidden', 'false');
+      el.classList.add('open');
+    }
+    this.renderGhostRows();
+  }
+
+  private closeGhostBoard(): void {
+    if (!this.ghostBoardOpen) return;
+    this.ghostBoardOpen = false;
+    const el = document.getElementById('ghost-board');
+    if (el) {
+      el.setAttribute('aria-hidden', 'true');
+      el.classList.remove('open');
+    }
+  }
+
+  private renderGhostRows(): void {
+    const ol = document.getElementById('ghost-rows');
+    const st = document.getElementById('ghost-status');
+    const title = document.getElementById('ghost-title');
+    const sub = document.getElementById('ghost-sub');
+    const badge = document.getElementById('ghost-badge-lbl');
+    if (badge) badge.textContent = tr('ghost_badge');
+    if (title) title.textContent = tr('lb_ghost_local');
+    if (sub) sub.textContent = tr('ghost_sub');
+    const board = loadGhostBoard();
+    if (ol) {
+      ol.innerHTML = '';
+      board.forEach((e, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${i + 1}. ${e.initials}  ${e.score}`;
+        ol.appendChild(li);
+      });
+    }
+    if (st) st.textContent = board.length ? tr('ghost_local') : tr('ghost_empty');
+  }
+
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
   private pickMode(m: ModeDef): void {
-    if (!this.modesOpen || this.modesGhostTap() || this.devOpen) return;
+    if (!this.modesOpen || this.modesGhostTap() || this.devOpen || this.ghostBoardOpen) return;
     // CHANGE MODE never switches into or out of ON A MISSION (its score is DEV BOARD only).
-    if (this.quitOpen && (isMission(m) || this.missionRun)) return;
+    if (this.quitOpen && (isRideMode(m) || this.missionRun || this.ghostRun)) return;
     this.closeModes();
     void this.audio.unlock();
     if (this.quitOpen) {
@@ -1250,10 +1397,12 @@ export class Game {
     this.continueT = 0;
     this.score = 0;
     this.mode = null;
-    if (this.missionRun) {
+    if (this.missionRun || this.ghostRun) {
       // Back to the normal title: the Border Collie and the normal best.
       this.missionRun = false;
+      this.ghostRun = false;
       this.car.reset();
+      this.wagon.reset();
       this.player.breed = playerBreedNow();
       this.player.scale = breedScale(playerBreedNow());
       this.player.w = 52 * this.player.scale;
@@ -1722,7 +1871,7 @@ export class Game {
     this.renderer.chromeRight = this.touchPrimary ? 128 * sx : 0;
 
     const r = this.touchReserves();
-    const rv = this.missionRun ? this.missionReserves(r) : r;
+    const rv = (this.missionRun || this.ghostRun) ? this.missionReserves(r) : r;
     this.player.x = clamp(this.player.x, r.left, this.viewW * 0.55);
     this.player.y = clamp(this.player.y, rv.top, this.viewH - rv.bottom);
     if (this.state === 'paused') this.pauseDrawn = false;
@@ -1815,6 +1964,8 @@ export class Game {
     document.body.classList.toggle('mission-run', this.missionRun && (this.state === 'playing' || this.state === 'paused'));
     // The game-over 'Try DEV MODE next?' nudge is for normal runs only.
     document.body.classList.toggle('mission-over', this.state === 'gameover' && this.pendingMission);
+    document.body.classList.toggle('ghost-run', this.ghostRun && (this.state === 'playing' || this.state === 'paused'));
+    document.body.classList.toggle('ghost-over', this.state === 'gameover' && this.pendingGhost);
     // The desert-search card belongs to one game-over screen only.
     if (this.state !== 'gameover') this.desert?.hide();
     this.syncWakeLock();
@@ -2058,15 +2209,22 @@ export class Game {
     fight = false,
   ): void {
     this.awaitingTopAfterSubmit = false;
-    // ON A MISSION: DEV BOARD only (never a public submit / ticket); its own best on the HUD.
+    // ON A MISSION / GHOST DUSTERS: private boards only (never a public submit / ticket).
     this.missionRun = isMission(mode);
+    this.ghostRun = isGhost(mode);
     this.pendingMission = false;
-    this.high = this.missionRun ? loadMissionHigh() : loadHighScore();
+    this.pendingGhost = false;
+    this.high = this.missionRun ? loadMissionHigh() : this.ghostRun ? loadGhostHigh() : loadHighScore();
     if (this.missionRun) {
       ticket = null;
       localOnly = true;
       this.car.reset();
       void this.refreshDevBoard();
+    }
+    if (this.ghostRun) {
+      ticket = null;
+      localOnly = true;
+      this.wagon.reset();
     }
     this.runLocalOnly = localOnly;
     this.runSpeedMax = this.speedTenths;
@@ -2233,6 +2391,11 @@ export class Game {
     }
     this.boss = null;
     this.pendingMission = this.missionRun;
+    this.pendingGhost = this.ghostRun;
+    if (this.pendingGhost) {
+      this.endGhostRun();
+      return;
+    }
     if (this.pendingMission) {
       this.endMissionRun();
       return;
@@ -2281,6 +2444,22 @@ export class Game {
    * ON A MISSION game over: only the mission best and the DEV BOARD (or this device's mission
    * board) are touched. The public board, the normal TOP 11 and the normal best never see it.
    */
+  /** GHOST DUSTERS game over: local GHOST BOARD only (no remote SQL / public board). */
+  private endGhostRun(): void {
+    const best = loadGhostHigh();
+    this.newBest = this.pendingScore > best;
+    saveGhostHigh(this.pendingScore);
+    this.high = loadGhostHigh();
+    this.boardIsRemote = false;
+    this.leaderboard = loadGhostBoard();
+    this.highlightIndex = -1;
+    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) this.enterInitials();
+    else {
+      this.state = 'gameover';
+      this.setBodyFlags();
+    }
+  }
+
   private endMissionRun(): void {
     const best = loadMissionHigh();
     this.newBest = this.pendingScore > best;
@@ -2314,6 +2493,21 @@ export class Game {
     if (this.state !== 'gameover' || this.highlightIndex !== -1) return;
     if (this.pendingMission ? !DESERT_SEARCH_ON_MISSION : this.runLocalOnly || !this.boardIsRemote) return;
     this.desert?.show();
+  }
+
+  /** GHOST DUSTERS initials: this device's ghost board only. */
+  private confirmGhostInitials(initials: string): void {
+    const local = addGhostEntry(this.pendingScore, initials, this.pendingDifficulty, this.pendingStart);
+    this.leaderboard = local.board;
+    this.highlightIndex = local.index;
+    this.boardIsRemote = false;
+    this.high = loadGhostHigh();
+    this.audio.playUi();
+    this.state = 'gameover';
+    this.lockRestart();
+    this.setBodyFlags();
+    this.input.clearTouch();
+    this.input.clearJustPressed();
   }
 
   /** ON A MISSION initials: this device's mission board + the DEV BOARD (fsb_dev_submit). */
@@ -2375,6 +2569,10 @@ export class Game {
     }
     if (this.pendingMission) {
       this.confirmMissionInitials(this.initialsChars.join(''));
+      return;
+    }
+    if (this.pendingGhost) {
+      this.confirmGhostInitials(this.initialsChars.join(''));
       return;
     }
     const initials = this.initialsChars.join('');
@@ -2828,11 +3026,17 @@ export class Game {
     if (this.boss) {
       this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
     } else if (this.levelTime >= LEVEL_SECONDS) {
-      // ON A MISSION only: the run's first mini-boss is BRIDGE TROLLS (same slot, tuning and bonus).
+      // ON A MISSION: first mini = BRIDGE TROLLS. GHOST DUSTERS: Stay Puft at L10; ghost minis otherwise.
       const firstMissionMini = this.missionRun && this.minisBeaten === 0;
       const def = this.bossDone
         ? null
-        : bossForLevel(this.runDifficulty) ?? (firstMissionMini ? missionFirstMiniForLevel(this.runDifficulty) : miniBossForLevel(this.runDifficulty));
+        : (this.ghostRun ? ghostBossForLevel(this.runDifficulty) : null)
+          ?? bossForLevel(this.runDifficulty)
+          ?? (firstMissionMini
+            ? missionFirstMiniForLevel(this.runDifficulty)
+            : this.ghostRun
+              ? ghostMiniForLevel(this.runDifficulty)
+              : miniBossForLevel(this.runDifficulty));
       if (def) {
         this.levelTime = LEVEL_SECONDS;
         this.startBoss(def);
@@ -2863,7 +3067,7 @@ export class Game {
     // Keep the whole formation on screen: the player's clamp grows by the formation's extents.
     const f = this.formation;
     // ON A MISSION: the (bigger) car stays fully under the HUD.
-    const mr = this.missionRun ? this.missionReserves(pr) : pr;
+    const mr = (this.missionRun || this.ghostRun) ? this.missionReserves(pr) : pr;
     this.player.update(
       dt,
       this.input.axis,
@@ -2875,7 +3079,7 @@ export class Game {
       mr.bottom + f.extDown,
       pr.left + f.extLeft,
     );
-    if (this.missionRun && this.touchPrimary) this.keepCarClearOfControls(dt);
+    if ((this.missionRun || this.ghostRun) && this.touchPrimary) this.keepCarClearOfControls(dt);
     this.sweepPlayer();
     if (this.packRun) {
       // Pack growth eases in over ~0.3 s; sprites and hitboxes use the same scale.
@@ -2919,6 +3123,7 @@ export class Game {
     }
     this.particles.update(dt);
     if (this.missionRun) this.car.update(dt, this.scrollSpeed, this.viewH);
+    if (this.ghostRun) this.wagon.update(dt, this.scrollSpeed, this.viewH);
     this.renderer.update(dt, this.scrollSpeed);
     {
       const fs = this.floaters;
@@ -3001,6 +3206,10 @@ export class Game {
           if (this.missionRun) {
             // ON A MISSION: a part flies off; the car is never destroyed (see missionHit).
             this.missionHit(hz.hitDamageMul, 0.85 * hz.hitGraceMul, MISSION_HIT_SHADE);
+            break;
+          }
+          if (this.ghostRun) {
+            this.ghostHit(hz.hitDamageMul, 0.85 * hz.hitGraceMul, MISSION_HIT_SHADE);
             break;
           }
           if (this.ships > 1) {
@@ -3278,7 +3487,7 @@ export class Game {
     if (cleared === MAX_PUBLIC_DIFFICULTY) {
       // Beat level 10: straight into the gold zone (level 11) for everyone.
       this.climbTicket =
-        remoteEnabled && !this.runLocalOnly && !this.missionRun ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
+        remoteEnabled && !this.runLocalOnly && !this.missionRun && !this.ghostRun ? startRemoteRun(loadClaimTokens(), this.runTime * 1000 + 1000) : null;
     }
     const title = cleared === MAX_PUBLIC_DIFFICULTY ? tr('promo_beat10') : tr('promo_done', { n: cleared });
     this.showPromotion(title, tr('promo_promoted'), () => {
@@ -3289,6 +3498,11 @@ export class Game {
       if (this.missionRun) {
         // ON A MISSION stays the car all the way to 111 (no random mode swap).
         this.bannerText = tr('banner_level', { n: next, m: MISSION_MODE.name });
+        this.bannerT = BANNER_SECONDS;
+        return;
+      }
+      if (this.ghostRun) {
+        this.bannerText = tr('banner_level', { n: next, m: GHOST_MODE.name });
         this.bannerT = BANNER_SECONDS;
         return;
       }
@@ -3786,6 +4000,10 @@ export class Game {
       this.missionHit(damageMul, BOSS_HIT_GRACE, 0.2);
       return false;
     }
+    if (this.ghostRun) {
+      this.ghostHit(damageMul, BOSS_HIT_GRACE, 0.2);
+      return false;
+    }
     this.charge = clamp(this.charge - 0.2 * damageMul, 0, 1);
     this.player.invuln = BOSS_HIT_GRACE;
     this.hitFx(this.player.x, this.player.y, true);
@@ -3828,6 +4046,7 @@ export class Game {
     }
     // ON A MISSION: a new level, a duct-tape pit stop (every part back on).
     if (this.missionRun && this.car.repair(this.player.x, this.player.y, this.carScale)) this.audio.playMission('pop');
+    if (this.ghostRun && this.wagon.repair(this.player.x, this.player.y, this.carScale)) this.audio.playGhost('pop');
   }
 
   /** HUD icons: the player's dog first, then the pack dogs still running. */
@@ -3982,7 +4201,7 @@ export class Game {
     const sumB2 = breeds.reduce((a, b) => a + breedScale(b) ** 2, 0);
     const k = Math.sqrt((n * scale * scale) / sumB2);
     this.player.breed = breeds[0];
-    this.player.scale = isMission(m) ? MISSION_HIT_SCALE : k * breedScale(breeds[0]);
+    this.player.scale = isRideMode(m) ? (isGhost(m) ? GHOST_HIT_SCALE : MISSION_HIT_SCALE) : k * breedScale(breeds[0]);
     this.player.w = 52 * this.player.scale;
     this.player.h = 28 * this.player.scale;
     const sp = m.spacing;
@@ -4009,7 +4228,7 @@ export class Game {
 
   /** Car length in px / 64 car units (the car painter's scale). */
   private get carScale(): number {
-    return MISSION_CAR_LEN / 64;
+    return (this.ghostRun ? GHOST_CAR_LEN : MISSION_CAR_LEN) / 64;
   }
 
   /**
@@ -4020,9 +4239,9 @@ export class Game {
   private keepCarClearOfControls(dt: number): void {
     const p = this.player;
     const s = this.carScale;
-    const half = CAR_HALF * s;
-    const top = p.y - MISSION_CAR_UP * s;
-    const bottom = p.y + MISSION_CAR_DOWN * s;
+    const half = (this.ghostRun ? GHOST_CAR_HALF : CAR_HALF) * s;
+    const top = p.y - (this.ghostRun ? GHOST_CAR_UP : MISSION_CAR_UP) * s;
+    const bottom = p.y + (this.ghostRun ? GHOST_CAR_DOWN : MISSION_CAR_DOWN) * s;
     const maxX = this.viewW * 0.55;
     for (const r of this.controlRectsCached()) {
       if (bottom <= r.y || top >= r.y + r.h || p.x + half <= r.x || p.x - half >= r.x + r.w) continue;
@@ -4070,10 +4289,24 @@ export class Game {
    */
   private missionReserves(pr: { top: number; bottom: number }): { top: number; bottom: number } {
     const s = this.carScale;
+    const up = this.ghostRun ? GHOST_CAR_UP : MISSION_CAR_UP;
+    const down = this.ghostRun ? GHOST_CAR_DOWN : MISSION_CAR_DOWN;
     return {
-      top: Math.max(pr.top, Math.ceil(this.renderer.hudBottom(this.viewW, this.viewH) + MISSION_CAR_UP * s + 4)),
-      bottom: Math.max(pr.bottom, Math.ceil(MISSION_CAR_DOWN * s + 6)),
+      top: Math.max(pr.top, Math.ceil(this.renderer.hudBottom(this.viewW, this.viewH) + up * s + 4)),
+      bottom: Math.max(pr.bottom, Math.ceil(down * s + 6)),
     };
+  }
+
+  /** GHOST DUSTERS hit: knock a wagon part off (never destroys the wagon). */
+  private ghostHit(damageMul: number, grace: number, shade: number): void {
+    if (this.charge > MISSION_SHADE_FLOOR) this.charge = Math.max(MISSION_SHADE_FLOOR, this.charge - shade * damageMul);
+    this.player.invuln = grace;
+    const sfx: GhostSfx = this.wagon.hit(this.player.x, this.player.y, this.carScale, this.scrollSpeed);
+    if (sfx === 'honk' || sfx === 'boing' || sfx === 'whistleUp' || sfx === 'whistleDown') this.audio.playComic(sfx);
+    else this.audio.playGhost(sfx);
+    this.particles.burst(this.player.x, this.player.y, '#c8f0ff', this.touchPrimary ? 6 : 12, 200);
+    this.renderer.bumpShake(8);
+    this.renderer.bumpFlash(0.2);
   }
 
   /**
@@ -4312,7 +4545,7 @@ export class Game {
       this.particles.draw(ctx);
       if ((this.level > 0 || (this.formation.occupiedCount > 0 && !this.mode)) && (this.state === 'playing' || this.state === 'paused')) {
         this.renderer.drawClones(ctx, this.formation, this.ships, this.player.x, this.player.y);
-      } else if (this.mode && !this.missionRun && (this.state === 'playing' || this.state === 'paused')) {
+      } else if (this.mode && !this.missionRun && !this.ghostRun && (this.state === 'playing' || this.state === 'paused')) {
         const m = this.mode;
         const hidden = this.decoyHiddenT > 0 ? this.decoySlot : null;
         this.renderer.drawSwarm(ctx, this.formation, m.tint, m.style, this.ships, this.player.x, this.player.y, hidden);
@@ -4322,11 +4555,19 @@ export class Game {
         const blink = p.invuln > 0 && Math.floor(this.pulse * 20) % 2 === 0;
         const lens = this.charge > 0.3 ? 'rgba(0, 255, 220, 0.95)' : 'rgba(255, 200, 50, 0.95)';
         this.car.draw(ctx, p.x, p.y, clamp(p.vy / 500, -0.3, 0.3), this.carScale, this.pulse, this.renderer.lite, lens, blink ? 0.7 : 1);
-        // Comic bursts: under the HUD, above the stick / BOOST (touch) or the lane edge.
         const popTop = this.renderer.hudBottom(this.viewW, this.viewH) + this.renderer.u(4);
         const popBottom = this.viewH - (this.touchPrimary ? this.touchReserves().bottom : 24);
         const avoid = this.touchPrimary && this.car.pops.length > 0 ? this.controlRectsCached() : [];
         this.car.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite, { top: popTop, bottom: popBottom, avoid });
+      } else if (this.ghostRun) {
+        const p = this.player;
+        const blink = p.invuln > 0 && Math.floor(this.pulse * 20) % 2 === 0;
+        const lens = this.charge > 0.3 ? 'rgba(0, 255, 220, 0.95)' : 'rgba(255, 200, 50, 0.95)';
+        this.wagon.draw(ctx, p.x, p.y, clamp(p.vy / 500, -0.3, 0.3), this.carScale, this.pulse, this.renderer.lite, lens, blink ? 0.7 : 1);
+        const popTop = this.renderer.hudBottom(this.viewW, this.viewH) + this.renderer.u(4);
+        const popBottom = this.viewH - (this.touchPrimary ? this.touchReserves().bottom : 24);
+        const avoid = this.touchPrimary && this.wagon.pops.length > 0 ? this.controlRectsCached() : [];
+        this.wagon.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite, { top: popTop, bottom: popBottom, avoid });
       } else this.renderer.drawPlayer(ctx, this.player, this.charge);
       if (this.shieldT > 0) drawPizzaShield(ctx, this.player.x, this.player.y, Math.max(this.player.w, this.player.h) * 0.75 + 14, this.pulse, this.shieldT);
       this.renderer.drawFloaters(ctx, this.floaters);
@@ -4351,6 +4592,8 @@ export class Game {
             ? { level: this.level, ships: this.ships }
             : this.missionRun
               ? { level: this.runDifficulty, ships: 0, label: tr('hud_parts', { n: this.car.partsLeft, t: MISSION_PARTS }) }
+              : this.ghostRun
+                ? { level: this.runDifficulty, ships: 0, label: tr('hud_parts', { n: this.wagon.partsLeft, t: GHOST_PARTS }) }
               : this.mode
               ? { level: this.runDifficulty, ships: this.ships }
               : { level: this.runDifficulty, ships: 0, dogs: this.packBreeds(), dogIconScale: packScale(this.ships) / PACK_S0 },
@@ -4400,8 +4643,20 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.pendingMission ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local')) : this.boardIsRemote ? tr('lb_global') : tr('lb_top'),
-        this.victory ? tr('go_victory', { n: MAX_LEVEL }) : this.pendingMission ? tr('go_mission') : tr('go_headline'),
+        this.pendingMission
+          ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local'))
+          : this.pendingGhost
+            ? tr('lb_ghost_local')
+            : this.boardIsRemote
+              ? tr('lb_global')
+              : tr('lb_top'),
+        this.victory
+          ? tr('go_victory', { n: MAX_LEVEL })
+          : this.pendingMission
+            ? tr('go_mission')
+            : this.pendingGhost
+              ? tr('go_ghost')
+              : tr('go_headline'),
         boardTaunt(lang(), this.highlightIndex, this.boardTauntPick, this.leaderboard.length),
       );
     }

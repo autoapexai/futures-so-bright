@@ -36,7 +36,7 @@ export interface MiniSpec {
   stunPop: () => string;
 }
 
-type Design = 'reindeer' | 'sneezefeld' | 'divot' | 'macdoodle' | 'lettuceman' | 'rowdy' | 'fryer' | 'socks' | 'yogan' | 'gigglegan' | 'brooms' | 'elder' | 'bridgetrolls';
+type Design = 'reindeer' | 'sneezefeld' | 'divot' | 'macdoodle' | 'lettuceman' | 'rowdy' | 'fryer' | 'socks' | 'yogan' | 'gigglegan' | 'brooms' | 'elder' | 'bridgetrolls' | 'ghostgoof' | 'ghostsheet' | 'ghostblob';
 
 /** Points per level for beating a mini-boss (x level, x GAME SPEED). */
 export const MINI_POINTS_PER_LEVEL = 1000;
@@ -65,6 +65,10 @@ const DESIGNS: Record<Design, DesignDef> = {
   elder: { name: 'CARL REINDEER', tint: '#e6e6e6', sig: 'dots', skins: { dots: 'wheel', aimed: 'hourglass', wall: 'wheel', spray: 'hourglass' }, sfx: ['whistleDown', 'boing', 'honk'] },
   // ON A MISSION's first mini-boss only (never in ROTATION): see missionFirstMiniForLevel.
   bridgetrolls: { name: 'BRIDGE TROLLS', tint: '#7ec8e3', sig: 'spray', skins: { spray: 'cone', aimed: 'bobber', wall: 'cone', dots: 'bobber' }, sfx: ['honk', 'boing', 'whistleDown'] },
+  // GHOST DUSTERS mini-bosses only (never in the normal ROTATION).
+  ghostgoof: { name: 'GOOFY GHOST', tint: '#c8f0ff', sig: 'spray', skins: { spray: 'orb', aimed: 'orb', wall: 'orb' }, sfx: ['boing', 'whistleUp', 'honk'] },
+  ghostsheet: { name: 'SHEET SILLIES', tint: '#e8e8ff', sig: 'aimed', skins: { aimed: 'orb', spray: 'orb', wall: 'orb' }, sfx: ['whistleDown', 'boing', 'honk'] },
+  ghostblob: { name: 'BLOBBY BOO', tint: '#b4ffd8', sig: 'dots', skins: { dots: 'orb', aimed: 'orb', wall: 'orb', spray: 'orb' }, sfx: ['honk', 'boing', 'whistleUp'] },
 };
 
 /**
@@ -124,6 +128,9 @@ const TEXT: Record<Lang, LangText> = {
       brooms: { taunts: ['HEAR YE! THE KING DECLARES: NO RUNNING IN THE KINGDOM! ALSO, SWEEP UP.', 'I HAVE A HAT FOR EVERY OCCASION. THIS IS MY THROWING HAT.', 'BRING ME MY CROWN! NO, THE SILLY ONE!', 'ROYAL DECREE: ALL DOGS MUST WEAR SUNGLASSES. OH. THEY DO.', "I'VE BEEN A KING, A COWBOY AND A CHEF. TODAY I'M A BROOM.", 'HALT, IN THE NAME OF THE BROOM! I SHALL SWEEP YOU OFF YOUR PAWS!'], pops: ['OY!', 'MY HAT!', 'SWISH!'], stun: 'THE CROWN SLIPPED!', fall: 'EXIT, STAGE LEFT!', prop: 'BROOM' },
       elder: { taunts: ["I'M THE ORIGINAL REINDEER. MY SON GOT HIS ANTLERS FROM ME.", "BACK IN MY DAY, WE DIDN'T HAVE LEVELS. WE HAD ROCKS.", 'THIS CANE IS OLDER THAN THE WHEEL. I CHECKED.', 'I REMEMBER WHEN THE SUN WAS A LITTLE SMALLER.', 'SLOW DOWN, YOUNG PUPS! SOME OF US ARE ANCIENT!', 'I INVENTED THE NAP. NOBODY EVER GIVES ME CREDIT.'], pops: ['OOF!', 'HMPH!', 'TAP TAP!'], stun: "WHERE'S MY CANE?", fall: 'TIME FOR A NAP!', prop: 'DAD' },
       bridgetrolls: { taunts: ['THIS IS OUR BRIDGE! GO AROUND!', 'NO HONKING! WE ARE GRUMBLING IN PEACE HERE.', 'THIS BRIDGE IS CLOSED... FOR FUN!'], pops: ['HEY!', 'HMPH!', 'NO HONKING!'], stun: 'WOBBLY BRIDGE!', fall: 'SPLASH! ON PURPOSE!', prop: 'NO FUN', prop2: 'NO HONKING' },
+      ghostgoof: { taunts: ['BOO... JUST KIDDING! HI!', 'I AM FRIENDLY! PLEASE VACUUM GENTLY!', 'WHOOOOSH IS MY FAVORITE SOUND!'], pops: ['VACUUM!', 'ZAP!', 'WHOOSH!'], stun: 'DIZZY FLOAT!', fall: 'INTO THE PACK!', prop: 'BOO?' },
+      ghostsheet: { taunts: ['PEEKABOO UNDER HERE!', 'THIS SHEET HAS TWO EYE HOLES AND BIG FEELINGS!', 'I AM NOT SCARY. I AM LAUNDRY.'], pops: ['ZAP!', 'FWOOP!', 'GOTCHA!'], stun: 'SHEET TANGLE!', fall: 'FOLDED!', prop: 'WASH ME' },
+      ghostblob: { taunts: ['I WIGGLE WITH JOY!', 'BLOB HUGS ARE FREE!', 'CATCH ME IF YOU CAN... POLITELY!'], pops: ['SQUISH!', 'VACUUM!', 'BLORP!'], stun: 'JIGGLY!', fall: 'IN THE TANK!', prop: 'BLOB' },
     },
   },
   es: {
@@ -144,6 +151,9 @@ const TEXT: Record<Lang, LangText> = {
       brooms: { taunts: ['¡OÍD, OÍD! EL REY DECLARA: ¡PROHIBIDO CORRER EN EL REINO! Y A BARRER.', 'TENGO UN SOMBRERO PARA CADA OCASIÓN. ESTE ES MI SOMBRERO PARA LANZAR.', '¡TRAEDME MI CORONA! ¡NO, LA CHISTOSA!', 'DECRETO REAL: TODOS LOS PERROS DEBEN USAR GAFAS DE SOL. AH. YA LAS USAN.', 'HE SIDO REY, VAQUERO Y CHEF. HOY SOY UNA ESCOBA.', '¡ALTO, EN NOMBRE DE LA ESCOBA! ¡OS BARRERÉ DE VUESTRAS PATAS!'], pops: ['¡AY!', '¡MI SOMBRERO!', '¡FIUU!'], stun: '¡SE ME RESBALÓ LA CORONA!', fall: '¡MUTIS POR LA IZQUIERDA!', prop: 'ESCOBA' },
       elder: { taunts: ['SOY EL RENO ORIGINAL. MI HIJO SACÓ LAS ASTAS DE MÍ.', 'EN MIS TIEMPOS NO HABÍA NIVELES. HABÍA PIEDRAS.', 'ESTE BASTÓN ES MÁS VIEJO QUE LA RUEDA. LO COMPROBÉ.', 'RECUERDO CUANDO EL SOL ERA UN POQUITO MÁS PEQUEÑO.', '¡MÁS DESPACIO, CACHORROS! ¡ALGUNOS SOMOS ANTIQUÍSIMOS!', 'YO INVENTÉ LA SIESTA. NADIE ME DA EL CRÉDITO.'], pops: ['¡UF!', '¡HMPF!', '¡TOC, TOC!'], stun: '¿DÓNDE ESTÁ MI BASTÓN?', fall: '¡HORA DE LA SIESTA!', prop: 'PAPÁ' },
       bridgetrolls: { taunts: ['¡ESTE ES NUESTRO PUENTE! ¡DA LA VUELTA!', '¡NADA DE BOCINAZOS! AQUÍ REFUNFUÑAMOS EN PAZ.', 'ESTE PUENTE ESTÁ CERRADO... ¡A LA DIVERSIÓN!'], pops: ['¡OYE!', '¡HMPF!', '¡SIN BOCINAZOS!'], stun: '¡EL PUENTE SE TAMBALEA!', fall: '¡CHAPUZÓN! ¡A PROPÓSITO!', prop: 'SIN DIVERSIÓN', prop2: 'SIN BOCINAS' },
+      ghostgoof: { taunts: ['¡BUU... ES BROMA! ¡HOLA!', '¡SOY AMIGABLE! ¡ASPIRA CON CUIDADO!', '¡WHOOOOSH ES MI SONIDO FAVORITO!'], pops: ['¡ASPIRA!', '¡ZAP!', '¡FUUSH!'], stun: '¡MAREO FLOTANTE!', fall: '¡AL TANQUE!', prop: '¿BUU?' },
+      ghostsheet: { taunts: ['¡CUCU BAJO LA SÁBANA!', '¡ESTA SÁBANA TIENE OJOS Y SENTIMIENTOS!', 'NO DOY MIEDO. SOY COLADA.'], pops: ['¡ZAP!', '¡FUP!', '¡PILLADO!'], stun: '¡ENREDADO!', fall: '¡DOBLADO!', prop: 'LÁVAME' },
+      ghostblob: { taunts: ['¡ME SACUDO DE ALEGRÍA!', '¡LOS ABRAZOS BLOB SON GRATIS!', '¡ATRÁPAME... CON EDUCACIÓN!'], pops: ['¡SQUISH!', '¡ASPIRA!', '¡BLORP!'], stun: '¡TEMBLOR!', fall: '¡AL TANQUE!', prop: 'BLOB' },
     },
   },
   vi: {
@@ -164,6 +174,9 @@ const TEXT: Record<Lang, LangText> = {
       brooms: { taunts: ['NGHE ĐÂY! NHÀ VUA TUYÊN BỐ: CẤM CHẠY TRONG VƯƠNG QUỐC! VÀ NHỚ QUÉT DỌN.', 'TÔI CÓ MŨ CHO MỌI DỊP. ĐÂY LÀ MŨ ĐỂ NÉM.', 'MANG VƯƠNG MIỆN RA ĐÂY! KHÔNG, CÁI NGỘ NGHĨNH CƠ!', 'CHIẾU CHỈ: MỌI CON CHÓ PHẢI ĐEO KÍNH RÂM. Ồ. CHÚNG ĐEO RỒI.', 'TÔI TỪNG LÀ VUA, CAO BỒI VÀ ĐẦU BẾP. HÔM NAY TÔI LÀ CÂY CHỔI.', 'ĐỨNG LẠI, NHÂN DANH CÂY CHỔI! TA SẼ QUÉT CÁC NGƯƠI BAY ĐI!'], pops: ['ÔI!', 'MŨ CỦA TA!', 'VÚT VÚT!'], stun: 'VƯƠNG MIỆN TUỘT RỒI!', fall: 'XIN LUI VÀO CÁNH GÀ!', prop: 'CHỔI' },
       elder: { taunts: ['TÔI LÀ CHÚ TUẦN LỘC ĐẦU TIÊN. CON TRAI TÔI ĐƯỢC CẶP GẠC LÀ NHỜ TÔI.', 'HỒI XƯA LÀM GÌ CÓ MÀN CHƠI. CHỈ CÓ ĐÁ THÔI.', 'CÂY GẬY NÀY CÒN GIÀ HƠN CẢ BÁNH XE. TÔI KIỂM TRA RỒI.', 'TÔI CÒN NHỚ HỒI MẶT TRỜI NHỎ HƠN MỘT CHÚT.', 'CHẬM LẠI NÀO, MẤY CÚN CON! CÓ NGƯỜI CỔ XƯA LẮM RỒI!', 'TÔI PHÁT MINH RA GIẤC NGỦ TRƯA. CHẲNG AI GHI CÔNG TÔI CẢ.'], pops: ['ỐI!', 'HỪM!', 'CỘC CỘC!'], stun: 'GẬY CỦA TÔI ĐÂU?', fall: 'ĐẾN GIỜ NGỦ TRƯA!', prop: 'BỐ' },
       bridgetrolls: { taunts: ['ĐÂY LÀ CẦU CỦA CHÚNG TÔI! ĐI ĐƯỜNG KHÁC ĐI!', 'CẤM BÓP CÒI! CHÚNG TÔI ĐANG CẰN NHẰN YÊN BÌNH Ở ĐÂY.', 'CẦU NÀY ĐÓNG CỬA... KHÔNG TIẾP NIỀM VUI!'], pops: ['NÀY!', 'HỨ!', 'CẤM BÓP CÒI!'], stun: 'CẦU RUNG RINH!', fall: 'ÙM! CỐ Ý ĐẤY!', prop: 'CẤM VUI', prop2: 'CẤM BÓP CÒI' },
+      ghostgoof: { taunts: ['BOO... ĐÙA THÔI! XIN CHÀO!', 'TỚ THÂN THIỆN! HÚT NHẸ NHÉ!', 'WHOOOOSH LÀ ÂM THANH YÊU THÍCH!'], pops: ['HÚT!', 'ZAP!', 'VÙ!'], stun: 'CHÓNG MẶT!', fall: 'VÀO BÌNH!', prop: 'BOO?' },
+      ghostsheet: { taunts: ['Ú ÒA DƯỚI CHĂN!', 'CHIẾC CHĂN NÀY CÓ MẮT VÀ CẢM XÚC!', 'KHÔNG ĐÁNG SỢ. LÀ ĐỒ GIẶT.'], pops: ['ZAP!', 'FỤP!', 'DÍNH RỒI!'], stun: 'RỐI CHĂN!', fall: 'GẤP GỌN!', prop: 'GIẶT TỚ' },
+      ghostblob: { taunts: ['TỚ LẮC LƯ VUI VẺ!', 'ÔM BLOB MIỄN PHÍ!', 'BẮT TỚ... LỊCH SỰ NHÉ!'], pops: ['BẸT!', 'HÚT!', 'BLORP!'], stun: 'RUN RẨY!', fall: 'VÀO BÌNH!', prop: 'BLOB' },
     },
   },
   zh: {
@@ -184,6 +197,9 @@ const TEXT: Record<Lang, LangText> = {
       brooms: { taunts: ['听着！国王宣布：王国里禁止奔跑！还有，扫扫地。', '我每种场合都有一顶帽子。这顶是用来扔的。', '把我的王冠拿来！不，要那顶搞笑的！', '皇家法令：所有狗都必须戴墨镜。哦，它们戴了。', '我当过国王、牛仔和厨师。今天我是一把扫帚。', '以扫帚之名，站住！我要把你们扫得四脚朝天！'], pops: ['哎哟！', '我的帽子！', '唰！'], stun: '王冠滑下来了！', fall: '从舞台左侧退场！', prop: '扫帚' },
       elder: { taunts: ['我是元祖驯鹿。我儿子的鹿角就是随我。', '想当年，我们没有关卡。我们只有石头。', '这根拐杖比轮子还老。我查过。', '我记得太阳以前还小一点。', '慢点，小狗们！我们有些人可是老古董！', '午睡是我发明的。可从来没人记得我的功劳。'], pops: ['哎哟！', '哼！', '笃笃！'], stun: '我的拐杖呢？', fall: '该打盹了！', prop: '老爸' },
       bridgetrolls: { taunts: ['这是我们的桥！绕道走！', '禁止按喇叭！我们在这儿安安静静地发牢骚。', '这座桥关闭了……不许好玩！'], pops: ['喂！', '哼！', '禁止鸣笛！'], stun: '桥在晃！', fall: '扑通！故意的！', prop: '禁止玩乐', prop2: '禁止鸣笛' },
+      ghostgoof: { taunts: ['砰……开玩笑！你好！', '我很友好！请轻轻吸！', '呼——是我最爱的声音！'], pops: ['吸走！', '滋！', '呼！'], stun: '晕乎乎！', fall: '进罐子！', prop: '吓？' },
+      ghostsheet: { taunts: ['被单下面有人！', '这被单有眼睛也有感情！', '我不可怕，我是待洗的衣服。'], pops: ['滋！', '呼！', '抓住！'], stun: '被单打结！', fall: '叠好了！', prop: '洗洗我' },
+      ghostblob: { taunts: ['我开心地扭来扭去！', '软软拥抱免费！', '抓住我……请礼貌一点！'], pops: ['挤！', '吸走！', '咕叽！'], stun: '颤颤巍巍！', fall: '进罐子！', prop: 'BLOB' },
     },
   },
 };
@@ -259,6 +275,27 @@ export function missionFirstMiniForLevel(level: number, ignoreRollout = false): 
   missionCache.set(level, def);
   return def;
 }
+
+const ghostMiniCache = new Map<number, BossDef>();
+const GHOST_ROTATION: Design[] = ['ghostgoof', 'ghostsheet', 'ghostblob'];
+
+/**
+ * GHOST DUSTERS ONLY: every mini-boss level uses a silly friendly ghost (rotating), with the
+ * same level tuning / gate / bonus as the normal mini at that level. Null on big-boss levels
+ * and past the rollout (same as miniBossForLevel).
+ */
+export function ghostMiniForLevel(level: number, ignoreRollout = false): BossDef | null {
+  if (!miniBossForLevel(level, ignoreRollout)) return null;
+  const hit = ghostMiniCache.get(level);
+  if (hit) return hit;
+  let idx = 0;
+  for (let l = 1; l < level; l++) if (l % 10 !== 0 && (ignoreRollout || l <= MINI_LIVE_MAX)) idx++;
+  const design = GHOST_ROTATION[idx % GHOST_ROTATION.length];
+  const def = buildMini(level, design, Math.floor(idx / GHOST_ROTATION.length));
+  ghostMiniCache.set(level, def);
+  return def;
+}
+
 
 function buildMini(level: number, design: Design, appearance: number): BossDef {
   const dd = DESIGNS[design];
@@ -599,6 +636,29 @@ function spotProp(ctx: Ctx, design: Design, x: number, y: number, r: number, p: 
       ctx.closePath();
       ctx.fill();
       break;
+    case 'ghostgoof':
+    case 'ghostsheet':
+    case 'ghostblob': {
+      // Goofy vacuum nozzle / zap star (friendly, never scary).
+      ctx.rotate(Math.sin(p.t * 4) * 0.15);
+      ctx.fillStyle = '#7fffff';
+      ctx.beginPath();
+      ctx.moveTo(r * 0.8, 0);
+      ctx.lineTo(r * 0.1, -r * 0.55);
+      ctx.lineTo(-r * 0.7, -r * 0.25);
+      ctx.lineTo(-r * 0.7, r * 0.25);
+      ctx.lineTo(r * 0.1, r * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffe66d';
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + p.t * 3;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * r * 0.35, Math.sin(a) * r * 0.35, r * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
   }
   ctx.restore();
 }
@@ -1548,7 +1608,99 @@ const BODY: Record<Design, MiniDraw> = {
     placard(ctx, prop, w * 0.2, -h * 0.28, w * 0.36, h * 0.12, '#f5e6c8', '#8b5a2b');
   },
   bridgetrolls: (ctx, w, h, p, prop) => drawBridgeTrolls(ctx, w, h, p, prop),
+  ghostgoof: (ctx, w, h, p, prop) => drawGhostGoof(ctx, w, h, p, prop, '#c8f0ff'),
+  ghostsheet: (ctx, w, h, p, prop) => drawGhostSheet(ctx, w, h, p, prop),
+  ghostblob: (ctx, w, h, p, prop) => drawGhostGoof(ctx, w, h, p, prop, '#b4ffd8'),
 };
+
+
+/** Friendly floating ghost (goofy / blobby). Vacuumed away when beaten (G-rated). */
+function drawGhostGoof(ctx: Ctx, w: number, h: number, p: Pose, prop: string, tint: string): void {
+  const bob = Math.sin(p.t * 3) * h * 0.03;
+  const vac = p.beaten > 0 ? clamp01(p.beaten) : 0;
+  const sx = 1 - vac * 0.55;
+  const sy = 1 - vac * 0.75;
+  ctx.save();
+  ctx.translate(0, bob - vac * h * 0.35);
+  ctx.scale(sx, sy);
+  // Soft aura
+  ctx.fillStyle = 'rgba(200,240,255,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w * 0.42, h * 0.48, 0, 0, TAU);
+  ctx.fill();
+  // Body
+  ctx.fillStyle = tint;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.32, h * 0.15);
+  ctx.quadraticCurveTo(-w * 0.38, -h * 0.35, 0, -h * 0.42);
+  ctx.quadraticCurveTo(w * 0.38, -h * 0.35, w * 0.32, h * 0.15);
+  // Wiggly hem
+  for (let i = 4; i >= 0; i--) {
+    const x = -w * 0.32 + (i / 4) * w * 0.64;
+    const y = h * 0.28 + Math.sin(p.t * 5 + i) * h * 0.04;
+    ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(80,120,180,0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Big friendly eyes + smile
+  eyes(ctx, 0, -h * 0.08, Math.min(w, h) * 0.28, p, 1.05);
+  mouth(ctx, 0, h * 0.06, Math.min(w, h) * 0.18, p);
+  if (prop) placard(ctx, prop, 0, -h * 0.42, w * 0.4, h * 0.1, '#fff8e7', '#3a6ea5');
+  // Vacuum swirl when beaten
+  if (vac > 0.05) {
+    ctx.strokeStyle = `rgba(127,255,255,${0.8 * (1 - vac)})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.1, w * 0.2 * (1 + vac), vac * 4, vac * 4 + 4);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Silly sheet ghost with eye holes (laundry gag). */
+function drawGhostSheet(ctx: Ctx, w: number, h: number, p: Pose, prop: string): void {
+  const bob = Math.sin(p.t * 2.6) * h * 0.025;
+  const vac = p.beaten > 0 ? clamp01(p.beaten) : 0;
+  ctx.save();
+  ctx.translate(0, bob - vac * h * 0.4);
+  ctx.scale(1 - vac * 0.5, 1 - vac * 0.7);
+  ctx.fillStyle = '#f4f4ff';
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.4, -h * 0.15);
+  ctx.quadraticCurveTo(-w * 0.45, -h * 0.45, 0, -h * 0.48);
+  ctx.quadraticCurveTo(w * 0.45, -h * 0.45, w * 0.4, -h * 0.15);
+  ctx.lineTo(w * 0.38, h * 0.35);
+  ctx.quadraticCurveTo(w * 0.15, h * 0.28 + Math.sin(p.t * 4) * 4, 0, h * 0.38);
+  ctx.quadraticCurveTo(-w * 0.15, h * 0.28 - Math.sin(p.t * 4) * 4, -w * 0.38, h * 0.35);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,120,160,0.45)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Eye holes
+  ctx.fillStyle = '#1a1030';
+  ctx.beginPath();
+  ctx.ellipse(-w * 0.12, -h * 0.08, w * 0.07, h * 0.08, 0, 0, TAU);
+  ctx.ellipse(w * 0.12, -h * 0.08, w * 0.07, h * 0.08, 0, 0, TAU);
+  ctx.fill();
+  // Pupils peek
+  ctx.fillStyle = '#7fffff';
+  ctx.beginPath();
+  ctx.arc(-w * 0.12 + p.px * 3, -h * 0.08 + p.py * 2, w * 0.025, 0, TAU);
+  ctx.arc(w * 0.12 + p.px * 3, -h * 0.08 + p.py * 2, w * 0.025, 0, TAU);
+  ctx.fill();
+  // Smile stitch
+  ctx.strokeStyle = '#5a4a7a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, h * 0.05, w * 0.1, 0.15, Math.PI - 0.15);
+  ctx.stroke();
+  if (prop) placard(ctx, prop, 0, h * 0.2, w * 0.42, h * 0.1, '#ffe66d', '#3a2a6a');
+  ctx.restore();
+}
 
 /** Draw a mini-boss: entrance slide is the board's x; hurt wobble, stun birdies, pratfall defeat. */
 export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: number): void {
@@ -1591,11 +1743,12 @@ export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: numb
   // pratfall: tips over backwards about the feet, bounces once, fades
   // (BRIDGE TROLLS: the bridge stays put; they get bumped off it and splash, see drawBridgeTrolls)
   const splashy = design === 'bridgetrolls';
+  const vacuum = design === 'ghostgoof' || design === 'ghostsheet' || design === 'ghostblob';
   const feetY = b.y + h / 2;
   let rot = 0;
   let alpha = 1;
   let dy = 0;
-  if (splashy) {
+  if (splashy || vacuum) {
     alpha = beaten > 0.88 ? 1 - (beaten - 0.88) / 0.12 : 1;
   } else if (beaten > 0) {
     const k = clamp01(beaten / 0.45);
@@ -1608,7 +1761,7 @@ export function drawMini(ctx: Ctx, f: BossFight, b: Board, time: number, W: numb
   ctx.translate(b.x, feetY + dy);
   ctx.rotate(rot);
   // a banana peel under the feet during the pratfall (the classic)
-  if (beaten > 0 && !splashy) {
+  if (beaten > 0 && !splashy && !vacuum) {
     ctx.save();
     ctx.rotate(-rot);
     drawPeel(ctx, -w * 0.15, 0, Math.max(6, w * 0.12), 0.3);

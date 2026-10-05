@@ -8,7 +8,7 @@ import { CLONE_SLOTS } from '../entities/Formation';
 import { bossPilot, makeSkill, stickTo, type PilotSkill } from './bossAutopilot';
 import { BOSSES, bossTuning } from './Boss';
 import { mulberry32 } from '../utils/rng';
-import { MODES, MISSION_MODE } from '../utils/modes';
+import { MODES, MISSION_MODE, GHOST_MODE } from '../utils/modes';
 import { scalePoints } from '../utils/speed';
 import { TAUNTS, pickTauntIndex, SEARCH_MS } from './desertSearch';
 import { setBroadcastForTest, broadcastOn, TAUNT_BROADCAST } from '../utils/tauntFeed';
@@ -69,6 +69,7 @@ export function installTestHooks(game: unknown): void {
       ticketPending: g.ticketPending,
       mode: g.mode ? g.mode.id : null,
       missionRun: g.missionRun,
+      ghostRun: g.ghostRun,
       missionUnlocked: g.missionUnlocked,
       car: g.missionRun
         ? { partsLeft: g.car.partsLeft, lost: g.car.lost, hits: g.car.hits, debris: g.car.debris.length, pops: g.car.pops.map((p: any) => p.text),
@@ -148,6 +149,13 @@ export function installTestHooks(game: unknown): void {
     startMission: () => {
       g.missionUnlocked = true;
       g.startRun(1, null, false, MISSION_MODE);
+    },
+    /** GHOST DUSTERS: start a run directly. */
+    startGhost: () => {
+      g.startRun(1, null, false, GHOST_MODE);
+    },
+    ghostHit: () => {
+      if (g.ghostRun) g.ghostHit(1, 0.85, 0.12);
     },
     /** ON A MISSION: one hit on the car, exactly as an obstacle would. */
     missionHit: () => {

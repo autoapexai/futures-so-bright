@@ -367,3 +367,49 @@ export function addMissionEntry(score: number, initials: string, level?: number,
   saveMissionHigh(score);
   return result;
 }
+
+
+// --- GHOST DUSTERS: own best and board (never mixed into the public TOP 11 or ON A MISSION DEV BOARD) ---
+const GHOST_HIGH_KEY = 'fsb_ghost_high';
+const GHOST_BOARD_KEY = 'fsb_ghost_board';
+
+/** GHOST DUSTERS runs on this device. */
+export function loadGhostBoard(): LeaderboardEntry[] {
+  try {
+    return parseBoard(localStorage.getItem(GHOST_BOARD_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Best GHOST DUSTERS score on this device. */
+export function loadGhostHigh(): number {
+  try {
+    const stored = Math.max(0, parseInt(localStorage.getItem(GHOST_HIGH_KEY) ?? '0', 10) || 0);
+    const board = loadGhostBoard();
+    const top = board.length ? board[0].score : 0;
+    return Math.max(stored, top);
+  } catch {
+    return 0;
+  }
+}
+
+export function saveGhostHigh(score: number): void {
+  try {
+    if (score > loadGhostHigh()) localStorage.setItem(GHOST_HIGH_KEY, String(Math.floor(score)));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** Insert a GHOST DUSTERS run into this device's ghost board (top 11). */
+export function addGhostEntry(score: number, initials: string, level?: number, start?: number): { board: LeaderboardEntry[]; index: number } {
+  const result = insertEntry(score, initials, loadGhostBoard(), level, start);
+  try {
+    localStorage.setItem(GHOST_BOARD_KEY, JSON.stringify(result.board));
+  } catch {
+    /* storage blocked */
+  }
+  saveGhostHigh(score);
+  return result;
+}

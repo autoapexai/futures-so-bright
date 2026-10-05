@@ -11,7 +11,7 @@
 import { BREEDS, CAT_BREEDS, playerBreedNow, breedForPet, randomBreed, type Breed } from '../render/shipSprite';
 import { pet } from './pets';
 
-export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy' | 'mission';
+export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy' | 'mission' | 'ghost';
 export type ModeStyle = 'solid' | 'outline' | 'dot';
 
 export interface ModeDef {
@@ -84,6 +84,32 @@ export const MISSION_MODE: ModeDef = {
 
 export function isMission(m: ModeDef | null | undefined): boolean {
   return !!m && m.behavior === 'mission';
+}
+
+/**
+ * GHOST DUSTERS: a regular mode (own card on MODES). The pack rides a ghost-busting wagon
+ * (see systems/ghostWagon.ts). Hits knock parts off; the wagon is never destroyed. Not in the
+ * random CHANGE MODE pool. Scores go only to the GHOST BOARD (local/device; no public board).
+ * Mode name stays English in every language.
+ */
+export const GHOST_MODE: ModeDef = {
+  id: 'ghost',
+  name: 'GHOST DUSTERS',
+  ships: 1,
+  scale: 1,
+  tint: '#f7f7f2',
+  style: 'solid',
+  behavior: 'ghost',
+  spacing: 1,
+};
+
+export function isGhost(m: ModeDef | null | undefined): boolean {
+  return !!m && m.behavior === 'ghost';
+}
+
+/** Vehicle modes (ON A MISSION cop car, GHOST DUSTERS wagon): one rideable vehicle, not a pet swarm. */
+export function isRideMode(m: ModeDef | null | undefined): boolean {
+  return isMission(m) || isGhost(m);
 }
 
 export function modeById(id: string): ModeDef | null {

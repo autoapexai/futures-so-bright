@@ -273,6 +273,27 @@ export class AudioEngine {
     });
   }
 
+
+  /**
+   * GHOST DUSTERS slapstick: same family as playMission, plus a unique wagon siren (alternating
+   * whoops; synthesized, not a movie theme melody).
+   */
+  playGhost(kind: 'clang' | 'tinkle' | 'siren' | 'sputter' | 'pop' | 'squeal'): void {
+    if (kind !== 'siren') {
+      this.playMission(kind);
+      return;
+    }
+    this.whenRunning(() => {
+      if (!this.master) return;
+      const m = this.master;
+      // Distinct goofy whoop-whoop (not Ghostbusters theme).
+      this.tone(520, 0.18, 'sine', 0.14, m, 780);
+      this.tone(780, 0.18, 'sine', 0.14, m, 520, 0.2);
+      this.tone(600, 0.18, 'triangle', 0.1, m, 880, 0.4);
+      this.tone(880, 0.22, 'triangle', 0.1, m, 480, 0.58);
+    });
+  }
+
   playUi(): void {
     this.whenRunning(() => {
       if (!this.master) return;

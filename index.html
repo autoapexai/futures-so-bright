@@ -56,7 +56,12 @@
         <button type="button" id="devmode-big" aria-label="Try dev mode: play ON A MISSION" draggable="false" style="touch-action:none"><span class="dm-try">TRY DEV MODE</span><span class="dm-mode">ON A MISSION</span><span class="dm-tag">Think you can handle it? Give it a shot!</span></button>
         <button type="button" id="devboard-link" aria-label="Open the DEV BOARD" draggable="false" style="touch-action:none"><span class="dev-badge">DEV</span><span class="dm-board-name">DEV BOARD</span></button>
       </div>
+      <div id="ghostmode">
+        <button type="button" id="ghostmode-big" aria-label="Try GHOST DUSTERS mode" draggable="false" style="touch-action:none"><span class="dm-try">TRY GHOST DUSTERS</span><span class="dm-mode">GHOST DUSTERS</span><span class="dm-tag">Think you can handle the wagon? Give it a shot!</span></button>
+        <button type="button" id="ghostboard-link" aria-label="Open the GHOST BOARD" draggable="false" style="touch-action:none"><span class="dev-badge">GHOST</span><span class="dm-board-name">GHOST BOARD</span></button>
+      </div>
       <button type="button" id="mission-nudge" aria-label="Try dev mode: play ON A MISSION" draggable="false" style="touch-action:none">Try DEV MODE next?</button>
+      <button type="button" id="ghost-nudge" aria-label="Try GHOST DUSTERS mode" draggable="false" style="touch-action:none">Try GHOST DUSTERS next?</button>
       <div id="menu-btns">
         <button type="button" id="howto-btn" class="hand-btn" aria-label="How to play" draggable="false" style="touch-action:none">HOW TO PLAY</button>
         <button type="button" id="modes-btn" class="hand-btn" aria-label="Modes" draggable="false" style="touch-action:none">MODES</button>
@@ -160,6 +165,15 @@
           <ol id="dev-rows"></ol>
           <p id="dev-status" aria-live="polite"></p>
           <button type="button" id="dev-back" class="hand-btn" draggable="false">BACK</button>
+        </div>
+      </div>
+      <div id="ghost-board" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="ghost-title">
+        <div class="cg-card">
+          <p class="dev-head"><span id="ghost-badge-lbl" class="dev-badge">GHOST</span><span id="ghost-title">GHOST BOARD</span></p>
+          <p id="ghost-sub">GHOST DUSTERS scores only. Never on the public leaderboard.</p>
+          <ol id="ghost-rows"></ol>
+          <p id="ghost-status" aria-live="polite"></p>
+          <button type="button" id="ghost-back" class="hand-btn" draggable="false">BACK</button>
         </div>
       </div>
       <button type="button" id="tut-skip" class="hand-btn" aria-label="Skip How to Play" title="Skip (Esc)" draggable="false" style="touch-action:none">SKIP</button>

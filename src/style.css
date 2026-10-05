@@ -3606,3 +3606,120 @@ body.modes-open #ver-label {
   letter-spacing: 0.08em;
   color: rgba(191, 247, 255, 0.5);
 }
+
+
+/* —— GHOST DUSTERS: featured card + GHOST BOARD (mirrors ON A MISSION / DEV BOARD) —— */
+#ghost-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+#ghost-row .hand-btn::before { display: none; }
+#modes-menu #ghost-row .ghost-pick {
+  flex: 2 1 0;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  animation: devmode-pulse 2.2s ease-in-out infinite;
+  border-color: rgba(200, 240, 255, 0.85);
+  box-shadow: 0 0 14px rgba(127, 255, 255, 0.35);
+}
+#modes-menu #ghost-row .ghost-pick .mode-name {
+  font-size: 15px;
+  letter-spacing: 0.14em;
+}
+#modes-menu #ghost-row .try-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: #c8f0ff;
+  color: #0a1020;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+}
+#modes-menu #ghost-row .mode-invite {
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #cfe3ff;
+  text-transform: none;
+}
+#modes-menu #ghost-row .ghostboard-btn {
+  flex: 1 1 0;
+  min-height: 78px;
+  font-size: 13px;
+  border-width: 2px;
+  border-color: rgba(127, 255, 255, 0.95);
+  box-shadow: 0 0 14px rgba(127, 255, 255, 0.45);
+}
+body.ghost-run #quit-change { display: none; }
+#ghostmode {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+body.title-screen #ghostmode { display: flex; }
+body.congrats-open #ghostmode,
+body.clone-open #ghostmode,
+body.modes-open #ghostmode { display: none; }
+#ghostmode button,
+#ghost-nudge {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 2px solid rgba(127, 255, 255, 0.85);
+  border-radius: 12px;
+  background: rgba(10, 20, 40, 0.88);
+  color: #e8f8ff;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+#ghostmode-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 14px;
+  animation: devmode-pulse 2.2s ease-in-out infinite;
+}
+#ghostmode-big .dm-try { font-size: 13px; color: #c8f0ff; }
+#ghostmode-big .dm-mode { font-size: 16px; letter-spacing: 0.14em; }
+#ghostmode-big .dm-tag { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; color: #b8d4ff; text-transform: none; letter-spacing: 0.02em; }
+#ghostboard-link { padding: 8px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+#ghost-nudge {
+  display: none;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+body.gameover #ghost-nudge { display: inline-block; }
+body.ghost-over #ghost-nudge,
+body.mission-over #ghost-nudge,
+body.congrats-open #ghost-nudge,
+body.clone-open #ghost-nudge,
+body.modes-open #ghost-nudge { display: none; }
+body.mission-over #mission-nudge { display: none; }
+#ghost-board {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 0, 20, 0.72);
+}
+#ghost-board.open,
+#ghost-board[aria-hidden='false'] { display: flex; }
+#ghost-board .cg-card { max-width: 420px; width: min(92vw, 420px); }
+@media (prefers-reduced-motion: reduce) {
+  #modes-menu #ghost-row .ghost-pick,
+  #ghostmode-big { animation: none; }
+}
