@@ -43,6 +43,13 @@ const ID = [...AZ];
 const FIL = [...AZ, 'Ñ'];
 const SV = [...AZ, 'Å', 'Ä', 'Ö'];
 
+const RU = Array.from('АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ');
+const UK = Array.from('АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ');
+const JA = Array.from('アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン');
+const KO = Array.from('가나다라마바사아자차카타파하');
+const HI = Array.from('अआइईउऊएऐओऔकखगघचछजझटठडढणतथदधनपफबभमयरलवशषसह');
+const TH = Array.from('กขคงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ');
+
 const SETS: Record<Lang, readonly string[]> = {
   en: [...AZ, STAR, ...EMOJIS],
   es: [...ES, STAR, ...EMOJIS],
@@ -58,6 +65,12 @@ const SETS: Record<Lang, readonly string[]> = {
   id: [...ID, STAR, ...EMOJIS],
   fil: [...FIL, STAR, ...EMOJIS],
   sv: [...SV, STAR, ...EMOJIS],
+  ru: [...RU, STAR, ...EMOJIS],
+  uk: [...UK, STAR, ...EMOJIS],
+  ja: [...JA, STAR, ...EMOJIS],
+  ko: [...KO, STAR, ...EMOJIS],
+  hi: [...HI, STAR, ...EMOJIS],
+  th: [...TH, STAR, ...EMOJIS],
 };
 
 /** The picker's characters for one language, in order. */
@@ -66,7 +79,7 @@ export function initialsSet(l: Lang): readonly string[] {
 }
 
 /** Union of every language's set: what the boards (and the server) accept. */
-export const ALLOWED: ReadonlySet<string> = new Set([...AZ, ...ES, ...VI, ...ZH, ...FR, ...DE, ...PT, ...IT, ...NL, ...PL, ...TR, ...ID, ...FIL, ...SV, STAR, ...EMOJIS]);
+export const ALLOWED: ReadonlySet<string> = new Set([...AZ, ...ES, ...VI, ...ZH, ...FR, ...DE, ...PT, ...IT, ...NL, ...PL, ...TR, ...ID, ...FIL, ...SV, ...RU, ...UK, ...JA, ...KO, ...HI, ...TH, STAR, ...EMOJIS]);
 
 /** Code points (an emoji is one character here, unlike String.length). */
 export function chars(s: string): string[] {
@@ -179,6 +192,12 @@ const RUDE_PROMPT: Record<Lang, string> = {
   id: 'UPS! ITU TERSLIP KULIT PISANG. PILIH YANG LAIN!',
   fil: 'Naku! Nadulas sa balat ng saging. Pumili ng iba!',
   sv: 'HOPSAN! DE HALKADE PÅ ETT BANANSKAL. VÄLJ ANDRA!',
+  ru: 'УПС! ЭТИ БУКВЫ ПОДСКОЛЬЗНУЛИСЬ НА БАНАНОВОЙ КОЖУРЕ. ВЫБЕРИ ДРУГИЕ!',
+  uk: 'ОПС! ЦІ ЛІТЕРИ ПОСКОВЗНУЛИСЯ НА БАНАНОВІЙ ШКУРЦІ. ОБЕРИ ІНШІ!',
+  ja: 'おっと！その文字はバナナの皮で滑ったよ。別のを選んで！',
+  ko: '앗! 그 글자가 바나나 껍질에 미끄러졌어. 다른 걸 골라!',
+  hi: 'उफ़! ये अक्षर केले के छिलके पर फिसल गए। दूसरे चुनो!',
+  th: 'อุ๊ย! ตัวอักษรลื่นเปลือกกล้วย เลือกใหม่นะ!',
 };
 export function rudePrompt(l: Lang): string {
   return RUDE_PROMPT[l] ?? RUDE_PROMPT.en;

@@ -2436,6 +2436,12 @@ html[lang='tr'] #quit-confirm .qc-card::after { content: 'DOLU'; }
 html[lang='id'] #quit-confirm .qc-card::after { content: 'ADA ORANG'; }
 html[lang='fil'] #quit-confirm .qc-card::after { content: 'MAY TAO'; }
 html[lang='sv'] #quit-confirm .qc-card::after { content: 'UPPTAGEN'; }
+html[lang='ru'] #quit-confirm .qc-card::after { content: 'ЗАНЯТО'; }
+html[lang='uk'] #quit-confirm .qc-card::after { content: 'ЗАЙНЯТО'; }
+html[lang='ja'] #quit-confirm .qc-card::after { content: '使用中'; }
+html[lang='ko'] #quit-confirm .qc-card::after { content: '사용 중'; }
+html[lang='hi'] #quit-confirm .qc-card::after { content: 'व्यस्त'; }
+html[lang='th'] #quit-confirm .qc-card::after { content: 'มีคนใช้'; }
 
 /* Narrow phones: the label and the dropdown stay on one line; a bigger touch target. */
 @media (max-width: 430px) {
@@ -3881,4 +3887,37 @@ body.mission-over #mission-nudge { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #modes-menu #ghost-row .ghost-pick,
   #ghostmode-big { animation: none; }
+}
+
+
+/* Wave 2 script fonts: Orbitron/Rajdhani lack these glyphs — system / Noto stacks. */
+html[lang='ru'] body,
+html[lang='uk'] body {
+  font-family: 'Rajdhani', 'Roboto', 'Segoe UI', Arial, 'Noto Sans', sans-serif;
+}
+html[lang='ja'] body {
+  font-family: 'Rajdhani', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+}
+html[lang='ko'] body {
+  font-family: 'Rajdhani', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+}
+html[lang='hi'] body {
+  font-family: 'Rajdhani', 'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', system-ui, sans-serif;
+}
+html[lang='th'] body {
+  font-family: 'Rajdhani', 'Noto Sans Thai', 'Thonburi', 'Leelawadee UI', system-ui, sans-serif;
+}
+html[lang='ru'] #modes-title,
+html[lang='uk'] #modes-title,
+html[lang='ja'] #modes-title,
+html[lang='ko'] #modes-title,
+html[lang='hi'] #modes-title,
+html[lang='th'] #modes-title,
+html[lang='ru'] .hand-btn,
+html[lang='uk'] .hand-btn,
+html[lang='ja'] .hand-btn,
+html[lang='ko'] .hand-btn,
+html[lang='hi'] .hand-btn,
+html[lang='th'] .hand-btn {
+  font-family: 'Orbitron', 'Roboto', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans Devanagari', 'Noto Sans Thai', 'Segoe UI', sans-serif;
 }

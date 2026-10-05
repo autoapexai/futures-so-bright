@@ -119,3 +119,47 @@ export const FLAG_SE = svg(
     '<rect x="9" width="4" height="20" fill="#FECB00"/>' +
     '<rect y="8" width="30" height="4" fill="#FECB00"/>',
 );
+
+/** Russia: white / blue / red horizontal bands. */
+export const FLAG_RU = svg(
+  '<rect width="30" height="6.67" fill="#fff"/><rect y="6.67" width="30" height="6.67" fill="#0039A6"/>' +
+    '<rect y="13.33" width="30" height="6.67" fill="#D52B1E"/>',
+);
+
+/** Ukraine: blue over yellow. */
+export const FLAG_UA = svg(
+  '<rect width="30" height="10" fill="#0057B7"/><rect y="10" width="30" height="10" fill="#FFD700"/>',
+);
+
+/** Japan: white field, red disc. */
+export const FLAG_JP = svg(
+  '<rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="5.2" fill="#BC002D"/>',
+);
+
+/** South Korea: white field, taegeuk, four black trigrams (simplified). */
+export const FLAG_KR = svg(
+  '<rect width="30" height="20" fill="#fff"/>' +
+    '<circle cx="15" cy="10" r="4.2" fill="#CD2E3A"/>' +
+    '<path d="M15 10a4.2 4.2 0 0 1 0 0.01A4.2 4.2 0 1 1 15 5.8Z" fill="#0047A0"/>' +
+    '<g stroke="#000" stroke-width="1.1" stroke-linecap="square" fill="none">' +
+    '<path d="M5.2 3.2l2.4 2.4M4.2 4.8l3.2 0.2M6.4 2.4l0.2 3.2"/>' +
+    '<path d="M24.8 3.2l-2.4 2.4M25.8 4.8l-3.2 0.2M23.6 2.4l-0.2 3.2"/>' +
+    '<path d="M5.2 16.8l2.4-2.4M4.2 15.2l3.2-0.2M6.4 17.6l0.2-3.2"/>' +
+    '<path d="M24.8 16.8l-2.4-2.4M25.8 15.2l-3.2-0.2M23.6 17.6l-0.2-3.2"/>' +
+    '</g>',
+);
+
+/** India: saffron / white / green with navy Ashoka Chakra (simplified). */
+export const FLAG_IN = svg(
+  '<rect width="30" height="6.67" fill="#FF9933"/><rect y="6.67" width="30" height="6.67" fill="#fff"/>' +
+    '<rect y="13.33" width="30" height="6.67" fill="#138808"/>' +
+    '<circle cx="15" cy="10" r="2.4" fill="none" stroke="#000080" stroke-width="0.7"/>' +
+    '<circle cx="15" cy="10" r="0.45" fill="#000080"/>',
+);
+
+/** Thailand: red / white / blue / white / red horizontal bands. */
+export const FLAG_TH = svg(
+  '<rect width="30" height="3.33" fill="#A51931"/><rect y="3.33" width="30" height="3.33" fill="#fff"/>' +
+    '<rect y="6.66" width="30" height="6.68" fill="#2D2A4A"/>' +
+    '<rect y="13.34" width="30" height="3.33" fill="#fff"/><rect y="16.67" width="30" height="3.33" fill="#A51931"/>',
+);

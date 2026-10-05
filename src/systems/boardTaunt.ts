@@ -6,8 +6,9 @@
  * the same count per language so one random pick works in any language. #1 gets no taunt.
  */
 import type { Lang } from '../i18n';
+import { fillLangs } from '../utils/fillLangs';
 
-const MISSED: Record<Lang, readonly string[]> = {
+const MISSED: Record<Lang, readonly string[]> = fillLangs({
   en: [
     'THE BOARD SAVED YOU A SEAT. IT\'S IN THE PARKING LOT.',
     'SO CLOSE! THE TOP 11 CAN HEAR YOU KNOCKING.',
@@ -121,9 +122,9 @@ const MISSED: Record<Lang, readonly string[]> = {
     'EN RUNDA TILL OCH LISTAN MÅSTE FLYTTA PÅ SIG.',
     'TOPP 11 LÅSTE DÖRREN. FÖNSTRET ÄR VIDÖPPET.',
   ],
-};
+});
 
-const BELOW_TOP: Record<Lang, readonly string[]> = {
+const BELOW_TOP: Record<Lang, readonly string[]> = fillLangs({
   en: [
     'ON THE BOARD! #1 IS NERVOUSLY POLISHING ITS TROPHY.',
     'NICE! #1 JUST SPILLED ITS LEMONADE LOOKING AT YOU.',
@@ -237,7 +238,7 @@ const BELOW_TOP: Record<Lang, readonly string[]> = {
     '#1 HAR BÖRJAT BÄRA HJÄLM. FÖR SÄKERHETS SKULL.',
     'DU KLÄTTRAR! #1 GÖMMER STEGEN.',
   ],
-};
+});
 
 /** Lines per set (same in every language). */
 export const BOARD_TAUNT_COUNT = MISSED.en.length;
