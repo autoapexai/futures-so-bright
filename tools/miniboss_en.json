@@ -1,0 +1,286 @@
+{
+  "tag": "MINI-BOSS",
+  "gate": "BEAT IT TO PASS LEVEL {n}",
+  "beaten": "MINI-BOSS BEATEN  ·  +{p}",
+  "words": {
+    "reindeer": {
+      "taunts": [
+        "ACTION! WAIT, WHO CAST ALL THESE DOGS? I ASKED FOR REINDEER.",
+        "FROM THE TOP. THIS TIME WITH LESS BARKING AND MORE ANTLERS.",
+        "I SAID CUT, NOT WOOF."
+      ],
+      "pops": [
+        "CUT!",
+        "TAKE TWO!",
+        "ACTION!"
+      ],
+      "stun": "QUIET ON SET!",
+      "fall": "THAT'S A WRAP!",
+      "prop": "ROB",
+      "prop2": null
+    },
+    "sneezefeld": {
+      "taunts": [
+        "EVER NOTICE DOGS IN SUNGLASSES NEVER SNEEZE? HOW DO THEY DO IT?",
+        "WHO DECIDED THE TISSUE BOX ALWAYS HAS ONE TISSUE LEFT? EVERY TIME!",
+        "I SNEEZED ONCE AND NOW THE WHOLE LEVEL SAYS BLESS YOU. WHO ARE THESE PEOPLE?",
+        "POLLEN IN SPACE? HOW DID POLLEN GET A ROCKET?",
+        "M MORE OF A MANAGER.\", "
+      ],
+      "pops": [
+        "ACHOO!",
+        "BLESS ME!",
+        "OH, COME ON!"
+      ],
+      "stun": "AH... AH... ACHOO!",
+      "fall": "PASS THE TISSUES!",
+      "prop": "TISSUES",
+      "prop2": null
+    },
+    "divot": {
+      "taunts": [
+        "IS THIS A RULE NOW? DOGS JUST RUNNING AT PEOPLE? WHO DECIDED THAT?",
+        "M NOT SAYING YOU",
+        "M SAYING I",
+        "T WAVE BACK. NOW IT",
+        "ONE SWING AND I DUG UP HALF THE COURSE. THAT DIVOT HAS ITS OWN ZIP CODE.",
+        "LL DODGE WHEN I",
+        "DID YOU JUST STAND IN MY DIVOT? THAT WAS MY DIVOT."
+      ],
+      "pops": [
+        "HEY!",
+        "FORE!",
+        "REALLY?!"
+      ],
+      "stun": "*SHRUG*",
+      "fall": "I'LL PUT THE GRASS BACK!",
+      "prop": "FORE",
+      "prop2": null
+    },
+    "macdoodle": {
+      "taunts": [
+        "I DREW A MOTH. NOW IT WILL NOT LEAVE THE LAMP.",
+        "S IT. THAT",
+        "M GOING TO STAND HERE AND DOODLE. THAT",
+        "T. HE",
+        "M DEADPAN. I SAY NOTHING. SEE?\", \"THAT WAS A GOOD DODGE. I"
+      ],
+      "pops": [
+        "HM.",
+        "SCRIBBLE.",
+        "WELL."
+      ],
+      "stun": "HUH.",
+      "fall": "WELL, THAT HAPPENED.",
+      "prop": "DOODLES",
+      "prop2": null
+    },
+    "lettuceman": {
+      "taunts": [
+        "S TOP TEN SALADS: NUMBER TEN, LETTUCE. NUMBER NINE, ALSO LETTUCE.\", \"WE",
+        "NUMBER FOUR: SUNGLASSES INDOORS. SUNGLASSES OUTDOORS. ALL THE SUNGLASSES.",
+        "TONIGHT ON THE DESK: ONE PENCIL, ONE MUG, ONE VERY CRISP HEAD OF LETTUCE.",
+        "T PASS: ME. I HAVE A DESK.\", \"I"
+      ],
+      "pops": [
+        "NUMBER TEN!",
+        "CRUNCH!",
+        "ZING!"
+      ],
+      "stun": "COMMERCIAL BREAK!",
+      "fall": "LETTUCE SAY GOOD NIGHT!",
+      "prop": "TOP 10",
+      "prop2": null
+    },
+    "rowdy": {
+      "taunts": [
+        "RE DOING GREAT! NOW STOP!\", \"LET",
+        "HIGH FIVES FOR EVERYONE! EXCEPT THE DOGS. THEY HAVE PAWS.",
+        "WARMING UP THE ARM! THIS PITCH HAS FEELINGS!",
+        "M NOT LOUD. I",
+        "S A DIFFERENCE. IT"
+      ],
+      "pops": [
+        "S GO!\", ",
+        ", "
+      ],
+      "stun": "TIME OUT!",
+      "fall": "GOOD GAME, GOOD GAME!",
+      "prop": "ROWDY",
+      "prop2": null
+    },
+    "fryer": {
+      "taunts": [
+        "I GOT A WHOLE KITCHEN AND NOBODY TO COOK FOR. YOU WANT PANCAKES?",
+        "S THE WHOLE GAME!\", ",
+        ", \"HOLD ON, I",
+        "THESE DOGS ARE FAST! SOMEBODY CALL THEIR MOMS!",
+        "T KNOW WHERE IT"
+      ],
+      "pops": [
+        "SIZZLE!",
+        "FLIP!",
+        "HA HA!"
+      ],
+      "stun": "ALL FLIPPED OUT!",
+      "fall": "OKAY, OKAY, YOU WIN!",
+      "prop": "PAN",
+      "prop2": null
+    },
+    "socks": {
+      "taunts": [
+        "WELCOME TO THE LAUNDRY PILE! EVERYTHING IS FOR SALE. EVEN THE LINT.",
+        "THIS SOCK? GENUINE. GENUINELY MISSING ITS PARTNER.",
+        "HOLD ON, LET ME SIT DOWN. THIS ROCKING CHAIR WAS A BARGAIN.",
+        "VE GOT A BOOT, HALF A LAMP, AND ONE RED SOCK. WHERE",
+        "YOU DOGS ARE TRACKING MUD ON MY CLEAN SOCKS!"
+      ],
+      "pops": [
+        "CLUNK!",
+        "FLOP!",
+        "RATTLE!"
+      ],
+      "stun": "HOLD ON NOW!",
+      "fall": "SOLD! TO THE DOGS!",
+      "prop": "SOCKS",
+      "prop2": null
+    },
+    "yogan": {
+      "taunts": [
+        "WHOA. DOGS IN SUNGLASSES. HAVE YOU EVER REALLY THOUGHT ABOUT THAT?",
+        "T KNOW WHO ORDERED IT.\", ",
+        ", ",
+        ", ",
+        ", "
+      ],
+      "pops": [
+        "WHOA!",
+        "NAMASTE!",
+        "BOOM!"
+      ],
+      "stun": "TOTALLY STRETCHED!",
+      "fall": "AND THAT'S THE SHOW!",
+      "prop": "ON AIR",
+      "prop2": null
+    },
+    "gigglegan": {
+      "taunts": [
+        "I WAS GOING TO EXERCISE TODAY. THEN I SAW A SNACK.",
+        "THIS POCKET SNACK IS FROZEN ON THE OUTSIDE AND LAVA IN THE MIDDLE.",
+        "BACON IS JUST BREAKFAST WITH A DRUMROLL.",
+        "M SO TIRED FOR THEM.\", \"I",
+        "M HUNGRY. I"
+      ],
+      "pops": [
+        "MMM!",
+        "HEE HEE!",
+        "NOM!"
+      ],
+      "stun": "FOOD COMA!",
+      "fall": "NAP TIME!",
+      "prop": "SNACKS",
+      "prop2": null
+    },
+    "brooms": {
+      "taunts": [
+        "HEAR YE! THE KING DECLARES: NO RUNNING IN THE KINGDOM! ALSO, SWEEP UP.",
+        "I HAVE A HAT FOR EVERY OCCASION. THIS IS MY THROWING HAT.",
+        "BRING ME MY CROWN! NO, THE SILLY ONE!",
+        "ROYAL DECREE: ALL DOGS MUST WEAR SUNGLASSES. OH. THEY DO.",
+        "VE BEEN A KING, A COWBOY AND A CHEF. TODAY I",
+        "HALT, IN THE NAME OF THE BROOM! I SHALL SWEEP YOU OFF YOUR PAWS!"
+      ],
+      "pops": [
+        "OY!",
+        "MY HAT!",
+        "SWISH!"
+      ],
+      "stun": "THE CROWN SLIPPED!",
+      "fall": "EXIT, STAGE LEFT!",
+      "prop": "BROOM",
+      "prop2": null
+    },
+    "elder": {
+      "taunts": [
+        "M THE ORIGINAL REINDEER. MY SON GOT HIS ANTLERS FROM ME.\", \"BACK IN MY DAY, WE DIDN",
+        "THIS CANE IS OLDER THAN THE WHEEL. I CHECKED.",
+        "I REMEMBER WHEN THE SUN WAS A LITTLE SMALLER.",
+        "SLOW DOWN, YOUNG PUPS! SOME OF US ARE ANCIENT!",
+        "I INVENTED THE NAP. NOBODY EVER GIVES ME CREDIT."
+      ],
+      "pops": [
+        "OOF!",
+        "HMPH!",
+        "TAP TAP!"
+      ],
+      "stun": "WHERE'S MY CANE?",
+      "fall": "TIME FOR A NAP!",
+      "prop": "DAD",
+      "prop2": null
+    },
+    "bridgetrolls": {
+      "taunts": [
+        "THIS IS OUR BRIDGE! GO AROUND!",
+        "NO HONKING! WE ARE GRUMBLING IN PEACE HERE.",
+        "THIS BRIDGE IS CLOSED... FOR FUN!"
+      ],
+      "pops": [
+        "HEY!",
+        "HMPH!",
+        "NO HONKING!"
+      ],
+      "stun": "WOBBLY BRIDGE!",
+      "fall": "SPLASH! ON PURPOSE!",
+      "prop": "NO FUN",
+      "prop2": "NO HONKING"
+    },
+    "ghostgoof": {
+      "taunts": [
+        "BOO... JUST KIDDING! HI!",
+        "I AM FRIENDLY! PLEASE VACUUM GENTLY!",
+        "WHOOOOSH IS MY FAVORITE SOUND!"
+      ],
+      "pops": [
+        "VACUUM!",
+        "ZAP!",
+        "WHOOSH!"
+      ],
+      "stun": "DIZZY FLOAT!",
+      "fall": "INTO THE PACK!",
+      "prop": "BOO?",
+      "prop2": null
+    },
+    "ghostsheet": {
+      "taunts": [
+        "PEEKABOO UNDER HERE!",
+        "THIS SHEET HAS TWO EYE HOLES AND BIG FEELINGS!",
+        "I AM NOT SCARY. I AM LAUNDRY."
+      ],
+      "pops": [
+        "ZAP!",
+        "FWOOP!",
+        "GOTCHA!"
+      ],
+      "stun": "SHEET TANGLE!",
+      "fall": "FOLDED!",
+      "prop": "WASH ME",
+      "prop2": null
+    },
+    "ghostblob": {
+      "taunts": [
+        "I WIGGLE WITH JOY!",
+        "BLOB HUGS ARE FREE!",
+        "CATCH ME IF YOU CAN... POLITELY!"
+      ],
+      "pops": [
+        "SQUISH!",
+        "VACUUM!",
+        "BLORP!"
+      ],
+      "stun": "JIGGLY!",
+      "fall": "IN THE TANK!",
+      "prop": "BLOB",
+      "prop2": null
+    }
+  }
+}

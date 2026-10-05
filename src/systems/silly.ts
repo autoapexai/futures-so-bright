@@ -154,7 +154,7 @@ export function speakTrailer(text: string): void {
     u.pitch = 0.1;
     u.rate = 0.72;
     u.volume = 0.9;
-    u.lang = ({ en: 'en-US', es: 'es-MX', vi: 'vi-VN', zh: 'zh-CN' } as const)[lang()];
+    u.lang = ({ en: 'en-US', es: 'es-MX', vi: 'vi-VN', zh: 'zh-CN', fr: 'fr-FR', de: 'de-DE', pt: 'pt-BR', it: 'it-IT', nl: 'nl-NL', pl: 'pl-PL', tr: 'tr-TR', id: 'id-ID', fil: 'fil-PH', sv: 'sv-SE' } as const)[lang()];
     synth.speak(u);
   } catch {
     /* unsupported: skip */

@@ -2425,6 +2425,18 @@ html[lang='zh-Hans'] body {
 html[lang='es'] #quit-confirm .qc-card::after { content: 'OCUPADO'; }
 html[lang='vi'] #quit-confirm .qc-card::after { content: 'CÓ NGƯỜI'; }
 html[lang='zh-Hans'] #quit-confirm .qc-card::after { content: '有人'; }
+
+html[lang='fr'] #quit-confirm .qc-card::after { content: 'OCCUPÉ'; }
+html[lang='de'] #quit-confirm .qc-card::after { content: 'BESETZT'; }
+html[lang='pt'] #quit-confirm .qc-card::after { content: 'OCUPADO'; }
+html[lang='it'] #quit-confirm .qc-card::after { content: 'OCCUPATO'; }
+html[lang='nl'] #quit-confirm .qc-card::after { content: 'BEZET'; }
+html[lang='pl'] #quit-confirm .qc-card::after { content: 'ZAJĘTE'; }
+html[lang='tr'] #quit-confirm .qc-card::after { content: 'DOLU'; }
+html[lang='id'] #quit-confirm .qc-card::after { content: 'ADA ORANG'; }
+html[lang='fil'] #quit-confirm .qc-card::after { content: 'MAY TAO'; }
+html[lang='sv'] #quit-confirm .qc-card::after { content: 'UPPTAGEN'; }
+
 /* Narrow phones: the label and the dropdown stay on one line; a bigger touch target. */
 @media (max-width: 430px) {
   #lang-label {

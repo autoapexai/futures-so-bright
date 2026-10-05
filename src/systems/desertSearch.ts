@@ -17,6 +17,7 @@
  */
 import TAUNTS_JSON from '../data/leaderboard-taunts.json';
 import { lang, onLang, t as tr, type Lang } from '../i18n';
+import { fillLangs } from '../utils/fillLangs';
 import { speakTrailer } from './silly';
 import { FEED_POLL_MS, broadcastOn, fetchRecentTaunts, reportTaunt } from '../utils/tauntFeed';
 
@@ -24,12 +25,22 @@ const clean = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is s
 const RAW = TAUNTS_JSON as unknown as Record<Lang, unknown>;
 /** English taunts (the reference list: the feed's index range is its length). */
 export const TAUNTS: readonly string[] = clean(RAW.en);
-const BY_LANG: Record<Lang, readonly string[]> = {
+const BY_LANG: Record<Lang, readonly string[]> = fillLangs({
   en: TAUNTS,
   es: clean(RAW.es),
   vi: clean(RAW.vi),
   zh: clean(RAW.zh),
-};
+  ...(clean(RAW.fr).length === TAUNTS.length ? { fr: clean(RAW.fr) } : {}),
+  ...(clean(RAW.de).length === TAUNTS.length ? { de: clean(RAW.de) } : {}),
+  ...(clean(RAW.pt).length === TAUNTS.length ? { pt: clean(RAW.pt) } : {}),
+  ...(clean(RAW.it).length === TAUNTS.length ? { it: clean(RAW.it) } : {}),
+  ...(clean(RAW.nl).length === TAUNTS.length ? { nl: clean(RAW.nl) } : {}),
+  ...(clean(RAW.pl).length === TAUNTS.length ? { pl: clean(RAW.pl) } : {}),
+  ...(clean(RAW.tr).length === TAUNTS.length ? { tr: clean(RAW.tr) } : {}),
+  ...(clean(RAW.id).length === TAUNTS.length ? { id: clean(RAW.id) } : {}),
+  ...(clean(RAW.fil).length === TAUNTS.length ? { fil: clean(RAW.fil) } : {}),
+  ...(clean(RAW.sv).length === TAUNTS.length ? { sv: clean(RAW.sv) } : {}),
+});
 /** Taunt i in the current game language (English if a list is ever short). */
 export function tauntText(i: number, l: Lang = lang()): string {
   const list = BY_LANG[l];

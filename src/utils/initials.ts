@@ -6,7 +6,8 @@
  *   es  A-N Ñ O-Z, Á É Í Ó Ú Ü, ★, emojis
  *   vi  the 29-letter Vietnamese alphabet (no tone marks), ★, emojis
  *   zh  144 curated kid-friendly characters in pinyin order, ★, emojis
- * The server (supabase migration fsb_initials_allowlist.sql) accepts the union of all four sets
+ *   fr/de/pt/it/nl/pl/tr/id/fil/sv  Latin letters (plus language accents), ★, emojis
+ * The server (supabase migration fsb_initials_allowlist.sql) accepts the union of every set
  * and rejects everything else, plus the same rude list. Keep the two in step.
  *
  * Every emoji is a single code point (no variation selectors / ZWJ), so "3 characters" means
@@ -30,11 +31,33 @@ export const ZH_CHARS =
   '爱安八白百宝北贝冰彩草茶唱超车橙船春大岛灯蝶东冬豆朵鹅二方飞粉蜂风福歌狗鼓瓜光龟果海好河荷红虹猴湖虎花画黄火江金九橘酷快兰蓝乐亮林六龙鹿绿马猫梅莓美萌梦米明木南鸟牛跑飘七千强琴晴秋球日三沙山上狮十石书树水四糖桃天甜田跳土兔蛙玩万王五舞西喜虾下夏象小笑心星熊雪鸭羊叶一勇鱼宇雨圆月云早中竹紫';
 const ZH = Array.from(ZH_CHARS);
 
+
+const FR = [...AZ, 'À', 'Â', 'Æ', 'Ç', 'É', 'È', 'Ê', 'Ë', 'Î', 'Ï', 'Ô', 'Œ', 'Ù', 'Û', 'Ü', 'Ÿ'];
+const DE = [...AZ, 'Ä', 'Ö', 'Ü', 'ẞ'];
+const PT = [...AZ, 'Á', 'Â', 'Ã', 'À', 'Ç', 'É', 'Ê', 'Í', 'Ó', 'Ô', 'Õ', 'Ú'];
+const IT = [...AZ, 'À', 'È', 'É', 'Ì', 'Ò', 'Ù'];
+const NL = [...AZ];
+const PL = [...AZ, 'Ą', 'Ć', 'Ę', 'Ł', 'Ń', 'Ó', 'Ś', 'Ź', 'Ż'];
+const TR = ['A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H', 'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'Y', 'Z'];
+const ID = [...AZ];
+const FIL = [...AZ, 'Ñ'];
+const SV = [...AZ, 'Å', 'Ä', 'Ö'];
+
 const SETS: Record<Lang, readonly string[]> = {
   en: [...AZ, STAR, ...EMOJIS],
   es: [...ES, STAR, ...EMOJIS],
   vi: [...VI, STAR, ...EMOJIS],
   zh: [...ZH, STAR, ...EMOJIS],
+  fr: [...FR, STAR, ...EMOJIS],
+  de: [...DE, STAR, ...EMOJIS],
+  pt: [...PT, STAR, ...EMOJIS],
+  it: [...IT, STAR, ...EMOJIS],
+  nl: [...NL, STAR, ...EMOJIS],
+  pl: [...PL, STAR, ...EMOJIS],
+  tr: [...TR, STAR, ...EMOJIS],
+  id: [...ID, STAR, ...EMOJIS],
+  fil: [...FIL, STAR, ...EMOJIS],
+  sv: [...SV, STAR, ...EMOJIS],
 };
 
 /** The picker's characters for one language, in order. */
@@ -43,7 +66,7 @@ export function initialsSet(l: Lang): readonly string[] {
 }
 
 /** Union of every language's set: what the boards (and the server) accept. */
-export const ALLOWED: ReadonlySet<string> = new Set([...AZ, ...ES, ...VI, ...ZH, STAR, ...EMOJIS]);
+export const ALLOWED: ReadonlySet<string> = new Set([...AZ, ...ES, ...VI, ...ZH, ...FR, ...DE, ...PT, ...IT, ...NL, ...PL, ...TR, ...ID, ...FIL, ...SV, STAR, ...EMOJIS]);
 
 /** Code points (an emoji is one character here, unlike String.length). */
 export function chars(s: string): string[] {
@@ -78,7 +101,15 @@ export function nextChar(ch: string, delta: number, l: Lang): string {
 /** Fold accents to the base letter (Ñ stays Ñ). */
 export function foldLatin(s: string): string {
   const map: Record<string, string> = {
-    Á: 'A', Ă: 'A', Â: 'A', É: 'E', Ê: 'E', Í: 'I', Ó: 'O', Ô: 'O', Ơ: 'O', Ú: 'U', Ü: 'U', Ư: 'U', Đ: 'D',
+    Á: 'A', À: 'A', Ă: 'A', Â: 'A', Ã: 'A', Ä: 'A', Å: 'A', Æ: 'AE',
+    Ç: 'C', Ć: 'C',
+    É: 'E', È: 'E', Ê: 'E', Ë: 'E', Ę: 'E',
+    Í: 'I', Ì: 'I', Î: 'I', Ï: 'I', İ: 'I',
+    Ó: 'O', Ò: 'O', Ô: 'O', Õ: 'O', Ö: 'O', Ơ: 'O', Œ: 'OE',
+    Ú: 'U', Ù: 'U', Û: 'U', Ü: 'U', Ư: 'U',
+    Ý: 'Y', Ÿ: 'Y',
+    Đ: 'D', Ń: 'N', Ł: 'L', Ś: 'S', Ź: 'Z', Ż: 'Z',
+    Ğ: 'G', Ş: 'S', ẞ: 'SS',
   };
   return chars(s.toUpperCase()).map((c) => map[c] ?? c).join('');
 }
@@ -138,6 +169,16 @@ const RUDE_PROMPT: Record<Lang, string> = {
   es: '¡UPS! ESAS SE RESBALARON CON UNA CÁSCARA. ¡ELIGE OTRAS!',
   vi: 'ÚI! MẤY CHỮ ĐÓ TRƯỢT VỎ CHUỐI RỒI. CHỌN CHỮ KHÁC NHÉ!',
   zh: '哎呀！这几个字踩到香蕉皮啦。换几个吧！',
+  fr: 'OUPS ! ÇA A GLISSÉ SUR UNE PEAU DE BANANE. CHOISIS-EN D’AUTRES !',
+  de: 'UPS! DIE SIND AUF EINER BANANENSCHALE AUSGERUTSCHT. NIMM ANDERE!',
+  pt: 'OPS! ESSAS ESCORREGARAM NA CASCA DE BANANA. ESCOLHA OUTRAS!',
+  it: 'OPS! QUELLE SONO SCIVOLATE SU UNA BUCCIA. SCEGLINE ALTRE!',
+  nl: 'OEPS! DIE GLEDEN UIT OVER EEN BANANENSCHIL. KIES ANDERE!',
+  pl: 'UPS! TE POŚLIZGNĘŁY SIĘ NA SKÓRCE BANANA. WYBIERZ INNE!',
+  tr: 'HOP! MUZ KABUĞUNA KAYDILAR. BAŞKALARINI SEÇ!',
+  id: 'UPS! ITU TERSLIP KULIT PISANG. PILIH YANG LAIN!',
+  fil: 'Naku! Nadulas sa balat ng saging. Pumili ng iba!',
+  sv: 'HOPSAN! DE HALKADE PÅ ETT BANANSKAL. VÄLJ ANDRA!',
 };
 export function rudePrompt(l: Lang): string {
   return RUDE_PROMPT[l] ?? RUDE_PROMPT.en;
