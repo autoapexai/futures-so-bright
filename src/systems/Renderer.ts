@@ -5,10 +5,11 @@ import { drawDuckText, duckWidth } from '../render/duckDigits';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
 import { clamp } from '../utils/math';
+import { barkWord } from '../utils/pets';
 import { paintShip, shipSprite, dogGlyph, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, GLYPH_W, GLYPH_H, GLYPH_AX, GLYPH_AY, type Breed } from '../render/shipSprite';
 import type { Formation } from '../entities/Formation';
 import { MAX_DRAWN_SHIPS, formatShips } from '../utils/cloneLevels';
-import { fmtNum, nonEnglish, t as tr } from '../i18n';
+import { fmtNum, nonEnglish, t as tr, hudShipWord} from '../i18n';
 
 /** fillText that, in non-English languages only, squeezes text wider than maxW (English draws exactly as before). */
 function fillMax(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number): void {
@@ -503,7 +504,8 @@ export class Renderer {
     ctx.font = `900 ${this.u(13)}px 'Orbitron', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    for (const k of barks) if (k.alive) ctx.fillText('WOOF', k.x, k.y);
+    let i = 0;
+    for (const k of barks) if (k.alive) ctx.fillText(barkWord(i++), k.x, k.y);
   }
 
   drawObstacles(ctx: CanvasRenderingContext2D, obstacles: Obstacle[]): void {
@@ -857,7 +859,7 @@ export class Renderer {
     // different face, size and colour), so "1 DOG" can never read as "100G" in Orbitron.
     const lvl = info.ships > 0 || info.label ? `${tr('hud_lvl', { n: info.level })}  ·  ` : tr('hud_lvl', { n: info.level });
     const count = info.label ? '' : info.ships > 0 ? formatShips(info.ships) : '';
-    const word = info.label ?? (info.ships > 0 ? (info.ships === 1 ? tr('hud_dog') : tr('hud_dogs')) : '');
+    const word = info.label ?? (info.ships > 0 ? hudShipWord(info.ships) : '');
     ctx.textAlign = 'left';
     const orb = "'Orbitron', sans-serif";
     const raj = "'Rajdhani', 'Segoe UI', sans-serif";

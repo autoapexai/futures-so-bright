@@ -7,7 +7,8 @@ import { Renderer, GATE_GLOW_SECONDS } from './Renderer';
 import { Formation, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipHitCost, shipsForLevel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
-import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
+import { playerBreedNow, breedScale, type Breed } from '../render/shipSprite';
+import { setPet, onPet, type PetChoice } from '../utils/pets';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
 import { MODES, CALVIN_TRIPLETS, MISSION_MODE, isMission, modeBreeds, type ModeDef } from '../utils/modes';
 import { MissionCar, PARTS as MISSION_PART_LIST, CAR_UP, CAR_DOWN, CAR_HALF, type MissionSfx } from './missionCar';
@@ -45,7 +46,7 @@ import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed,
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
 import { boardTaunt } from './boardTaunt';
 import { firstChar, initialsSet, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
-import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
+import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang, tPet, modeShipsLabel, modeAriaLabel } from '../i18n';
 import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { APP_VERSION } from '../version';
 import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel } from './miniBoss';
@@ -627,10 +628,10 @@ export class Game {
         name.textContent = m.name;
         const ships = document.createElement('span');
         ships.className = 'mode-ships';
-        ships.textContent = tr('mode_dogs', { n: fmtNum(m.ships) });
+        ships.textContent = modeShipsLabel(fmtNum(m.ships));
         ships.style.color = m.tint;
         b.append(name, ships);
-        b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
+        b.setAttribute('aria-label', modeAriaLabel(m.name, m.ships));
         if (m.behavior === 'calvin') {
           b.id = 'calvin-pick';
           bindTap(b, () => this.tapCalvin(b));
@@ -640,8 +641,8 @@ export class Game {
         list.appendChild(b);
         if (m.behavior !== 'calvin') {
           onLang(() => {
-            ships.textContent = tr('mode_dogs', { n: fmtNum(m.ships) });
-            b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
+            ships.textContent = modeShipsLabel(fmtNum(m.ships));
+            b.setAttribute('aria-label', modeAriaLabel(m.name, m.ships));
           });
         } else onLang(() => this.syncCalvinEntry(b));
       }
@@ -787,13 +788,54 @@ export class Game {
         this.audio.playUi();
       });
     });
+    // PETS row: Dogs / Cats / "Cats and dogs getting along together", remembered on this device.
+    document.querySelectorAll<HTMLElement>('#pet-row .pet-opt').forEach((b) => {
+      bindTap(b, () => {
+        if (this.modesGhostTap()) return;
+        const id = b.dataset.pet as PetChoice;
+        if (id === 'dogs' || id === 'cats' || id === 'together') setPet(id);
+        this.audio.playUi();
+      });
+    });
+    const refreshPetLabels = (): void => {
+      applyDomStrings();
+      document.querySelectorAll<HTMLElement>('#modes-list .mode-pick').forEach((b) => {
+        if (b.id === 'calvin-pick') {
+          this.syncCalvinEntry(b);
+          return;
+        }
+        const ships = b.querySelector('.mode-ships');
+        const name = b.querySelector('.mode-name');
+        if (!ships || !name) return;
+        // Re-read ship count from aria or leave; sync from MODES by name.
+      });
+      // Rebuild mode ship labels from MODES order (skip mission row).
+      const picks = document.querySelectorAll<HTMLElement>('#modes-list > .mode-pick');
+      let mi = 0;
+      for (const b of picks) {
+        if (b.id === 'calvin-pick') {
+          this.syncCalvinEntry(b);
+          continue;
+        }
+        if (b.classList.contains('mission-pick') || b.classList.contains('devboard-btn')) continue;
+        const m = MODES[mi++];
+        if (!m) break;
+        const ships = b.querySelector('.mode-ships');
+        if (ships) ships.textContent = modeShipsLabel(fmtNum(m.ships));
+        b.setAttribute('aria-label', modeAriaLabel(m.name, m.ships));
+      }
+      this.syncDifficultyUi();
+      this.setBodyFlags();
+    };
     onLang(() => {
       applyDomStrings();
       loadLangFonts();
       syncHandBtn(loadHandPreference());
       this.syncDifficultyUi();
       this.setBodyFlags();
+      refreshPetLabels();
     });
+    onPet(() => refreshPetLabels());
     bindTap(document.getElementById('modes-btn'), () => {
       void this.audio.unlock();
       this.openModes();
@@ -1083,8 +1125,8 @@ export class Game {
     const name = b.querySelector('.mode-name');
     const ships = b.querySelector('.mode-ships');
     if (name) name.textContent = m.name;
-    if (ships) ships.textContent = tr('mode_dogs', { n: m.ships });
-    b.setAttribute('aria-label', tr('mode_aria', { m: m.name, n: m.ships }));
+    if (ships) ships.textContent = modeShipsLabel(m.ships);
+    b.setAttribute('aria-label', modeAriaLabel(m.name, m.ships));
     if (flourish) {
       b.classList.remove('egg');
       void b.offsetWidth; // restart the CSS animation
@@ -1212,8 +1254,8 @@ export class Game {
       // Back to the normal title: the Border Collie and the normal best.
       this.missionRun = false;
       this.car.reset();
-      this.player.breed = PLAYER_BREED;
-      this.player.scale = breedScale(PLAYER_BREED);
+      this.player.breed = playerBreedNow();
+      this.player.scale = breedScale(playerBreedNow());
       this.player.w = 52 * this.player.scale;
       this.player.h = 28 * this.player.scale;
       this.high = loadHighScore();
@@ -3181,16 +3223,16 @@ export class Game {
     const touch = this.touchPrimary;
     switch (this.tutStep) {
       case 0:
-        return { title: tr('tut0_title'), lines: [touch ? tr('tut0_touch') : tr('tut0_keys')] };
+        return { title: tPet('tut0_title'), lines: [touch ? tr('tut0_touch') : tr('tut0_keys')] };
       case 1:
         return {
           title: tr('tut1_title'),
-          lines: [tr('tut1_a'), tr('tut1_c'), tr('tut1_b')],
+          lines: [tPet('tut1_a'), tPet('tut1_c'), tr('tut1_b')],
         };
       case 2:
         return {
           title: tr('tut2_title'),
-          lines: [tr('tut2_a'), tr('tut2_b')],
+          lines: [tr('tut2_a'), tPet('tut2_b')],
         };
       default:
         return {
@@ -3198,7 +3240,7 @@ export class Game {
           lines: [
             tr('tut3_a'),
             tr('tut3_b'),
-            tr('tut3_c'),
+            tPet('tut3_c'),
             tr('tut3_d', { b: touch ? tr('tut3_boost_touch') : tr('tut3_boost_keys') }),
             touch ? tr('tut3_touch') : tr('tut3_keys'),
           ],
@@ -3830,8 +3872,8 @@ export class Game {
   /** Apply per-dog scale k (x breed size) to the player's dog, the pack and their hitboxes. */
   private setPackK(k: number): void {
     this.packK = k;
-    this.player.breed = PLAYER_BREED;
-    this.player.scale = breedScale(PLAYER_BREED) * k;
+    this.player.breed = playerBreedNow();
+    this.player.scale = breedScale(playerBreedNow()) * k;
     this.player.w = 52 * this.player.scale;
     this.player.h = 28 * this.player.scale;
     if (this.packRun && this.tutStep < 0) {

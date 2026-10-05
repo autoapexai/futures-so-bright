@@ -1,3 +1,4 @@
+import { pet } from './utils/pets';
 /**
  * Player-facing strings (English, Spanish, Vietnamese, Simplified Chinese) and the language preference.
  *
@@ -84,6 +85,10 @@ const en = {
   hud_lvl: 'LVL {n}',
   hud_dog: 'dog',
   hud_dogs: 'dogs',
+  hud_cat: 'cat',
+  hud_cats: 'cats',
+  hud_pet: 'pet',
+  hud_pets: 'pets',
   shade_charge: 'SHADE CHARGE',
   // Title (touch)
   title_dodge_p: 'Dodge the glare. Keep shades charged.',
@@ -167,19 +172,29 @@ const en = {
   // Tutorial
   tut_head: 'HOW TO PLAY  ·  {s}/{t}',
   tut0_title: 'MOVE YOUR DOG',
+  tut0_title_cats: 'MOVE YOUR CAT',
+  tut0_title_together: 'MOVE YOUR PET',
   tut0_touch: 'Drag the stick to fly',
   tut0_keys: 'WASD / Arrows to fly',
   tut1_title: 'DODGE THE GLARE',
   tut1_a: 'Beams, flares and neon bars cost a dog',
+  tut1_a_cats: 'Beams, flares and neon bars cost a cat',
+  tut1_a_together: 'Beams, flares and neon bars cost a pet',
   tut1_c: 'Hold FIRE: your dogs bark WOOF and pop them',
+  tut1_c_cats: 'Hold FIRE: your cats meow MEOW and pop them',
+  tut1_c_together: 'Hold FIRE: your pets bark WOOF and meow MEOW and pop them',
   tut1_b: 'Fly into any ring gate for FULL POWER',
   tut2_title: 'GRAB THE CIRCLES',
   tut2_a: 'Glowing circles refill your shades',
   tut2_b: 'SHADE CHARGE runs out = you lose a dog',
+  tut2_b_cats: 'SHADE CHARGE runs out = you lose a cat',
+  tut2_b_together: 'SHADE CHARGE runs out = you lose a pet',
   tut3_title: 'SURVIVE 30 SECONDS',
   tut3_a: 'Survive 30 seconds to pass a level',
   tut3_b: 'Levels 1 to 111 get harder as you go',
   tut3_c: 'You start with 4 dogs: lose them all = game over',
+  tut3_c_cats: 'You start with 4 cats: lose them all = game over',
+  tut3_c_together: 'You start with 4 pets: lose them all = game over',
   tut3_d: 'Circles refill shade, gates fill it; {b} burns it',
   tut3_boost_touch: 'FIRE',
   tut3_boost_keys: 'SPACE (fire)',
@@ -205,7 +220,11 @@ const en = {
   hand_aria_left: 'Left-hand controls — tap for right hand',
   hand_aria_right: 'Right-hand controls — tap for left hand',
   mode_dogs: '{n} DOGS',
+  mode_cats: '{n} CATS',
+  mode_pets: '{n} PETS',
   mode_aria: '{m}, {n} dogs',
+  mode_aria_cats: '{m}, {n} cats',
+  mode_aria_pets: '{m}, {n} pets',
   diff_label: 'DIFFICULTY {c} · {m}',
   diff_eleven: '11 · SHADES ON · {m}',
   diff_aria: 'Difficulty {d}, points {m}x',
@@ -252,6 +271,8 @@ const en = {
   jab_tissues: 'TISSUES FOR YOUR {n} BOARD ENTRIES',
   mime_stunned: 'STUNNED',
   cat: 'the cat is walking on the keyboard',
+  dog_kb: 'the dog is walking on the keyboard',
+  pets_kb: 'a cat and a dog are walking on the keyboard',
   photo_class1: 'CLASS OF LEVEL 111 ({n} BOSS)',
   photo_class: 'CLASS OF LEVEL 111 ({n} BOSSES)',
   prize_your: 'YOUR PRIZE:',
@@ -259,6 +280,12 @@ const en = {
   prize_good: 'Good girl.',
   // Language row (MODES)
   lang_label: 'LANGUAGE',
+  // Pet row (MODES)
+  pet_label: 'PETS',
+  pet_dogs: 'Dogs',
+  pet_cats: 'Cats',
+  pet_together: 'Cats and dogs getting along together',
+  dom_pet_row_aria_label: 'Pets',
   // Static page text (index.html)
   dom_modes_big: 'MODES',
   dom_modes_big_aria_label: 'Modes: fan modes',
@@ -384,6 +411,10 @@ const es: Record<Key, string> = {
   hud_lvl: 'NIV {n}',
   hud_dog: 'perro',
   hud_dogs: 'perros',
+  hud_cat: 'gato',
+  hud_cats: 'gatos',
+  hud_pet: 'mascota',
+  hud_pets: 'mascotas',
   shade_charge: 'CARGA DE LENTES',
   title_dodge_p: 'Esquiva el brillo. Lentes siempre cargados.',
   title_dodge_l: 'Esquiva el brillo · lentes cargados',
@@ -457,19 +488,29 @@ const es: Record<Key, string> = {
   fl_gate: 'ARO SUPERADO · A TOPE',
   tut_head: 'CÓMO JUGAR  ·  {s}/{t}',
   tut0_title: 'MUEVE A TU PERRO',
+  tut0_title_cats: 'MUEVE A TU GATO',
+  tut0_title_together: 'MUEVE A TU MASCOTA',
   tut0_touch: 'Arrastra la palanca para volar',
   tut0_keys: 'WASD / Flechas para volar',
   tut1_title: 'ESQUIVA EL BRILLO',
   tut1_a: 'Rayos, destellos y neones te cuestan un perro',
+  tut1_a_cats: 'Rayos, destellos y neones te cuestan un gato',
+  tut1_a_together: 'Rayos, destellos y neones te cuestan una mascota',
   tut1_c: 'Mantén FUEGO: tus perros ladran WOOF y ¡PUF!',
+  tut1_c_cats: 'Mantén FUEGO: tus gatos maúllan MEOW y ¡PUF!',
+  tut1_c_together: 'Mantén FUEGO: tus mascotas ladran WOOF y maúllan MEOW y ¡PUF!',
   tut1_b: 'Cruza cualquier aro: carga A TOPE',
   tut2_title: 'AGARRA LOS CÍRCULOS',
   tut2_a: 'Los círculos brillantes recargan tus lentes',
   tut2_b: 'Sin CARGA DE LENTES = pierdes un perro',
+  tut2_b_cats: 'Sin CARGA DE LENTES = pierdes un gato',
+  tut2_b_together: 'Sin CARGA DE LENTES = pierdes una mascota',
   tut3_title: 'AGUANTA 30 SEGUNDOS',
   tut3_a: 'Aguanta 30 segundos para pasar de nivel',
   tut3_b: 'Del nivel 1 al 111, cada vez más difícil',
   tut3_c: 'Empiezas con 4 perros: sin perros = se acabó',
+  tut3_c_cats: 'Empiezas con 4 gatos: sin gatos = se acabó',
+  tut3_c_together: 'Empiezas con 4 mascotas: sin mascotas = se acabó',
   tut3_d: 'Círculos recargan, aros llenan; {b} gasta',
   tut3_boost_touch: 'FUEGO',
   tut3_boost_keys: 'ESPACIO (fuego)',
@@ -494,7 +535,11 @@ const es: Record<Key, string> = {
   hand_aria_left: 'Controles para zurdos — toca para diestros',
   hand_aria_right: 'Controles para diestros — toca para zurdos',
   mode_dogs: '{n} PERROS',
+  mode_cats: '{n} GATOS',
+  mode_pets: '{n} MASCOTAS',
   mode_aria: '{m}, {n} perros',
+  mode_aria_cats: '{m}, {n} gatos',
+  mode_aria_pets: '{m}, {n} mascotas',
   diff_label: 'DIFICULTAD {c} · {m}',
   diff_eleven: '11 · LENTES PUESTOS · {m}',
   diff_aria: 'Dificultad {d}, puntos {m}x',
@@ -539,12 +584,19 @@ const es: Record<Key, string> = {
   jab_tissues: 'PAÑUELOS PARA TUS {n} LUGARES EN LA TABLA',
   mime_stunned: 'ATURDIDO',
   cat: 'el gato está caminando sobre el teclado',
+  dog_kb: 'el perro está caminando sobre el teclado',
+  pets_kb: 'un gato y un perro están caminando sobre el teclado',
   photo_class1: 'GENERACIÓN DEL NIVEL 111 ({n} JEFE)',
   photo_class: 'GENERACIÓN DEL NIVEL 111 ({n} JEFES)',
   prize_your: 'TU PREMIO:',
   prize_lab: 'Una labradora chocolate de linaje impecable.',
   prize_good: '¡Buena niña!',
   lang_label: 'IDIOMA',
+  pet_label: 'MASCOTAS',
+  pet_dogs: 'Perros',
+  pet_cats: 'Gatos',
+  pet_together: 'Gatos y perros llevándose bien',
+  dom_pet_row_aria_label: 'Mascotas',
   // Static page text (index.html)
   dom_modes_big: 'MODOS',
   dom_modes_big_aria_label: 'Modos: modos de fans',
@@ -666,6 +718,10 @@ const vi: Record<Key, string> = {
   hud_lvl: 'CẤP {n}',
   hud_dog: 'chó',
   hud_dogs: 'chó',
+  hud_cat: 'mèo',
+  hud_cats: 'mèo',
+  hud_pet: 'thú cưng',
+  hud_pets: 'thú cưng',
   shade_charge: 'PIN KÍNH RÂM',
   title_dodge_p: 'Né ánh chói. Giữ kính râm luôn đầy pin.',
   title_dodge_l: 'Né ánh chói · giữ kính đầy pin',
@@ -739,19 +795,29 @@ const vi: Record<Key, string> = {
   fl_gate: 'QUA CỔNG · NẠP HẾT CỠ',
   tut_head: 'CÁCH CHƠI  ·  {s}/{t}',
   tut0_title: 'ĐIỀU KHIỂN CHÚ CHÓ',
+  tut0_title_cats: 'ĐIỀU KHIỂN CHÚ MÈO',
+  tut0_title_together: 'ĐIỀU KHIỂN THÚ CƯNG',
   tut0_touch: 'Kéo cần lái để bay',
   tut0_keys: 'WASD / Mũi tên để bay',
   tut1_title: 'NÉ ÁNH CHÓI',
   tut1_a: 'Tia sáng, pháo sáng, đèn neon: mất một chú chó',
+  tut1_a_cats: 'Tia sáng, pháo sáng, đèn neon: mất một chú mèo',
+  tut1_a_together: 'Tia sáng, pháo sáng, đèn neon: mất một thú cưng',
   tut1_c: 'Giữ BẮN: chó sủa GÂU, chướng ngại nổ BỤP',
+  tut1_c_cats: 'Giữ BẮN: mèo kêu MEOW, chướng ngại nổ BỤP',
+  tut1_c_together: 'Giữ BẮN: thú cưng sủa GÂU và kêu MEOW, chướng ngại nổ BỤP',
   tut1_b: 'Bay qua vòng cổng: NẠP HẾT CỠ',
   tut2_title: 'NHẶT VÒNG TRÒN',
   tut2_a: 'Vòng tròn phát sáng nạp lại kính râm',
   tut2_b: 'Hết PIN KÍNH RÂM = mất một chú chó',
+  tut2_b_cats: 'Hết PIN KÍNH RÂM = mất một chú mèo',
+  tut2_b_together: 'Hết PIN KÍNH RÂM = mất một thú cưng',
   tut3_title: 'SỐNG SÓT 30 GIÂY',
   tut3_a: 'Trụ được 30 giây là qua cấp',
   tut3_b: 'Cấp 1 đến 111, càng lúc càng khó',
   tut3_c: 'Bắt đầu với 4 chú chó: mất hết = thua',
+  tut3_c_cats: 'Bắt đầu với 4 chú mèo: mất hết = thua',
+  tut3_c_together: 'Bắt đầu với 4 thú cưng: mất hết = thua',
   tut3_d: 'Vòng tròn nạp pin, cổng nạp đầy; {b} đốt pin',
   tut3_boost_touch: 'BẮN',
   tut3_boost_keys: 'SPACE (bắn)',
@@ -776,7 +842,11 @@ const vi: Record<Key, string> = {
   hand_aria_left: 'Điều khiển tay trái — chạm để đổi sang tay phải',
   hand_aria_right: 'Điều khiển tay phải — chạm để đổi sang tay trái',
   mode_dogs: '{n} CHÓ',
+  mode_cats: '{n} MÈO',
+  mode_pets: '{n} THÚ CƯNG',
   mode_aria: '{m}, {n} chó',
+  mode_aria_cats: '{m}, {n} mèo',
+  mode_aria_pets: '{m}, {n} thú cưng',
   diff_label: 'ĐỘ KHÓ {c} · {m}',
   diff_eleven: '11 · ĐEO KÍNH · {m}',
   diff_aria: 'Độ khó {d}, điểm {m}x',
@@ -820,12 +890,19 @@ const vi: Record<Key, string> = {
   jab_tissues: 'KHĂN GIẤY CHO {n} LẦN LÊN BẢNG CỦA BẠN',
   mime_stunned: 'CHOÁNG',
   cat: 'con mèo đang đi dạo trên bàn phím',
+  dog_kb: 'con chó đang đi dạo trên bàn phím',
+  pets_kb: 'một chú mèo và một chú chó đang đi dạo trên bàn phím',
   photo_class1: 'KHÓA CẤP 111 ({n} TRÙM)',
   photo_class: 'KHÓA CẤP 111 ({n} TRÙM)',
   prize_your: 'GIẢI THƯỞNG CỦA BẠN:',
   prize_lab: 'Một cô Labrador màu sô-cô-la, dòng dõi hoàn hảo.',
   prize_good: 'Bé ngoan lắm.',
   lang_label: 'NGÔN NGỮ',
+  pet_label: 'THÚ CƯNG',
+  pet_dogs: 'Chó',
+  pet_cats: 'Mèo',
+  pet_together: 'Mèo và chó hòa thuận với nhau',
+  dom_pet_row_aria_label: 'Thú cưng',
   // Static page text (index.html)
   dom_modes_big: 'CHẾ ĐỘ',
   dom_modes_big_aria_label: 'Chế độ: chế độ của fan',
@@ -947,6 +1024,10 @@ const zh: Record<Key, string> = {
   hud_lvl: '第{n}关',
   hud_dog: '只狗',
   hud_dogs: '只狗',
+  hud_cat: '只猫',
+  hud_cats: '只猫',
+  hud_pet: '只宠物',
+  hud_pets: '只宠物',
   shade_charge: '墨镜电量',
   title_dodge_p: '躲开强光，墨镜电量要充足。',
   title_dodge_l: '躲开强光 · 墨镜保持有电',
@@ -1020,19 +1101,29 @@ const zh: Record<Key, string> = {
   fl_gate: '穿过光环门 · 满电',
   tut_head: '玩法  ·  {s}/{t}',
   tut0_title: '移动你的狗',
+  tut0_title_cats: '移动你的猫',
+  tut0_title_together: '移动你的宠物',
   tut0_touch: '拖动摇杆飞行',
   tut0_keys: 'WASD / 方向键 飞行',
   tut1_title: '躲开强光',
   tut1_a: '光束、闪光和霓虹灯条会让你损失一只狗',
+  tut1_a_cats: '光束、闪光和霓虹灯条会让你损失一只猫',
+  tut1_a_together: '光束、闪光和霓虹灯条会让你损失一只宠物',
   tut1_c: '按住开火：狗狗汪汪叫，障碍“噗”地消失',
+  tut1_c_cats: '按住开火：猫咪喵喵叫，障碍“噗”地消失',
+  tut1_c_together: '按住开火：宠物汪汪叫和喵喵叫，障碍“噗”地消失',
   tut1_b: '飞进任意光环门：充满电',
   tut2_title: '收集光圈',
   tut2_a: '发光的圆圈给墨镜充电',
   tut2_b: '墨镜电量耗尽 = 损失一只狗',
+  tut2_b_cats: '墨镜电量耗尽 = 损失一只猫',
+  tut2_b_together: '墨镜电量耗尽 = 损失一只宠物',
   tut3_title: '坚持 30 秒',
   tut3_a: '坚持 30 秒就能过关',
   tut3_b: '第1关到第111关，越来越难',
   tut3_c: '开局 4 只狗：全没了 = 游戏结束',
+  tut3_c_cats: '开局 4 只猫：全没了 = 游戏结束',
+  tut3_c_together: '开局 4 只宠物：全没了 = 游戏结束',
   tut3_d: '圆圈充电，光环门充满；{b} 耗电',
   tut3_boost_touch: '开火',
   tut3_boost_keys: '空格（开火）',
@@ -1057,7 +1148,11 @@ const zh: Record<Key, string> = {
   hand_aria_left: '左手操作 — 点击切换到右手',
   hand_aria_right: '右手操作 — 点击切换到左手',
   mode_dogs: '{n} 只狗',
+  mode_cats: '{n} 只猫',
+  mode_pets: '{n} 只宠物',
   mode_aria: '{m}，{n} 只狗',
+  mode_aria_cats: '{m}，{n} 只猫',
+  mode_aria_pets: '{m}，{n} 只宠物',
   diff_label: '难度 {c} · {m}',
   diff_eleven: '11 · 墨镜戴上 · {m}',
   diff_aria: '难度 {d}，分数 {m}x',
@@ -1101,12 +1196,19 @@ const zh: Record<Key, string> = {
   jab_tissues: '纸巾，献给你 {n} 次上榜',
   mime_stunned: '晕了',
   cat: '猫正在键盘上散步',
+  dog_kb: '狗正在键盘上散步',
+  pets_kb: '一只猫和一只狗正在键盘上散步',
   photo_class1: '第111关毕业照（{n} 位 BOSS）',
   photo_class: '第111关毕业照（{n} 位 BOSS）',
   prize_your: '你的奖品：',
   prize_lab: '一只血统无可挑剔的巧克力色拉布拉多。',
   prize_good: '好狗狗。',
   lang_label: '语言',
+  pet_label: '宠物',
+  pet_dogs: '狗',
+  pet_cats: '猫',
+  pet_together: '猫狗和平相处',
+  dom_pet_row_aria_label: '宠物',
   // Static page text (index.html)
   dom_modes_big: '模式',
   dom_modes_big_aria_label: '模式：粉丝模式',
@@ -1229,6 +1331,47 @@ export function t(key: Key, vars?: Record<string, string | number>): string {
   const s = STRINGS[current][key] ?? en[key];
   if (!vars) return s;
   return s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
+/** Pet-aware string: dogs keep the base key; cats / together use `_cats` / `_together` suffixes. */
+export function tPet(base: Key, vars?: Record<string, string | number>): string {
+  const p = pet();
+  if (p === 'dogs') return t(base, vars);
+  const keyed = `${base}_${p}` as Key;
+  if (keyed in STRINGS[lang()]) return t(keyed, vars);
+  return t(base, vars);
+}
+
+/** HUD singular/plural unit word for the current pet choice. */
+export function hudShipWord(n: number): string {
+  const p = pet();
+  if (p === 'cats') return t(n === 1 ? 'hud_cat' : 'hud_cats');
+  if (p === 'together') return t(n === 1 ? 'hud_pet' : 'hud_pets');
+  return t(n === 1 ? 'hud_dog' : 'hud_dogs');
+}
+
+/** MODES list ship-count label. */
+export function modeShipsLabel(n: string | number): string {
+  const p = pet();
+  if (p === 'cats') return t('mode_cats', { n });
+  if (p === 'together') return t('mode_pets', { n });
+  return t('mode_dogs', { n });
+}
+
+/** MODES list aria-label. */
+export function modeAriaLabel(m: string, n: string | number): string {
+  const p = pet();
+  if (p === 'cats') return t('mode_aria_cats', { m, n });
+  if (p === 'together') return t('mode_aria_pets', { m, n });
+  return t('mode_aria', { m, n });
+}
+
+/** Keyboard gag caption for the current pet choice. */
+export function keyboardGag(): string {
+  const p = pet();
+  if (p === 'dogs') return t('dog_kb');
+  if (p === 'together') return t('pets_kb');
+  return t('cat');
 }
 
 /**
@@ -1398,6 +1541,7 @@ const DOM: [string, Key, string?, boolean?][] = [
   ['#modes-menu .cg-hint', 'dom_modes_menu_cg_hint'],
   ['#modes-back', 'dom_modes_back'],
   ['#lang-row', 'dom_lang_row_aria_label', 'aria-label'],
+  ['#pet-row', 'dom_pet_row_aria_label', 'aria-label'],
   ['#tut-skip', 'dom_tut_skip'],
   ['#tut-skip', 'dom_tut_skip_aria_label', 'aria-label'],
   ['#tut-skip', 'dom_tut_skip_title', 'title'],
@@ -1460,6 +1604,18 @@ export function applyDomStrings(): void {
   });
   const label = document.getElementById('lang-label');
   if (label && label.textContent !== t('lang_label')) label.textContent = t('lang_label');
+  // PETS row (dogs / cats / together)
+  const pNow = pet();
+  document.querySelectorAll<HTMLElement>('#pet-row .pet-opt').forEach((b) => {
+    const on = b.dataset.pet === pNow;
+    b.classList.toggle('selected', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const key = b.dataset.pet === 'dogs' ? 'pet_dogs' : b.dataset.pet === 'cats' ? 'pet_cats' : 'pet_together';
+    const want = t(key as Key);
+    if (b.textContent !== want) b.textContent = want;
+  });
+  const petLabel = document.getElementById('pet-label');
+  if (petLabel && petLabel.textContent !== t('pet_label')) petLabel.textContent = t('pet_label');
 }
 
 /**

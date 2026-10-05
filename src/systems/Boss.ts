@@ -1,3 +1,4 @@
+import { barkWord } from '../utils/pets';
 /**
  * THE BOSSES: a boss fight at the end of every tenth level (10, 20, ... 110) and a final one at
  * the end of level 111 (leading to VICTORY). Every boss is an original, maximally silly cartoon
@@ -1362,7 +1363,7 @@ export function drawBoss(ctx: CanvasRenderingContext2D, f: BossFight, W: number,
   ctx.font = `900 ${u(13)}px 'Orbitron', sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const k of f.barks) ctx.fillText('WOOF', k.x, k.y);
+  f.barks.forEach((k, i) => ctx.fillText(barkWord(i), k.x, k.y));
 
   f.boards.forEach((b, idx) => {
     if (d.signature === 'mirror') drawMime(ctx, f, b, time);

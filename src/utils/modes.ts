@@ -8,7 +8,8 @@
  * run starts; losing ships never grows the rest. THE CALVIN TWINS stay 2 dogs all run; the
  * menu Easter egg swaps in THE CALVIN TRIPLETS (3 dogs). TOO FAT is deliberately exempt.
  */
-import { BREEDS, PLAYER_BREED, breedById, randomBreed, type Breed } from '../render/shipSprite';
+import { BREEDS, CAT_BREEDS, playerBreedNow, breedForPet, randomBreed, type Breed } from '../render/shipSprite';
+import { pet } from './pets';
 
 export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy' | 'mission';
 export type ModeStyle = 'solid' | 'outline' | 'dot';
@@ -94,16 +95,30 @@ const LARGE_MIX = ['mastiff', 'great-dane', 'german-shepherd-dog', 'labrador-ret
 /** 2-3 ship modes are copies of one dog (near-copy, twins, decoy of you). */
 const PAIR_BREED: Record<string, string> = { mirror: 'beagle', calvin: 'dachshund', decoy: 'german-shepherd-dog' };
 
-/** Breeds for a mode's n ships (index 0 = the player's dog). Big swarms: every breed, then a random mix. */
+/** Breeds for a mode's n ships (index 0 = the player's pet). Big swarms: every breed, then a random mix. */
 export function modeBreeds(m: ModeDef, n: number): Breed[] {
   const out: Breed[] = [];
   const pair = PAIR_BREED[m.behavior];
+  const p = pet();
+  const roster = p === 'cats' ? CAT_BREEDS : BREEDS;
   for (let i = 0; i < n; i++) {
-    if (pair) out.push(breedById(pair));
-    else if (m.id === 'toofat') out.push(breedById(LARGE_MIX[Math.floor(Math.random() * LARGE_MIX.length)]));
-    else if (i === 0) out.push(PLAYER_BREED); // you stay the Border Collie in the crowd
-    else if (i <= BREEDS.length) out.push(BREEDS[i - 1]); // every breed appears at least once
-    else out.push(randomBreed());
+    let b: Breed;
+    if (pair) b = breedForPet(pair);
+    else if (m.id === 'toofat') b = breedForPet(LARGE_MIX[Math.floor(Math.random() * LARGE_MIX.length)]);
+    else if (i === 0) b = playerBreedNow(); // you stay the lead breed in the crowd
+    else if (i <= roster.length) b = roster[i - 1]; // every breed appears at least once
+    else b = randomBreed();
+    // Together: alternate species across the swarm (peaceful mixed pack).
+    if (p === 'together' && !pair) {
+      if (i % 2 === 1 && b.species === 'dog') {
+        const di = BREEDS.findIndex((x) => x.id === b.id);
+        b = CAT_BREEDS[di >= 0 ? di : i % CAT_BREEDS.length];
+      } else if (i % 2 === 0 && b.species === 'cat') {
+        const ci = CAT_BREEDS.findIndex((x) => x.id === b.id);
+        b = BREEDS[ci >= 0 ? ci : i % BREEDS.length];
+      }
+    }
+    out.push(b);
   }
   return out;
 }

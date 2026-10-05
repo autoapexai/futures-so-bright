@@ -1,5 +1,5 @@
 import { MAX_DRAWN_SHIPS } from '../utils/cloneLevels';
-import { BREEDS, BREED_RMS, breedScale, randomBreed, type Breed } from '../render/shipSprite';
+import { BREEDS, BREED_RMS, breedScale, slotBreed, type Breed } from '../render/shipSprite';
 
 /** Clone slot count (drawn ships minus the player's own ship). */
 export const CLONE_SLOTS = MAX_DRAWN_SHIPS - 1;
@@ -92,8 +92,8 @@ export class Formation {
         s.x = px + s.ox * this.spread * 0.4;
         s.y = py + s.oy * this.spread * 0.4;
         s.invuln = grace;
-        // A random breed from the mix, normalised so the swarm keeps its expected total area.
-        s.breed = randomBreed();
+        // A breed from the active pet mix (together: cats & dogs alternate by slot).
+        s.breed = slotBreed(i);
         s.scale = CLONE_SCALE * (breedScale(s.breed) / BREED_RMS);
       }
       if (!want) s.invuln = 0;

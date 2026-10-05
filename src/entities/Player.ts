@@ -15,19 +15,19 @@ export const MOVE = { accel: 4200, stopDrag: 18, counter: 2, deadAxis: 0.02, max
  * is held the push is x (1.3 + 0.4 r) (still uncapped); r also drives the jet / trail cue.
  */
 export const FIRE = { rFloor: 0.3, holdS: 2.0, tap: 0.15, decayS: 1.5, accelLo: 1.3, accelHi: 1.7 };
-import { PLAYER_BREED, breedScale, type Breed } from '../render/shipSprite';
+import { playerBreedNow, breedScale, type Breed } from '../render/shipSprite';
 
 export class Player {
   x = 160;
   y = 270;
   vx = 0;
   vy = 0;
-  /** The player's dog; its AKC-weight scale sizes the sprite and hitbox (w / h). */
-  breed: Breed = PLAYER_BREED;
+  /** The player's pet; its weight scale sizes the sprite and hitbox (w / h). */
+  breed: Breed = playerBreedNow();
   /** Linear draw / hitbox scale vs a standard ship. */
-  scale = breedScale(PLAYER_BREED);
-  w = 52 * breedScale(PLAYER_BREED);
-  h = 28 * breedScale(PLAYER_BREED);
+  scale = breedScale(playerBreedNow());
+  w = 52 * breedScale(playerBreedNow());
+  h = 28 * breedScale(playerBreedNow());
   invuln = 0;
   boostFlash = 0;
   /** FIRE ramp 0..1 (extra push while FIRE is held; drives the jet / trail cue). */

@@ -6,7 +6,7 @@
 import type { BossDef } from './Boss';
 import { drawMimeMini } from './bossMime';
 import { drawToonMini } from './bossToons';
-import { GROCERIES_I18N, fmtNum, nonEnglish, lang, t as tr } from '../i18n';
+import { GROCERIES_I18N, fmtNum, nonEnglish, lang, t as tr, keyboardGag} from '../i18n';
 
 export type Appliance = 'toaster' | 'blender' | 'microwave';
 export const APPLIANCES: readonly Appliance[] = ['toaster', 'blender', 'microwave'];
@@ -301,8 +301,8 @@ export function drawCatLoading(ctx: CanvasRenderingContext2D, W: number, H: numb
   ctx.fillStyle = '#cfcfcf';
   ctx.textAlign = 'center';
   ctx.font = `400 ${u(15)}px ui-monospace, Menlo, Consolas, monospace`;
-  if (nonEnglish()) ctx.fillText(tr('cat'), 0, u(52), W * 0.92);
-  else ctx.fillText(tr('cat'), 0, u(52));
+  if (nonEnglish()) ctx.fillText(keyboardGag(), 0, u(52), W * 0.92);
+  else ctx.fillText(keyboardGag(), 0, u(52));
   ctx.restore();
 }
 
