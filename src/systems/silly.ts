@@ -257,6 +257,34 @@ export function drawPizzaShield(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.restore();
 }
 
+/** Cat-on-keyboard gag: only on levels 100-111, at most once per run. */
+export const CAT_LEVEL_MIN = 100;
+export const CAT_LEVEL_MAX = 111;
+
+/** Seconds into a 100-111 stage before the gag may fire (3-20 s, from catRng). */
+export function catStageDelay(rng: () => number): number {
+  return 3 + rng() * 17;
+}
+
+/** Whether the cat gag should trigger this frame (keeps guards in one place). */
+export function catShouldFire(
+  tutStep: number,
+  hasBoss: boolean,
+  catShown: boolean,
+  level: number,
+  levelTime: number,
+  nextCatAt: number,
+): boolean {
+  return (
+    tutStep < 0 &&
+    !hasBoss &&
+    !catShown &&
+    level >= CAT_LEVEL_MIN &&
+    level <= CAT_LEVEL_MAX &&
+    levelTime >= nextCatAt
+  );
+}
+
 /** Fake loading screen. */
 export function drawCatLoading(ctx: CanvasRenderingContext2D, W: number, H: number, t: number, u: (n: number) => number): void {
   ctx.save();

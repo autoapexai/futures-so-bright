@@ -56,6 +56,8 @@ import {
   MICROWAVE_SECONDS,
   TOASTER_POINTS,
   TOASTER_SECONDS,
+  catShouldFire,
+  catStageDelay,
   drawCatLoading,
   drawGroupPhoto,
   drawPizzaShield,
@@ -303,6 +305,8 @@ export class Game {
   private shieldT = 0;
   catT = 0;
   nextCatAt = 0;
+  /** Cat gag already fired this run (at most once). */
+  catShown = false;
   private catRng: Rng = Math.random;
   /** Group photo after the level 111 boss (then VICTORY). */
   photoT = 0;
@@ -2035,6 +2039,7 @@ export class Game {
     this.spinT = 0;
     this.shieldT = 0;
     this.catT = 0;
+    this.catShown = false;
     this.photoT = 0;
     this.prizeT = 0;
     this.bossesFought = [];
@@ -2042,8 +2047,8 @@ export class Game {
     this.forcedSeed = null;
     this.runRng = mulberry32(this.runSeed);
     this.catRng = mulberry32(subSeed(this.runSeed, 999));
-    // The cat walks on the keyboard at most every few minutes, never in the first 30 s.
-    this.nextCatAt = 90 + this.catRng() * 120;
+    // Cat gag: once per run, a few seconds into a level 100-111 stage (levelTime).
+    this.nextCatAt = catStageDelay(this.catRng);
     this.world.powerRand = mulberry32(subSeed(this.runSeed, 77));
     this.world.spawnPowers = true;
     console.info(`[fsb] run seed ${this.runSeed}`);
@@ -2682,10 +2687,12 @@ export class Game {
       this.input.clearJustPressed();
       return;
     }
-    if (this.tutStep < 0 && !this.boss && this.runTime >= 30 && this.runTime >= this.nextCatAt) {
+    if (
+      catShouldFire(this.tutStep, !!this.boss, this.catShown, this.runDifficulty, this.levelTime, this.nextCatAt)
+    ) {
       this.catT = 1.5 + this.catRng() * 1.5;
-      this.nextCatAt = this.runTime + 150 + this.catRng() * 150;
-      console.info(`[fsb] cat on keyboard ${this.catT.toFixed(1)}s`);
+      this.catShown = true;
+      console.info(`[fsb] cat on keyboard ${this.catT.toFixed(1)}s @ L${this.runDifficulty}`);
       this.input.clearJustPressed();
       return;
     }

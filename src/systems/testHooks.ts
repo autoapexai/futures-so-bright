@@ -130,8 +130,9 @@ export function installTestHooks(game: unknown): void {
     /** Silliness pack helpers. */
     addPower: (kind: 'toaster' | 'blender' | 'microwave') => g.world.addPower(kind, g.player.x + 60, g.player.y),
     forceCat: () => {
+      g.catShown = false;
       g.nextCatAt = 0;
-      if (g.runTime < 30) g.runTime = 30;
+      if (g.runDifficulty < 100) g.runDifficulty = 100;
     },
     allBossesFought: () => {
       g.bossesFought = [...BOSSES];
