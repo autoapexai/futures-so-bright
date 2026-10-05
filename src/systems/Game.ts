@@ -3029,7 +3029,7 @@ export class Game {
     if (this.boss) {
       this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
     } else if (this.levelTime >= LEVEL_SECONDS) {
-      // ON A MISSION: first mini = BRIDGE TROLLS. GHOST DUSTERS: Stay Puft at L10; ghost minis otherwise.
+      // ON A MISSION: first mini = BRIDGE TROLLS. GHOST DUSTERS: MARSHMALLOW DUDE at L10; ghost minis otherwise.
       const firstMissionMini = this.missionRun && this.minisBeaten === 0;
       const def = this.bossDone
         ? null

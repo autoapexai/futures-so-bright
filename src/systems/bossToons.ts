@@ -1592,7 +1592,7 @@ const DRAW: Record<string, DrawFn> = {
   curry: drawVJ,
   dvorak: drawAngel,
   itm: drawBrain,
-  staypuft: drawStayPuft,
+  marshmallowdude: drawMarshmallowDude,
 };
 
 export function hasToon(modeId: string): boolean {
@@ -1820,7 +1820,7 @@ function defeatXf(id: string, k: number, cx: number, cy: number, w: number, h: n
       const sw = k < 0.3 ? 1 : k < 0.6 ? 1 + ((k - 0.3) / 0.3) * 0.35 : Math.max(0.01, 1.35 * (1 - (k - 0.6) / 0.08));
       return [shake, 0, 0, sw, sw, 0, k < 0.68 ? 1 : 0];
     }
-    case 'staypuft': {
+    case 'marshmallowdude': {
       // Melts into a harmless puddle of marshmallow fluff (G-rated gooey melt, no burning).
       const melt = clamp01(k);
       const sy = Math.max(0.08, 1 - melt * 0.92);
@@ -2043,7 +2043,7 @@ function defeatFx(ctx: Ctx, id: string, k: number, cx: number, cy: number, w: nu
       }
       break;
     }
-    case 'staypuft': {
+    case 'marshmallowdude': {
       // Harmless marshmallow fluff puddle + toast crumbs (no fire / scary imagery).
       const puddle = clamp01(k * 1.2);
       ctx.fillStyle = `rgba(255, 248, 230, ${0.85 * puddle})`;
@@ -2184,7 +2184,7 @@ export const TOON_SKINS: Record<string, { [pattern: string]: string }> = {
   toosuccessful: { rain: 'coin', aimed: 'goldbar', wall: 'moneybag' },
   alw: { kick: 'mask', wall: 'rose', aimed: 'note' },
   slackerman: { blink: 'popcorn', spray: 'soda', wall: 'reel' },
-  staypuft: { slam: 'marsh', aimed: 'toast', spray: 'fluff' },
+  marshmallowdude: { slam: 'marsh', aimed: 'toast', spray: 'fluff' },
   cbb: { split: 'bomb', aimed: 'whoopee', wall: 'flamingo', '>split': 'duck' },
   curry: { countdown: 'tape', homing: 'plane' },
   dvorak: { aimed: 'harp', wall: 'cloud', '>warn': 'feather' },
@@ -2636,15 +2636,15 @@ export const TOON_POPS: Record<string, { hit: [string, 'honk' | 'boing' | 'whist
   curry: { hit: [['ZZZAP!', 'boing'], ['STATIC!', 'whistleDown'], ['RADICAL!', 'honk']], stun: 'TECHNICAL DIFFICULTIES!' },
   dvorak: { hit: [['HMPH!', 'honk'], ['WRONG!', 'boing'], ['BONK!', 'whistleUp']], stun: 'AGREES (BRIEFLY)!' },
   itm: { hit: [['ZAP!', 'boing'], ['MY NEURONS!', 'honk'], ['FORGOT!', 'whistleDown']], stun: 'BRAIN FREEZE!' },
-  staypuft: { hit: [['SQUISH!', 'boing'], ['FLUFF!', 'honk'], ['TOASTY!', 'whistleUp']], stun: 'STICKY FEET!' },
+  marshmallowdude: { hit: [['SQUISH!', 'boing'], ['FLUFF!', 'honk'], ['TOASTY!', 'whistleUp']], stun: 'STICKY FEET!' },
 };
 
 
 /**
- * STAY PUFT MARSHMALLOW MAN (GHOST DUSTERS level-10 boss only): giant white marshmallow man in a
+ * MARSHMALLOW DUDE (GHOST DUSTERS level-10 boss only): giant white marshmallow man in a
  * blue sailor hat with a red ribbon collar. Cheerful-goofy stomp. G-rated throughout.
  */
-function drawStayPuft(ctx: Ctx, cx: number, cy: number, w: number, h: number, p: Pose): void {
+function drawMarshmallowDude(ctx: Ctx, cx: number, cy: number, w: number, h: number, p: Pose): void {
   const S = Math.min(w, h);
   const bob = Math.sin(p.t * 3.2) * S * 0.02 + (p.slam > 0 ? Math.sin(p.slam * 20) * S * 0.04 : 0);
   const bodyY = cy + bob;

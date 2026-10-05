@@ -1,6 +1,6 @@
 // Seeded randomness: same run seed -> identical fight; different seeds -> different fights.
 import { BOSSES, BossFight } from '../src/systems/Boss';
-import { STAY_PUFT } from '../src/systems/ghostBoss';
+import { MARSHMALLOW_DUDE } from '../src/systems/ghostBoss';
 function log(def: (typeof BOSSES)[number], seed: number): string {
   const f = new BossFight(def, seed);
   const out: string[] = [];
@@ -13,7 +13,7 @@ function log(def: (typeof BOSSES)[number], seed: number): string {
   return out.join('|');
 }
 let ok = true;
-for (const def of [...BOSSES, STAY_PUFT]) {
+for (const def of [...BOSSES, MARSHMALLOW_DUDE]) {
   const a = log(def, 424242), b = log(def, 424242), c = log(def, 777);
   const same = a === b, diff = a !== c;
   if (!same || !diff) ok = false;
