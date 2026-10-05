@@ -44,7 +44,7 @@ import { trackRunStart } from '../utils/track';
 import { SPEED_DEFAULT, SPEED_MAX, SPEED_MIN, SPEED_ON_PUBLIC_BOARD, clampSpeed, fmtSpeed, loadSpeed, saveSpeed, scalePoints, speedSubsteps } from '../utils/speed';
 import { checkResume, sendResume, sendSuggestion, SUGGEST_MAX } from '../utils/v4v';
 import { boardTaunt } from './boardTaunt';
-import { firstChar, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
+import { firstChar, initialsSet, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { LANGS, applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, type Lang } from '../i18n';
 import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
 import { APP_VERSION } from '../version';
@@ -1746,7 +1746,20 @@ export class Game {
     if (this.state === 'title' || this.state === 'gameover') {
       if (!this.restartLocked()) this.beginRun();
     } else if (this.state === 'paused') this.togglePause();
-    // initials: stick / BOOST / keys handle entry — ignore canvas taps
+    else if (this.state === 'initials' && !this.touchPrimary) {
+      // Desktop: click the canvas OK button (touch still uses the DOM BOOST / OK).
+      const rect = this.renderer.iniOkRect;
+      if (rect) {
+        const cr = this.canvas.getBoundingClientRect();
+        if (cr.width > 0 && cr.height > 0) {
+          const vx = ((e.clientX - cr.left) / cr.width) * this.viewW;
+          const vy = ((e.clientY - cr.top) / cr.height) * this.viewH;
+          if (vx >= rect.x && vx <= rect.x + rect.w && vy >= rect.y && vy <= rect.y + rect.h) {
+            this.confirmInitials();
+          }
+        }
+      }
+    }
   };
 
   private setBodyFlags(): void {
@@ -2395,20 +2408,41 @@ export class Game {
     const axis = this.input.axis;
     const thresh = 0.55;
     let moved = false;
+    const L = lang();
+    const allowed = new Set(initialsSet(L));
 
-    // Discrete keys / D-pad via justPressed (no spam)
-    if (this.input.consume('arrowleft') || this.input.consume('a')) {
+    // Desktop typing: A-Z (and any other picker chars) type into the slot; Backspace deletes.
+    // Arrow keys still cycle; letter keys no longer fight with WASD cycling.
+    if (this.input.consume('backspace')) {
+      if (this.initialsSlot > 0) {
+        this.initialsSlot -= 1;
+        this.initialsChars[this.initialsSlot] = firstChar(L);
+      } else {
+        this.initialsChars[0] = firstChar(L);
+      }
+      moved = true;
+    } else {
+      const typed = this.input.consumeCharIn(allowed);
+      if (typed) {
+        this.initialsChars[this.initialsSlot] = typed;
+        if (this.initialsSlot < 2) this.initialsSlot += 1;
+        moved = true;
+      }
+    }
+
+    // Discrete arrow keys / D-pad via justPressed (no spam). WASD type letters above.
+    if (this.input.consume('arrowleft')) {
       this.initialsSlot = (this.initialsSlot + 2) % 3;
       moved = true;
-    } else if (this.input.consume('arrowright') || this.input.consume('d')) {
+    } else if (this.input.consume('arrowright')) {
       this.initialsSlot = (this.initialsSlot + 1) % 3;
       moved = true;
     }
-    if (this.input.consume('arrowup') || this.input.consume('w')) {
-      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, lang());
+    if (this.input.consume('arrowup')) {
+      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, L);
       moved = true;
-    } else if (this.input.consume('arrowdown') || this.input.consume('s')) {
-      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, lang());
+    } else if (this.input.consume('arrowdown')) {
+      this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, L);
       moved = true;
     }
 
@@ -2423,11 +2457,11 @@ export class Game {
         this.initialsCooldown = 0.22;
         moved = true;
       } else if (axis.y <= -thresh) {
-        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, lang());
+        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], 1, L);
         this.initialsCooldown = Math.max(0.05, 0.18 * Math.pow(0.88, this.initialsHold++));
         moved = true;
       } else if (axis.y >= thresh) {
-        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, lang());
+        this.initialsChars[this.initialsSlot] = nextChar(this.initialsChars[this.initialsSlot], -1, L);
         this.initialsCooldown = Math.max(0.05, 0.18 * Math.pow(0.88, this.initialsHold++));
         moved = true;
       }
@@ -2508,6 +2542,12 @@ export class Game {
   private tick(dt: number): void {
     this.pulse += dt;
 
+    // Initials first so letter keys (including M) type into the entry instead of muting / playing.
+    if (this.state === 'initials') {
+      this.tickInitials(dt);
+      return;
+    }
+
     if (this.input.consume('m')) {
       const muted = this.audio.toggleMute();
       const muteBtn = document.getElementById('mute-btn');
@@ -2552,11 +2592,6 @@ export class Game {
         void this.audio.unlock();
         this.beginRun();
       }
-      return;
-    }
-
-    if (this.state === 'initials') {
-      this.tickInitials(dt);
       return;
     }
 

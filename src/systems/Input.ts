@@ -391,6 +391,26 @@ export class Input {
     return false;
   }
 
+  /**
+   * Consume one just-pressed key that matches a character in `allowed`
+   * (tries the raw key and its toUpperCase form so A-Z / Ñ / Á type into the picker set).
+   */
+  consumeCharIn(allowed: ReadonlySet<string>): string | null {
+    for (const k of this.justPressed) {
+      if (!k || k === ' ' || k === 'enter' || k === 'backspace') continue;
+      const up = k.toUpperCase();
+      if (allowed.has(up)) {
+        this.justPressed.delete(k);
+        return up;
+      }
+      if (allowed.has(k)) {
+        this.justPressed.delete(k);
+        return k;
+      }
+    }
+    return null;
+  }
+
   /** True if any key was just pressed (consumes all). Used on title / game-over. */
   consumeAny(): boolean {
     if (this.justPressed.size === 0) return false;

@@ -777,6 +777,8 @@ export class Renderer {
    */
   /** Last GAME SPEED tag drawn (view units; layout checks in tests). */
   speedTagRect: { x: number; y: number; w: number; h: number; text: string } | null = null;
+  /** Desktop initials OK button (view units); null on touch (DOM BOOST is OK). */
+  iniOkRect: { x: number; y: number; w: number; h: number } | null = null;
 
   private drawSpeedTagFit(ctx: CanvasRenderingContext2D, full: string, minX: number, maxX: number, y: number, size: number): void {
     const compact = full.replace(/^[^0-9]*/, '');
@@ -1515,17 +1517,47 @@ export class Renderer {
       big
         ? tr('ini_help_touch')
         : tr('ini_help_keys');
+    const helpY = Math.min(floor - this.u(8), lettersY + this.u(big ? (portrait ? 80 : 64) : 70));
     this.fillFitted(
       ctx,
       help,
       cx,
-      Math.min(floor - this.u(8), lettersY + this.u(big ? (portrait ? 80 : 64) : 70)),
+      helpY,
       '600',
       this.u(big ? (portrait ? 16 : 14) : 15),
       "'Rajdhani', sans-serif",
       maxTw,
       this.u(12),
     );
+
+    // Desktop: visible clickable OK (touch uses the DOM BOOST button labeled OK).
+    if (!big) {
+      const bw = this.u(148);
+      const bh = this.u(52);
+      const bx = cx - bw / 2;
+      const by = Math.min(floor - bh - this.u(4), helpY + this.u(28));
+      this.iniOkRect = { x: bx, y: by, w: bw, h: bh };
+      ctx.save();
+      ctx.shadowBlur = this.lite ? 0 : 14;
+      ctx.shadowColor = COL.cyan;
+      ctx.fillStyle = 'rgba(0, 40, 60, 0.92)';
+      roundRect(ctx, bx, by, bw, bh, bh * 0.28);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = COL.cyan;
+      ctx.lineWidth = 3;
+      roundRect(ctx, bx, by, bw, bh, bh * 0.28);
+      ctx.stroke();
+      ctx.fillStyle = COL.cyan;
+      ctx.font = `900 ${this.u(22)}px 'Orbitron', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tr('btn_ok'), cx, by + bh / 2 + 1);
+      ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    } else {
+      this.iniOkRect = null;
+    }
   }
 
   drawGameOver(
