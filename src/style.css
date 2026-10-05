@@ -3706,16 +3706,29 @@ body.modes-open #ver-label {
 }
 
 
-/* —— GHOST DUSTERS: featured card + GHOST BOARD (mirrors ON A MISSION / DEV BOARD) —— */
+/* —— GHOST DUSTERS: featured card + GHOST BOARD (same row layout as ON A MISSION / DEV BOARD) —— */
 #ghost-row {
+  /* Span the full modes grid (2-col phone / 3-col landscape), like #mission-row */
+  grid-column: 1 / -1;
   display: flex;
   gap: 8px;
-  width: 100%;
-  margin-bottom: 8px;
 }
-#ghost-row .hand-btn::before { display: none; }
+body.quit-open #ghost-row {
+  display: none !important;
+}
+#ghost-row .hand-btn::before {
+  inset: 0;
+}
+/* Featured row buttons: never break mid-word (overrides #modes-menu .hand-btn overflow-wrap: anywhere). */
+#modes-menu #ghost-row .hand-btn,
+#modes-menu #mission-row .hand-btn {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
 #modes-menu #ghost-row .ghost-pick {
   flex: 2 1 0;
+  min-width: 0;
   min-height: 78px;
   display: flex;
   flex-direction: column;
@@ -3729,6 +3742,15 @@ body.modes-open #ver-label {
 #modes-menu #ghost-row .ghost-pick .mode-name {
   font-size: 15px;
   letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+#modes-menu #ghost-row .ghost-pick .mode-ships,
+#modes-menu #ghost-row .ghost-pick .mode-invite {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: center;
+  max-width: 100%;
 }
 #modes-menu #ghost-row .try-badge {
   display: inline-block;
@@ -3741,6 +3763,7 @@ body.modes-open #ver-label {
   font-size: 10px;
   letter-spacing: 0.12em;
   line-height: 1.5;
+  white-space: nowrap;
 }
 #modes-menu #ghost-row .mode-invite {
   font-family: 'Rajdhani', 'Segoe UI', sans-serif;
@@ -3752,11 +3775,37 @@ body.modes-open #ver-label {
 }
 #modes-menu #ghost-row .ghostboard-btn {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 78px;
   font-size: 13px;
   border-width: 2px;
   border-color: rgba(127, 255, 255, 0.95);
   box-shadow: 0 0 14px rgba(127, 255, 255, 0.45);
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+#modes-menu #ghost-row .ghostboard-btn .dev-badge {
+  font-size: 12px;
+  white-space: nowrap;
+}
+#modes-menu #ghost-row .ghostboard-btn .mode-name {
+  /* Word-boundary wrap only (e.g. GHOST / BOARD); never mid-word. */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+/* Keep ON A MISSION / GHOST DUSTERS on one line (names stay English). */
+#modes-menu #mission-row .mission-pick .mode-name {
+  white-space: nowrap;
+}
+#modes-menu #mission-row .devboard-btn .dev-badge {
+  white-space: nowrap;
+}
+#modes-menu #mission-row .devboard-btn .mode-name {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 body.ghost-run #quit-change { display: none; }
 #ghostmode {
