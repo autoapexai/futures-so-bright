@@ -2,9 +2,21 @@
  * Shared online leaderboard via Supabase PostgREST RPCs (no SDK).
  * Every call has a short timeout and resolves to null on any failure, so the
  * game can always fall back to the local board.
+ *
+ * ONE BOARD (Dan, 2026-10-08): dog mode, fan modes, CAT MODE (PART TWO), PLATYPUS MODE and MANATEE
+ * MODE all submit to this one board; each row shows its mode (utils/petFood.ts).
+ *   - Sent: p_mode = the story id ('part2' | 'platypus' | 'manatee') for story runs, else the fan-mode
+ *     id the run ended on (or nothing for plain dog mode). p_mode is an EXISTING parameter of
+ *     fsb_submit_score, so the request shape is unchanged and old servers accept it.
+ *   - Live server (as of 2026-10-08): fsb_submit_score keeps p_mode only when it is a fan-mode id
+ *     (story ids are stored as NULL), and fsb_get_leaderboard() does not return the mode column.
+ *     Both need an admin change (allow the 3 story ids; return s.mode). Until then a row's mode
+ *     is read from the reply if present (r.mode), else from this device's own memory
+ *     (rememberRowMode), else it shows as DOG.
  */
 import { isValidInitials, maskInitials } from './initials';
-import type { LeaderboardEntry } from './storage';
+import { lookupRowMode, type LeaderboardEntry } from './storage';
+import { boardModeOf } from './petFood';
 import { MAX_LEVEL, SCORE_CAP } from './difficulty';
 import { MISSION_MODE } from './modes';
 import { SPEED_DEFAULT, SPEED_ON_PUBLIC_BOARD, clampSpeed } from './speed';
@@ -64,7 +76,7 @@ function parseRows(data: unknown): { board: LeaderboardEntry[]; index: number; c
   let claimToken: string | null = null;
   for (const row of data) {
     if (!row || typeof row !== 'object') continue;
-    const r = row as { initials?: unknown; score?: unknown; difficulty?: unknown; start_level?: unknown; is_new?: unknown; claim_token?: unknown };
+    const r = row as { initials?: unknown; score?: unknown; difficulty?: unknown; start_level?: unknown; is_new?: unknown; claim_token?: unknown; mode?: unknown };
     const score = Math.floor(Number(r.score));
     const rawIni = String(r.initials ?? '');
     // Union of the language sets (or the server's own *** mask); rude initials show as ***.
@@ -76,6 +88,9 @@ function parseRows(data: unknown): { board: LeaderboardEntry[]; index: number; c
     const e: LeaderboardEntry = d >= 1 && d <= 111 ? { score, initials, difficulty: d } : { score, initials };
     const st = r.start_level == null ? NaN : Math.round(Number(r.start_level));
     if (e.difficulty && st >= 1 && st <= e.difficulty) e.start = st;
+    // Mode: from the server when it returns one, else this device's memory of its own rows.
+    const m = typeof r.mode === 'string' ? boardModeOf(r.mode) : lookupRowMode(score, rawIni, e.difficulty);
+    if (m && m !== 'dog') e.mode = m;
     board.push(e);
     if (board.length >= MAX_BOARD) break;
   }
@@ -123,7 +138,8 @@ export async function submitRemoteScore(
       p_difficulty: difficulty,
     };
     if (ticket) body.p_ticket = ticket;
-    // The mode the run ended on and how many modes it used (stored only; the board is unchanged).
+    // The run's mode: a story id (part2 / platypus / manatee) or the fan mode it ended on, and how
+    // many modes it used. Same parameter as before (backward compatible; see ONE BOARD above).
     if (endMode) body.p_mode = endMode;
     body.p_modes = Math.max(1, Math.min(13, Math.floor(modeCount)));
     // Start level 1-111 (LEVEL SELECT); fight = the run began at that level's boss / mini-boss

@@ -35,7 +35,7 @@ export function obstacleHp(kind: ObstacleKind, w: number, h: number): number {
 }
 
 export interface Collectible {
-  /** 'shade' (sunglasses) or a kitchen-appliance power-up (silliness pack). */
+  /** 'shade' (the pet food bowl that refills the meter; id kept for code) or a kitchen-appliance power-up (silliness pack). */
   kind: 'shade' | 'toaster' | 'blender' | 'microwave';
   x: number;
   y: number;

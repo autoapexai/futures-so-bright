@@ -4,6 +4,7 @@ import { drawAppliance } from './silly';
 import { drawDuckText, duckWidth } from '../render/duckDigits';
 import type { Obstacle, Collectible } from '../entities/Obstacles';
 import type { LeaderboardEntry } from '../utils/storage';
+import { MODE_LABEL, PET_FOOD, boardModeOf, petFoodWords } from '../utils/petFood';
 import { clamp } from '../utils/math';
 import { barkWord } from '../utils/pets';
 import { paintShip, shipSprite, dogGlyph, SPRITE_W, SPRITE_H, SPRITE_AX, SPRITE_AY, GLYPH_W, GLYPH_H, GLYPH_AX, GLYPH_AY, type Breed } from '../render/shipSprite';
@@ -38,6 +39,14 @@ export interface LevelInfo {
 
 /** Gate-boost ring glow duration (s); Game sets Obstacle.boostT to this. */
 export const GATE_GLOW_SECONDS = 0.5;
+
+/** Mode label colours on the one board (text only). */
+const MODE_INK: Record<string, string> = {
+  dog: '#ffe66d',
+  part2: '#ff9de8',
+  platypus: '#7fe3ff',
+  manatee: '#b8f5c8',
+};
 
 const COL = {
   bgTop: '#120028',
@@ -644,21 +653,30 @@ export class Renderer {
       ctx.rotate(c.phase * 0.5);
       ctx.shadowBlur = this.lite ? 0 : 16;
       ctx.shadowColor = COL.cyan;
-      // sunglasses collectible
-      ctx.fillStyle = '#111';
-      roundRect(ctx, -12, -6, 10, 10, 2);
-      roundRect(ctx, 2, -6, 10, 10, 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(0, 255, 220, 0.85)';
-      roundRect(ctx, -10, -4, 6, 6, 1);
-      roundRect(ctx, 4, -4, 6, 6, 1);
-      ctx.fill();
-      ctx.strokeStyle = COL.magenta;
-      ctx.lineWidth = 2;
+      // pet food bowl collectible (refills FOOD CHARGE): kibble heaped in a neon bowl
+      ctx.rotate(-c.phase * 0.5 + Math.sin(c.phase) * 0.18);
+      ctx.fillStyle = '#c8783a';
+      for (const [kx, ky, kr] of [[-6, -3, 3.2], [-1, -5, 3.4], [4, -3.4, 3.2], [-3, -1, 3], [2, -1, 3]] as const) {
+        ctx.beginPath();
+        ctx.arc(kx, ky, kr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#8a4a20';
+      for (const [kx, ky] of [[-5, -3.5], [0, -5.5], [4.5, -3.8]] as const) {
+        ctx.beginPath();
+        ctx.arc(kx, ky, 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = COL.magenta;
       ctx.beginPath();
-      ctx.moveTo(-2, -1);
-      ctx.lineTo(2, -1);
-      ctx.stroke();
+      ctx.moveTo(-12, -1);
+      ctx.lineTo(12, -1);
+      ctx.lineTo(8, 7);
+      ctx.lineTo(-8, 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0, 255, 220, 0.9)';
+      ctx.fillRect(-12, -2, 24, 2.4);
       if (!this.lite) {
         ctx.strokeStyle = `rgba(0, 240, 255, ${0.3 + Math.sin(c.phase * 2) * 0.2})`;
         ctx.lineWidth = 1.5;
@@ -886,7 +904,7 @@ export class Renderer {
     const text = lvl + count;
     void text;
     if (info.dogs && info.dogs.length) {
-      // Dogs left: one icon per dog (sunglasses on, no flame), bigger as the pack shrinks.
+      // Pets still flying: one icon per pet (no flame), bigger as the pack shrinks.
       const iw = this.u(22) * (info.dogIconScale ?? 1);
       const ih = iw * (SPRITE_H / SPRITE_W);
       let ix = tx + this.u(12);
@@ -1293,7 +1311,7 @@ export class Renderer {
    * Donkey Kong-style stage interstitial (~2 s): "LEVEL N COMPLETED" / "YOU'VE BEEN PROMOTED!"
    * over the dimmed, frozen play field, in the title / level-banner style. `t` counts down.
    */
-  drawPromotion(ctx: CanvasRenderingContext2D, title: string, sub: string, t: number, dur: number, score: number): void {
+  drawPromotion(ctx: CanvasRenderingContext2D, title: string, sub: string, t: number, dur: number, score: number, note = ''): void {
     const W = this.W;
     const H = this.H;
     const portrait = H > W * 1.1;
@@ -1330,6 +1348,11 @@ export class Renderer {
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     this.fillFitted(ctx, tr('promo_score', { s: fmtScore(score) }), W / 2, cy + ts * 1.5 + this.u(portrait ? 48 : 46), '700', this.u(20), "'Rajdhani', sans-serif", maxW, this.u(12));
+    if (note) {
+      // Pet food: the run's mode traits (utils/petFood.ts), under the score, inside the rules.
+      ctx.fillStyle = 'rgba(255, 190, 240, 0.92)';
+      this.fillFitted(ctx, note, W / 2, cy + ts * 1.5 + this.u(portrait ? 66 : 63), '600', this.u(14), "'Rajdhani', sans-serif", maxW, this.u(10));
+    }
     // Neon rule above and below, like the title card.
     const rw = Math.min(maxW, this.u(portrait ? 300 : 440));
     ctx.fillStyle = COL.magenta;
@@ -1674,7 +1697,10 @@ export class Renderer {
     const avail = Math.max(this.u(80), bottom - top);
     // Short screens (e.g. a phone with the VALUE FOR VALUE card up): fewer, readable rows rather
     // than ten tiny ones. The player's highlighted entry always stays visible (last row).
-    const rows = Math.max(3, Math.min(11, Math.floor(avail / this.u(minRow) - 2.2)));
+    // ONE BOARD: every row carries a second, smaller line (mode label + pet food), so a row's
+    // pitch is ROW_K row heights.
+    const ROW_K = 1.62;
+    const rows = Math.max(3, Math.min(11, Math.floor((avail / this.u(minRow) - 2.2) / ROW_K)));
     if (rows < 11) title = title.replace('TOP 11', `TOP ${rows}`);
     const boardW = Math.min(maxTw, this.u(320));
     const rowFont = (fs: number, bold: boolean) => `${bold ? '700' : '600'} ${fs}px 'Rajdhani', monospace`;
@@ -1687,9 +1713,9 @@ export class Renderer {
     }
 
     // Column layout at a given row height, measured in the row font so it fits any width:
-    //   rank (right) | initials (left) | score (right) | LVL (right; gold shades mark for 11-111)
+    //   rank (right) | initials (left) | score (right) | LVL (right; gold star mark for 11-111)
     const layout = (headerRow: boolean) => {
-      const rowH = Math.min(this.u(22), avail / (rows + (headerRow ? 2.2 : 1.2)));
+      const rowH = Math.min(this.u(22), avail / (rows * ROW_K + (headerRow ? 2.2 : 1.2)));
       const fs = Math.max(10, Math.min(this.u(16), rowH * 0.85));
       ctx.font = rowFont(fs, true);
       const wRank = ctx.measureText('11').width;
@@ -1737,7 +1763,7 @@ export class Renderer {
     }
 
     for (let i = 0; i < rows; i++) {
-      const y = startY + i * rowH;
+      const y = startY + i * rowH * ROW_K;
       if (y > bottom - 2) break;
       const idx = i === rows - 1 && highlightIndex >= rows ? highlightIndex : i;
       const entry = board[idx];
@@ -1745,7 +1771,7 @@ export class Renderer {
       if (hi) {
         const pulse = 0.55 + Math.sin(this.time * 5) * 0.35;
         ctx.fillStyle = `rgba(0, 240, 255, ${0.12 + pulse * 0.18})`;
-        roundRect(ctx, cx - boardW / 2, y - rowH * 0.72, boardW, rowH * 0.95, 4);
+        roundRect(ctx, cx - boardW / 2, y - rowH * 0.72, boardW, rowH * (ROW_K - 0.05), 4);
         ctx.fill();
         ctx.fillStyle = COL.cyan;
         ctx.shadowBlur = this.lite ? 0 : 10;
@@ -1772,19 +1798,14 @@ export class Renderer {
       if (showLvl) {
         const d = entry?.difficulty;
         if (d !== undefined && d >= 11) {
-          // Gold zone (11-111): END in gold with a small shades mark; START (or a dash) before it.
+          // Gold zone (11-111): END in gold with a small gold star; START (or a dash) before it.
           ctx.shadowBlur = 0;
           ctx.fillStyle = COL.sunCore;
           const tw = this.drawLvlCell(ctx, entry?.start, d, xLvl, y, COL.sunCore, hi ? String(rowColor) : 'rgba(255, 190, 240, 0.92)');
-          const lw = fontSize * 0.46;
-          const lh = fontSize * 0.34;
-          const gx = xLvl - tw - fontSize * 0.2 - (lw * 2 + fontSize * 0.12);
-          const gy = y - fontSize * 0.62;
-          roundRect(ctx, gx, gy, lw, lh, lh * 0.45);
+          // Gold-zone marker: a small gold star (was a pair of shades; no eyewear anywhere now).
+          const sr = fontSize * 0.36;
+          drawStar(ctx, xLvl - tw - fontSize * 0.2 - sr, y - fontSize * 0.36, sr);
           ctx.fill();
-          roundRect(ctx, gx + lw + fontSize * 0.12, gy, lw, lh, lh * 0.45);
-          ctx.fill();
-          ctx.fillRect(gx - fontSize * 0.08, gy, lw * 2 + fontSize * 0.28, Math.max(1, lh * 0.22));
         } else {
           ctx.fillStyle = hi ? rowColor : entry ? 'rgba(255, 190, 240, 0.92)' : 'rgba(255,255,255,0.28)';
           if (d) this.drawLvlCell(ctx, entry?.start, d, xLvl, y, String(ctx.fillStyle), String(ctx.fillStyle));
@@ -1792,6 +1813,23 @@ export class Renderer {
         }
       }
       ctx.shadowBlur = 0;
+      if (entry) {
+        // Second line: MODE LABEL · pet food: <food> · <traits> (no icons, no selector; G-rated).
+        const m = boardModeOf(entry.mode);
+        const sfs = Math.max(8, fontSize * 0.62);
+        const sy = y + rowH * 0.6;
+        const x0 = cIni;
+        const xEnd = cx + boardW / 2 - 4;
+        ctx.textAlign = 'left';
+        ctx.font = `700 ${sfs}px 'Rajdhani', monospace`;
+        ctx.fillStyle = hi ? COL.cyan : MODE_INK[m];
+        const label = MODE_LABEL[m];
+        ctx.fillText(label, x0, sy);
+        const lw = ctx.measureText(label).width + sfs * 0.6;
+        ctx.font = `600 ${sfs}px 'Rajdhani', monospace`;
+        ctx.fillStyle = hi ? 'rgba(200, 255, 255, 0.9)' : 'rgba(255, 190, 240, 0.78)';
+        ctx.fillText(`${PET_FOOD}: ${petFoodWords(m)}`, x0 + lw, sy, Math.max(10, xEnd - x0 - lw));
+      }
     }
   }
 
@@ -1847,6 +1885,20 @@ export class Renderer {
     }
     ctx.restore();
   }
+}
+
+/** Five-point star path centred at (x, y), outer radius r (caller fills). */
+function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rad = i % 2 === 0 ? r : r * 0.45;
+    const px = x + Math.cos(a) * rad;
+    const py = y + Math.sin(a) * rad;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
 }
 
 function roundRect(

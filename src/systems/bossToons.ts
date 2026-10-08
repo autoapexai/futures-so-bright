@@ -553,7 +553,7 @@ const drawBuckle: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.lineTo(w * 0.05, bodyBot - 4);
   ctx.stroke();
   ctx.setLineDash([]);
-  // the face (pokes out of the collar), sunglasses pushed up, googly eyes below
+  // the face (pokes out of the collar), a pink headband, googly eyes below
   const headR = Math.min(w * 0.3, h * 0.14);
   const hy = bodyTop + headR * 0.2;
   ctx.fillStyle = '#c98a5b';
@@ -977,7 +977,7 @@ const drawDiva: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.restore();
 };
 
-/** L80 THE LATE LATE GHOST: a bedsheet ghost in a recliner at the midnight movie, 3D glasses on. */
+/** L80 THE LATE LATE GHOST: a bedsheet ghost in a recliner at the midnight movie, a big bucket of popcorn energy. */
 const drawGhost: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.save();
   frame(ctx, cx, cy, h, p, 3, 0.05);
@@ -1006,17 +1006,8 @@ const drawGhost: DrawFn = (ctx, cx, cy, w, h, p) => {
   ctx.beginPath();
   ctx.ellipse(-headR * 1.2, hy + headR * 2 + Math.sin(p.t * 5) * 3, headR * 0.5, headR * 0.25, -0.6, 0, TAU);
   ctx.fill();
-  // 3D glasses over the googly eyes
+  // big sleepy googly eyes (no eyewear)
   eyes(ctx, 0, hy - headR * 0.05, headR * 0.3, p, 1.15);
-  ctx.globalAlpha *= 0.55;
-  ctx.fillStyle = '#ff2a4a';
-  ctx.fillRect(-headR * 0.75, hy - headR * 0.35, headR * 0.65, headR * 0.6);
-  ctx.fillStyle = '#2ac8ff';
-  ctx.fillRect(headR * 0.1, hy - headR * 0.35, headR * 0.65, headR * 0.6);
-  ctx.globalAlpha /= 0.55;
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(-headR * 0.75, hy - headR * 0.35, headR * 1.5, headR * 0.6);
   // mouth: a yawning "O" (wider when bonked)
   ctx.fillStyle = '#333';
   ctx.beginPath();

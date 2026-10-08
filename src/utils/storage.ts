@@ -1,4 +1,5 @@
 import { ALLOWED, chars } from './initials';
+import { boardModeOf, type BoardMode } from './petFood';
 
 const HIGH_KEY = 'fsb-highscore-v1';
 const BOARD_KEY = 'fsb-leaderboard-v1';
@@ -19,6 +20,21 @@ export interface LeaderboardEntry {
   difficulty?: number;
   /** The level the run began on (1-11); missing on old rows (shown as a dash). */
   start?: number;
+  /** ONE BOARD: the mode the run was played in (utils/petFood.ts). Missing = dog mode. */
+  mode?: BoardMode;
+}
+
+/** Copy `mode` onto an entry only when it isn't plain dog mode (keeps old-shaped rows unchanged). */
+function withMode<T extends LeaderboardEntry>(e: T, mode: unknown): T {
+  const m = boardModeOf(mode);
+  if (m !== 'dog') e.mode = m;
+  return e;
+}
+
+/** Top dog-mode score on a board (the normal personal best ignores story-mode rows). */
+function topDog(board: LeaderboardEntry[]): number {
+  for (const e of board) if (!e.mode || e.mode === 'dog') return e.score;
+  return 0;
 }
 
 const MAX_BOARD = 11;
@@ -40,7 +56,7 @@ export function loadHighScore(): number {
     const board = loadLeaderboard();
     const v = localStorage.getItem(HIGH_KEY);
     const stored = v ? Math.max(0, parseInt(v, 10) || 0) : 0;
-    return Math.max(stored, board.length > 0 ? board[0].score : 0);
+    return Math.max(stored, topDog(board));
   } catch {
     return 0;
   }
@@ -82,7 +98,7 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
       const st = Math.round(Number((item as LeaderboardEntry).start));
       const e: LeaderboardEntry = d >= 1 && d <= 111 ? { score, initials, difficulty: d } : { score, initials };
       if (e.difficulty && st >= 1 && st <= e.difficulty) e.start = st;
-      out.push(e);
+      out.push(withMode(e, (item as LeaderboardEntry).mode));
     }
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, MAX_BOARD);
@@ -92,6 +108,7 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
 }
 
 export function loadLeaderboard(): LeaderboardEntry[] {
+  mergeStoryBoardsOnce();
   try {
     const raw = localStorage.getItem(BOARD_KEY);
     const parsed = parseBoard(raw);
@@ -118,14 +135,17 @@ export function saveLeaderboard(entries: LeaderboardEntry[]): void {
         initials: sanitizeInitials(e.initials),
         ...(e.difficulty ? { difficulty: e.difficulty } : {}),
         ...(e.start ? { start: e.start } : {}),
+        ...(e.mode && e.mode !== 'dog' ? { mode: e.mode } : {}),
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_BOARD);
     localStorage.setItem(BOARD_KEY, JSON.stringify(cleaned));
-    if (cleaned.length > 0) {
+    const dogTop = topDog(cleaned);
+    if (dogTop > 0) {
       // Only ever raise the personal best (a run can be a PB without making the shared board).
+      // Story-mode rows share the board but keep their own bests (loadStoryHigh).
       const prev = Math.max(0, parseInt(localStorage.getItem(HIGH_KEY) ?? '0', 10) || 0);
-      if (cleaned[0].score > prev) localStorage.setItem(HIGH_KEY, String(cleaned[0].score));
+      if (dogTop > prev) localStorage.setItem(HIGH_KEY, String(dogTop));
     }
   } catch {
     /* ignore */
@@ -147,8 +167,9 @@ export function addEntry(
   board?: LeaderboardEntry[],
   difficulty?: number,
   start?: number,
+  mode?: BoardMode,
 ): { board: LeaderboardEntry[]; index: number } {
-  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty, start);
+  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty, start, mode);
   saveLeaderboard(result.board);
   return result;
 }
@@ -160,14 +181,18 @@ export function insertEntry(
   board: LeaderboardEntry[],
   difficulty?: number,
   start?: number,
+  mode?: BoardMode,
 ): { board: LeaderboardEntry[]; index: number } {
   const list = [...board];
-  const entry: LeaderboardEntry = {
-    score: Math.floor(Math.max(0, score)),
-    initials: sanitizeInitials(initials),
-    ...(difficulty ? { difficulty } : {}),
-    ...(difficulty && start && start <= difficulty ? { start } : {}),
-  };
+  const entry: LeaderboardEntry = withMode(
+    {
+      score: Math.floor(Math.max(0, score)),
+      initials: sanitizeInitials(initials),
+      ...(difficulty ? { difficulty } : {}),
+      ...(difficulty && start && start <= difficulty ? { start } : {}),
+    },
+    mode,
+  );
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   const trimmed = list.slice(0, MAX_BOARD);
@@ -445,13 +470,16 @@ export const saveAnimalsUnlocked = (on = true): void => setFlag(ANIMALS_KEY, on)
 export const loadCatTried = (): boolean => flag(CAT_TRIED_KEY);
 export const saveCatTried = (on = true): void => setFlag(CAT_TRIED_KEY, on);
 
-/** Story-mode ids with their own best + board ('part2' = CAT MODE). */
+/** Story-mode ids with their own best ('part2' = CAT MODE). Their runs go on the ONE shared board. */
 export type StoryId = 'part2' | 'platypus' | 'manatee';
+const STORY_IDS: readonly StoryId[] = ['part2', 'platypus', 'manatee'];
 const storyHighKey = (id: StoryId): string => `fsb_${id}_high`;
+/** Legacy per-mode local boards (before ONE BOARD); read once to merge, never shown. */
 const storyBoardKey = (id: StoryId): string => `fsb_${id}_board`;
+const MERGED_KEY = 'fsb-story-boards-merged-v1';
 
-/** This device's runs of one story mode (top 11; never the public board). */
-export function loadStoryBoard(id: StoryId): LeaderboardEntry[] {
+/** Legacy: one story mode's old separate local board (only read to merge into the one board). */
+function loadLegacyStoryBoard(id: StoryId): LeaderboardEntry[] {
   try {
     return parseBoard(localStorage.getItem(storyBoardKey(id))) ?? [];
   } catch {
@@ -459,12 +487,31 @@ export function loadStoryBoard(id: StoryId): LeaderboardEntry[] {
   }
 }
 
+/**
+ * ONE BOARD: fold the old separate story boards (fsb_part2_board, ...) into this device's one local
+ * board, each row tagged with its mode. Runs once per device; the old keys are left in place.
+ */
+function mergeStoryBoardsOnce(): void {
+  try {
+    if (localStorage.getItem(MERGED_KEY) === '1') return;
+    localStorage.setItem(MERGED_KEY, '1');
+    const extra: LeaderboardEntry[] = [];
+    for (const id of STORY_IDS) for (const e of loadLegacyStoryBoard(id)) extra.push({ ...e, mode: id });
+    if (!extra.length) return;
+    const cur = parseBoard(localStorage.getItem(BOARD_KEY)) ?? migrateOldHighScore();
+    saveLeaderboard([...cur, ...extra]);
+  } catch {
+    /* storage blocked */
+  }
+}
+
 /** Best score of one story mode on this device (separate from the dog-mode high score). */
 export function loadStoryHigh(id: StoryId): number {
   try {
     const stored = Math.max(0, parseInt(localStorage.getItem(storyHighKey(id)) ?? '0', 10) || 0);
-    const board = loadStoryBoard(id);
-    return Math.max(stored, board.length ? board[0].score : 0);
+    let top = 0;
+    for (const e of loadLegacyStoryBoard(id)) top = Math.max(top, e.score);
+    return Math.max(stored, top);
   } catch {
     return 0;
   }
@@ -478,13 +525,38 @@ export function saveStoryHigh(id: StoryId, score: number): void {
   }
 }
 
-export function addStoryEntry(id: StoryId, score: number, initials: string, level?: number, start?: number): { board: LeaderboardEntry[]; index: number } {
-  const result = insertEntry(score, initials, loadStoryBoard(id), level, start);
+// --- ONE BOARD: this device remembers the mode of its own submitted rows ---
+/**
+ * The live fsb_get_leaderboard() does not return a mode yet (see the ONE BOARD note in
+ * utils/remoteBoard.ts). Until it does, rows this device submitted get their mode from here.
+ */
+const ROW_MODES_KEY = 'fsb-row-modes-v1';
+const MAX_ROW_MODES = 60;
+type RowMode = { s: number; i: string; d: number; m: BoardMode };
+
+function loadRowModes(): RowMode[] {
   try {
-    localStorage.setItem(storyBoardKey(id), JSON.stringify(result.board));
+    const data = JSON.parse(localStorage.getItem(ROW_MODES_KEY) ?? '[]');
+    return Array.isArray(data) ? data.filter((r) => r && typeof r.s === 'number' && typeof r.i === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberRowMode(score: number, initials: string, difficulty: number, mode: BoardMode): void {
+  if (mode === 'dog') return;
+  try {
+    const row: RowMode = { s: Math.floor(score), i: sanitizeInitials(initials), d: Math.round(difficulty), m: mode };
+    const list = [row, ...loadRowModes().filter((r) => !(r.s === row.s && r.i === row.i && r.d === row.d))].slice(0, MAX_ROW_MODES);
+    localStorage.setItem(ROW_MODES_KEY, JSON.stringify(list));
   } catch {
     /* storage blocked */
   }
-  saveStoryHigh(id, score);
-  return result;
+}
+
+/** A mode this device remembers for (score, initials, level), or null. */
+export function lookupRowMode(score: number, initials: string, difficulty: number | undefined): BoardMode | null {
+  const d = Math.round(difficulty ?? 0);
+  for (const r of loadRowModes()) if (r.s === score && r.i === initials && (!d || r.d === d)) return boardModeOf(r.m);
+  return null;
 }

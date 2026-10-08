@@ -6,7 +6,7 @@
  * the pet picker), each sized by the cube root of adult weight (midpoint), anchored at
  * 40 lb = 1.0x a standard ship. Cat tiers reuse the dog weightLb values so hitboxes stay
  * identical. Sources: dog-breeds-akc.csv. Drawn in the game's existing palette and
- * treatment: soft gradient fills, neon glow, the signature shades, a space-helmet bubble.
+ * treatment: soft gradient fills, neon glow, friendly eyes, a space-helmet bubble.
  */
 import { pet } from '../utils/pets';
 
@@ -221,7 +221,7 @@ export function rosterFor(species: string): readonly Breed[] {
 }
 
 export interface ShipPaint {
-  /** Shades lens colour (charge-coded on the player). */
+  /** Legacy charge colour (was the eyewear lens; unused since eyewear was removed). */
   lens?: string;
   /** Helmet rim / collar accent (fan modes tint this). */
   accent?: string;
@@ -251,7 +251,6 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
     paintCritter(g, b, o);
     return;
   }
-  const lens = o.lens ?? 'rgba(0, 255, 220, 0.8)';
   const accent = o.accent ?? '#00f0ff';
   const isCat = b.species === 'cat';
   const suited = isCat && !o.noSuit && !o.outline;
@@ -520,20 +519,8 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
     }
   }
 
-  // the shades — still the star of the show
-  g.fillStyle = dark;
-  rr(g, hx - b.headR * 0.35, hy - b.headR * 0.55, b.headR * 1.35, 5, 1.5);
-  g.fill();
-  if (o.glow) {
-    g.shadowBlur = 10;
-    g.shadowColor = lens;
-  }
-  g.fillStyle = lens;
-  rr(g, hx - b.headR * 0.25, hy - b.headR * 0.5, b.headR * 0.5, 3.6, 1);
-  g.fill();
-  rr(g, hx + b.headR * 0.35, hy - b.headR * 0.5, b.headR * 0.5, 3.6, 1);
-  g.fill();
-  g.shadowBlur = 0;
+  // friendly eyes (no eyewear anywhere: Dan, 2026-10-08)
+  paintEyes(g, hx, hy, b.headR, dark);
 
   if (o.noHelmet) return;
   if (suited) {
@@ -560,21 +547,27 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
   g.globalAlpha = 1;
 }
 
-/** The signature shades on a head at (hx, hy) of radius r (shared by every animal). */
-function paintShades(g: CanvasRenderingContext2D, hx: number, hy: number, r: number, lens: string, glow: boolean): void {
-  g.fillStyle = '#0a0018';
-  rr(g, hx - r * 0.35, hy - r * 0.55, r * 1.35, 5, 1.5);
-  g.fill();
-  if (glow) {
-    g.shadowBlur = 10;
-    g.shadowColor = lens;
+/**
+ * Two friendly eyes on a head at (hx, hy) of radius r (shared by every animal). No eyewear: the
+ * game dropped sunglasses entirely (Dan, 2026-10-08).
+ */
+function paintEyes(g: CanvasRenderingContext2D, hx: number, hy: number, r: number, ink = '#0a0018'): void {
+  const er = Math.max(1.5, r * 0.2);
+  for (const ex of [hx + r * 0.0, hx + r * 0.6]) {
+    const ey = hy - r * 0.3;
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(ex, ey, er, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = ink;
+    g.beginPath();
+    g.arc(ex + er * 0.3, ey + er * 0.1, er * 0.58, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    g.beginPath();
+    g.arc(ex + er * 0.45, ey - er * 0.2, Math.max(0.35, er * 0.2), 0, Math.PI * 2);
+    g.fill();
   }
-  g.fillStyle = lens;
-  rr(g, hx - r * 0.25, hy - r * 0.5, r * 0.5, 3.6, 1);
-  g.fill();
-  rr(g, hx + r * 0.35, hy - r * 0.5, r * 0.5, 3.6, 1);
-  g.fill();
-  g.shadowBlur = 0;
 }
 
 /** Space-helmet bubble rim + glint around (cx, cy). */
@@ -596,12 +589,11 @@ function paintHelmetRim(g: CanvasRenderingContext2D, cx: number, cy: number, hr:
 
 /**
  * PLATYPUS MODE / MANATEE MODE animals, same frame as the dogs (facing right, centred, standard-ship
- * units, same body numbers so the size reads the same) with the shades and a space helmet.
+ * units, same body numbers so the size reads the same) with friendly eyes and a space helmet.
  * Platypus: flat beaver tail, webbed feet, a blue-grey duck bill. Manatee: round grey body,
  * paddle tail, little flippers and a big whiskery snout.
  */
 function paintCritter(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint): void {
-  const lens = o.lens ?? 'rgba(0, 255, 220, 0.8)';
   const accent = o.accent ?? '#00f0ff';
   const dark = '#0a0018';
   const L = b.bodyL;
@@ -706,7 +698,7 @@ function paintCritter(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint): void
       g.arc(hx + r * 1.05 + 2, hy + r * 0.12, 0.8, 0, Math.PI * 2);
       g.fill();
     }
-    paintShades(g, hx - 1, hy - 0.5, r, lens, !!o.glow);
+    paintEyes(g, hx - 1, hy - 0.5, r);
     if (!o.noHelmet) paintHelmetRim(g, hx + 3, hy, hr, accent);
     return;
   }
@@ -778,7 +770,7 @@ function paintCritter(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint): void
     g.arc(hx + r * 1.25, hy + r * 0.12, 0.9, 0, Math.PI * 2);
     g.fill();
   }
-  paintShades(g, hx - 1.5, hy - 0.5, r, lens, !!o.glow);
+  paintEyes(g, hx - 1.5, hy - 0.5, r);
   if (!o.noHelmet) paintHelmetRim(g, hx + 3, hy, hr, accent);
 }
 

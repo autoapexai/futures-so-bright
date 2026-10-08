@@ -19,7 +19,7 @@ export const STAR = '★';
 
 /** Kid-friendly, single-code-point emojis (after ★ in every language). */
 export const EMOJIS: readonly string[] = [
-  '😎', '⭐', '🌟', '🚀', '🍕', '🍩', '🍦', '🍉', '🐶', '🐱', '🐼', '🦊', '🐸',
+  '⭐', '🌟', '🚀', '🍕', '🍩', '🍦', '🍉', '🐶', '🐱', '🐼', '🦊', '🐸',
   '🐙', '🐢', '🦄', '🦖', '🌈', '🎮', '🏆', '🎉', '🔥', '⚡', '👾', '🤖', '🎈',
 ];
 
@@ -79,7 +79,13 @@ export function initialsSet(l: Lang): readonly string[] {
 }
 
 /** Union of every language's set: what the boards (and the server) accept. */
-export const ALLOWED: ReadonlySet<string> = new Set([...AZ, ...ES, ...VI, ...ZH, ...FR, ...DE, ...PT, ...IT, ...NL, ...PL, ...TR, ...ID, ...FIL, ...SV, ...RU, ...UK, ...JA, ...KO, ...HI, ...TH, STAR, ...EMOJIS]);
+/**
+ * The old sunglasses emoji: no longer in any picker (the game dropped eyewear, Dan 2026-10-08), but
+ * still accepted on rows already on the board (the server allowlist has it) and shown as SHADES_SWAP.
+ */
+const LEGACY_SHADES = '\u{1F60E}';
+const SHADES_SWAP = '🌟';
+export const ALLOWED: ReadonlySet<string> = new Set([LEGACY_SHADES, ...AZ, ...ES, ...VI, ...ZH, ...FR, ...DE, ...PT, ...IT, ...NL, ...PL, ...TR, ...ID, ...FIL, ...SV, ...RU, ...UK, ...JA, ...KO, ...HI, ...TH, STAR, ...EMOJIS]);
 
 /** Code points (an emoji is one character here, unlike String.length). */
 export function chars(s: string): string[] {
@@ -169,7 +175,7 @@ export function isRude(s: string): boolean {
 
 /** What a board shows: rude initials become ***. */
 export function maskInitials(s: string): string {
-  return isRude(s) ? '***' : s;
+  return isRude(s) ? '***' : s.split(LEGACY_SHADES).join(SHADES_SWAP);
 }
 
 /** Canvas font tail so Vietnamese, Chinese and emoji glyphs always have a font (aligned columns). */

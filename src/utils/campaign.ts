@@ -11,7 +11,8 @@
  *   swaps the dogs for that animal (helmets on), at part two's final difficulty.
  *
  * Unlocks and each mode's best score live in localStorage next to the rest of the progress
- * (utils/storage.ts). Story-mode runs are local-only: they never write to the shared leaderboard.
+ * (utils/storage.ts). ONE BOARD (Dan, 2026-10-08): story-mode runs go on the one shared leaderboard
+ * with dog mode, each row labelled with its mode and pet food (utils/petFood.ts).
  *
  * Fairness rules (Dan): harder but playable. Only hazard SPEED and spawn DENSITY scale, and the
  * speed never goes above dog mode's own fastest (level 111), so hazards never arrive faster than

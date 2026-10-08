@@ -155,7 +155,7 @@ export function installTestHooks(game: unknown): void {
     /** STORY MODES: start a story run directly (same path as its MODES card). */
     startStory: (id: 'part2' | 'platypus' | 'manatee') => {
       g.pendingCampaign = id;
-      g.startRun(1, null, true);
+      g.startRun(1, null, false);
     },
     /** Hazard levers in effect for this run's campaign at its level. */
     levers: () => campaignLevers(g.runDifficulty, g.campaign),

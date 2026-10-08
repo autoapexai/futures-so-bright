@@ -53,7 +53,7 @@ button[disabled]{opacity:.7;cursor:progress}
 .done h2{font-size:clamp(24px,6.5vw,30px);color:var(--cyan);text-shadow:0 0 16px rgba(0,240,255,.6);margin-bottom:8px}
 .done h2:focus{outline:none}
 .done p{margin-bottom:14px}
-.shades{display:block;margin:0 auto 10px;width:120px;height:40px}
+.star{display:block;margin:0 auto 10px;width:48px;height:48px}
 .again{display:grid;gap:10px;margin-top:6px}
 .note{font-size:14px;color:var(--mute)}
 .is-done form,.is-done .intro{display:none}
@@ -84,7 +84,7 @@ footer a{color:var(--cyan);padding:4px 2px}
   </header>
   <div class="uc" role="status">
     <strong>🚧 Under construction 🚧</strong>
-    <p>The future is just so bright, we can't add anyone to the waitlist right now. Grab your shades and check back soon!</p>
+    <p>The future is just so bright, we can't add anyone to the waitlist right now. Grab a snack and check back soon!</p>
     <p class="uc2">The future is so bright, you got to get in line.</p>
   </div>
   <section class="card" id="card" aria-labelledby="h">
@@ -107,9 +107,9 @@ footer a{color:var(--cyan);padding:4px 2px}
       <p class="privacy" id="privacy">We'll only email you when the game is ready. Unsubscribe anytime.</p>
     </form>
     <div class="done" id="done">
-      <svg class="shades" viewBox="0 0 120 40" aria-hidden="true"><path d="M4 8H116V12H108L102 30Q100 36 92 36H76Q68 36 66 30L62 18Q60 15 58 18L54 30Q52 36 44 36H28Q20 36 18 30L12 12H4Z" fill="#0a0015" stroke="#ffe66d" stroke-width="2.2" stroke-linejoin="round"/><path d="M22 14H30L24 28M70 14H78L72 28" stroke="rgba(255,255,255,.55)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      <svg class="star" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 4 L37.6 21.4 L56.4 22.8 L42 35 L46.4 53.6 L30 43.6 L13.6 53.6 L18 35 L3.6 22.8 L22.4 21.4 Z" fill="#ffe66d" stroke="#ff9d3c" stroke-width="2.2" stroke-linejoin="round"/></svg>
       <h2 id="doneh" tabindex="-1">You're on the list!</h2>
-      <p id="donep">We'll email you the moment the game is ready. Keep those shades handy.</p>
+      <p id="donep">We'll email you the moment the game is ready. Keep a snack handy.</p>
       <div class="again">
         <a class="btn ghost" id="retry" href="/" hidden>Try the game again</a>
         <p class="note" id="wait" hidden></p>
@@ -169,8 +169,8 @@ footer a{color:var(--cyan);padding:4px 2px}
   function showDone(addr, already) {
     card.classList.add('is-done');
     $('doneh').textContent = already ? "You're already on the list!" : "You're on the list!";
-    $('donep').textContent = addr ? "We'll email " + addr + " the moment the game is ready. Keep those shades handy."
-      : "We'll email you the moment the game is ready. Keep those shades handy.";
+    $('donep').textContent = addr ? "We'll email " + addr + " the moment the game is ready. Keep a snack handy."
+      : "We'll email you the moment the game is ready. Keep a snack handy.";
     retryState();
     live.textContent = $('doneh').textContent;
     $('doneh').focus();

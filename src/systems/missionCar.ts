@@ -425,10 +425,10 @@ function cabinPath(ctx: CanvasRenderingContext2D): void {
 
 /**
  * The whole car: a white halo + rim so it reads on the dark purple lanes, black chassis (hood,
- * trunk, fenders), white roof and doors, light glass with sunglasses on the dash, wheels, then
+ * trunk, fenders), white roof and doors, light glass with a chew-toy bone on the dash, wheels, then
  * each part still on.
  */
-function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, wheelA: number, lite: boolean, lens: string, sputter: boolean): void {
+function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, wheelA: number, lite: boolean, _lens: string, sputter: boolean): void {
   // Hover glow + tailpipe flame (it's still the future).
   ctx.fillStyle = 'rgba(0, 240, 255, 0.28)';
   ctx.beginPath();
@@ -472,7 +472,7 @@ function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, 
   ctx.fillStyle = WHITE;
   cabinPath(ctx);
   ctx.fill();
-  // Glass: light tinted so the black sunglasses on the dash stand out.
+  // Glass: light tinted so the bone on the dash stands out.
   ctx.fillStyle = GLASS;
   ctx.beginPath(); // rear side window
   ctx.moveTo(-13, -7.4);
@@ -508,29 +508,19 @@ function paintCar(ctx: CanvasRenderingContext2D, on: Set<PartId>, time: number, 
   ctx.moveTo(-11.8, -11.6);
   ctx.lineTo(-3.4, -9.4);
   ctx.stroke();
-  // Sunglasses on the dash (bottom of the front window): big black frames, lenses glint with the shade.
+  // A chew-toy bone on the dash (bottom of the front window). No eyewear anywhere (Dan, 2026-10-08).
   ctx.save();
   ctx.translate(6.2, -9.4);
-  ctx.fillStyle = '#000000';
-  ctx.beginPath();
-  ctx.moveTo(-5.4, -2.1);
-  ctx.lineTo(5.4, -2.1);
-  ctx.lineTo(5.1, 0.4);
-  ctx.quadraticCurveTo(4.4, 2.5, 2.1, 2);
-  ctx.lineTo(0.8, -0.1);
-  ctx.lineTo(-0.8, -0.1);
-  ctx.lineTo(-2.1, 2);
-  ctx.quadraticCurveTo(-4.4, 2.5, -5.1, 0.4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.lineWidth = 0.45;
-  ctx.stroke();
-  const glint = 0.6 + 0.4 * Math.max(0, Math.sin(time * 2.4));
-  ctx.globalAlpha *= glint;
-  ctx.fillStyle = lens;
-  ctx.fillRect(-4.3, -1.4, 1.6, 1.1);
-  ctx.fillRect(1.9, -1.4, 1.6, 1.1);
+  ctx.fillStyle = '#fff6e0';
+  ctx.fillRect(-3.6, -0.7, 7.2, 1.4);
+  for (const [bx, by] of [[-3.8, -0.8], [-3.8, 0.8], [3.8, -0.8], [3.8, 0.8]] as const) {
+    ctx.beginPath();
+    ctx.arc(bx, by, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(60, 40, 20, 0.7)';
+  ctx.lineWidth = 0.35;
+  ctx.strokeRect(-3.6, -0.7, 7.2, 1.4);
   ctx.restore();
   // Dash line under the glass.
   ctx.fillStyle = WHITE_SH;

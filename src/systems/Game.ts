@@ -48,12 +48,13 @@ import {
   saveCatTried,
   loadStoryHigh,
   saveStoryHigh,
-  loadStoryBoard,
-  addStoryEntry,
+  rememberRowMode,
   type StoryId,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
+import { boardModeOf, petFoodLine, type BoardMode } from '../utils/petFood';
+import { ZipHome } from './zipHome';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { DesertSearch, DESERT_SEARCH_ON_MISSION } from './desertSearch';
 import { trackRunStart } from '../utils/track';
@@ -139,7 +140,7 @@ const CONTINUE_SECONDS = 10;
 
 /**
  * Per-dog scale with n dogs left: s(n) = s0^(ln n / ln N0). Four dogs 0.5x, three 0.58x,
- * two 0.71x, the last dog 1.0x (the rest "eat the sunglasses" and grow).
+ * two 0.71x, the last dog 1.0x (the rest share its food and grow).
  */
 export function packScale(n: number): number {
   if (n <= 1) return 1;
@@ -285,6 +286,10 @@ export class Game {
   private continuesLeft = 0;
   /** "CONTINUE?" countdown while > 0 (play frozen). Only reachable if LAST_DOG_CONTINUES > 0. */
   private continueT = 0;
+  /** HOME TO EARTH: pets float back down to Earth instead of vanishing (systems/zipHome.ts). */
+  private zipHome = new ZipHome();
+  /** What runs once the run-ending float down to Earth has finished (game over / continue). */
+  private homeThen: (() => void) | null = null;
   /** Distance flown on the current stage; drives the speed / spawn / drain ramp, reset each stage. */
   private stageDist = 0;
   private readonly cloneFormation = new Formation();
@@ -367,7 +372,7 @@ export class Game {
   private ghostBoardOpen = false;
   /**
    * STORY PROGRESSION (utils/campaign.ts): the current run's campaign ('dog' = the normal game;
-   * 'part2' = CAT MODE, 'platypus' / 'manatee'). Story runs are local-only (own best + board).
+   * 'part2' = CAT MODE, 'platypus' / 'manatee'). Story runs keep their own best but share the ONE board.
    */
   private campaign: Campaign = 'dog';
   /** Campaign for the next startRun (set by the MODES story cards / ride again). */
@@ -1369,7 +1374,7 @@ export class Game {
       b.id = `story-${id}`;
       b.className = `hand-btn mode-pick story-pick story-${id}`;
       b.draggable = false;
-      b.innerHTML = '<span class="story-ico" aria-hidden="true"></span><span class="mode-name"></span><span class="mode-ships story-sub"></span><span class="story-best"></span>';
+      b.innerHTML = '<span class="story-ico" aria-hidden="true"></span><span class="mode-name"></span><span class="mode-ships story-sub"></span><span class="story-food"></span><span class="story-best"></span>';
       const name = b.querySelector<HTMLElement>('.mode-name');
       if (name) name.textContent = CAMPAIGN_NAME[id];
       bindTap(b, () => this.pickStory(id));
@@ -1399,6 +1404,9 @@ export class Game {
       const hint = id === 'part2' ? tr('cm_hint') : tr('an_hint');
       const blurb = id === 'part2' ? `${CAMPAIGN_CARD.part2[0]} · ${tr('cm_sub')}` : id === 'platypus' ? tr('pl_sub') : tr('mn_sub');
       if (sub) sub.textContent = open ? blurb : hint;
+      // Pet food: this mode's food + animal traits (English, like mode names), once it's open.
+      const food = b.querySelector<HTMLElement>('.story-food');
+      if (food) food.textContent = open ? petFoodLine(id) : '';
       const best = b.querySelector<HTMLElement>('.story-best');
       const hi = loadStoryHigh(id);
       if (best) best.textContent = open && hi > 0 ? tr('story_best', { s: fmtNum(hi) }) : '';
@@ -1464,7 +1472,8 @@ export class Game {
     this.closeModes();
     void this.audio.unlock();
     this.pendingCampaign = id;
-    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, true);
+    // ONE BOARD: story runs go on the shared board (not local-only).
+    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, false);
   }
 
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
@@ -1623,7 +1632,7 @@ export class Game {
     saveDifficulty(next);
     this.syncDifficultyUi();
     if (next === SECRET_DIFFICULTY && !loadElevenRevealSeen()) {
-      // First time past 10 this reign: sun flare + shades + "This one goes to eleven."
+      // First time past 10 this reign: sun flare + gold star + "This one goes to eleven."
       saveElevenRevealSeen(true);
       this.playElevenReveal();
     } else {
@@ -1755,7 +1764,7 @@ export class Game {
     });
   }
 
-  /** ~1.6 s dimmed overlay: sun-flare + shades + "This one goes to eleven." Never blocks input. */
+  /** ~1.6 s dimmed overlay: sun-flare + gold star + "This one goes to eleven." Never blocks input. */
   private playElevenReveal(): void {
     const fx = document.getElementById('eleven-fx');
     const ctl = document.getElementById('diff-ctl');
@@ -2391,10 +2400,7 @@ export class Game {
     this.unlockNotice = null;
     const story = this.storyId();
     setRunSpecies(story ? STORY_SPECIES[story] : null);
-    if (story) {
-      ticket = null;
-      localOnly = true;
-    }
+    // ONE BOARD: story runs submit to the shared board like dog mode (mode label + pet food per row).
     this.high = story ? loadStoryHigh(story) : this.missionRun ? loadMissionHigh() : this.ghostRun ? loadGhostHigh() : loadHighScore();
     if (this.missionRun) {
       ticket = null;
@@ -2471,6 +2477,9 @@ export class Game {
     void this.refreshRemoteBoard();
     this.player.reset(this.viewH);
     this.continueT = 0;
+    this.zipHome.clear();
+    this.homeThen = null;
+    document.body.classList.remove('fsb-homing');
     this.continuesLeft = LAST_DOG_CONTINUES;
     this.mode = mode;
     this.decoyFaked = false;
@@ -2560,7 +2569,8 @@ export class Game {
     this.pendingScore = Math.min(SCORE_CAP, Math.floor(this.score));
     this.pendingRunMs = Math.round(this.runTime * 1000);
     this.pendingDifficulty = this.runDifficulty;
-    this.pendingMode = this.mode ? this.mode.id : null;
+    // ONE BOARD: story runs send their story id as the mode; dog-mode runs the fan mode they ended on.
+    this.pendingMode = this.storyId() ?? (this.mode ? this.mode.id : null);
     this.pendingModes = Math.max(1, this.modesUsed.size);
     this.pendingStart = this.runStartLevel;
     this.pendingFight = this.runFight;
@@ -2576,10 +2586,7 @@ export class Game {
     this.pendingMission = this.missionRun;
     this.pendingGhost = this.ghostRun;
     this.pendingStory = this.storyId();
-    if (this.pendingStory) {
-      this.endStoryRun(this.pendingStory);
-      return;
-    }
+    if (this.pendingStory) setRunSpecies(null); // menus after the run read the normal pet choice again
     if (this.pendingGhost) {
       this.endGhostRun();
       return;
@@ -2590,15 +2597,23 @@ export class Game {
     }
     // Load (and, for legacy saves, migrate) the local board before touching the high-score key.
     const localBoard = loadLeaderboard();
-    if (this.pendingScore > this.high) {
-      this.high = this.pendingScore;
-      this.newBest = true;
+    const story = this.pendingStory;
+    if (story) {
+      // Story modes keep their own best (shown on their MODES card); the board is the one board.
+      this.newBest = this.pendingScore > loadStoryHigh(story);
+      saveStoryHigh(story, this.pendingScore);
+      this.high = loadStoryHigh(story);
     } else {
-      this.newBest = false;
+      if (this.pendingScore > this.high) {
+        this.high = this.pendingScore;
+        this.newBest = true;
+      } else {
+        this.newBest = false;
+      }
+      // Keep legacy single-key in sync even if they skip the board
+      saveHighScore(this.pendingScore);
+      this.high = Math.max(this.high, loadHighScore());
     }
-    // Keep legacy single-key in sync even if they skip the board
-    saveHighScore(this.pendingScore);
-    this.high = Math.max(this.high, loadHighScore());
 
     // Qualify against the shared board when we have it (fetched at run start),
     // else the local board. Never wait on the network here.
@@ -2632,41 +2647,15 @@ export class Game {
    * ON A MISSION game over: only the mission best and the DEV BOARD (or this device's mission
    * board) are touched. The public board, the normal TOP 11 and the normal best never see it.
    */
+  /** Pet food line for this run's mode (title cards between levels); none for the vehicle modes. */
+  private runPetFood(): string {
+    if (this.missionRun || this.ghostRun || this.tutStep >= 0) return '';
+    return petFoodLine(boardModeOf(this.campaign));
+  }
+
   /** This run's story mode, or null for the normal game (dog mode). */
   private storyId(): StoryId | null {
     return this.campaign === 'dog' ? null : this.campaign;
-  }
-
-  /** Story-mode game over: that mode's own best and local board only (never the public board). */
-  private endStoryRun(id: StoryId): void {
-    // Menus after the run read the normal pet choice again (the story animal stays on screen).
-    setRunSpecies(null);
-    const best = loadStoryHigh(id);
-    this.newBest = this.pendingScore > best;
-    saveStoryHigh(id, this.pendingScore);
-    this.high = loadStoryHigh(id);
-    this.boardIsRemote = false;
-    this.leaderboard = loadStoryBoard(id);
-    this.highlightIndex = -1;
-    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) this.enterInitials();
-    else {
-      this.state = 'gameover';
-      this.setBodyFlags();
-    }
-  }
-
-  private confirmStoryInitials(id: StoryId, initials: string): void {
-    const local = addStoryEntry(id, this.pendingScore, initials, this.pendingDifficulty, this.pendingStart);
-    this.leaderboard = local.board;
-    this.highlightIndex = local.index;
-    this.boardIsRemote = false;
-    this.high = loadStoryHigh(id);
-    this.audio.playUi();
-    this.state = 'gameover';
-    this.lockRestart();
-    this.setBodyFlags();
-    this.input.clearTouch();
-    this.input.clearJustPressed();
   }
 
   /**
@@ -2821,10 +2810,6 @@ export class Game {
       this.confirmGhostInitials(this.initialsChars.join(''));
       return;
     }
-    if (this.pendingStory) {
-      this.confirmStoryInitials(this.pendingStory, this.initialsChars.join(''));
-      return;
-    }
     const initials = this.initialsChars.join('');
     const score = this.pendingScore;
     const runMs = this.pendingRunMs;
@@ -2836,11 +2821,14 @@ export class Game {
     const speed = this.pendingSpeed;
     const fight = this.pendingFight;
     const id = this.runId;
+    const boardMode: BoardMode = this.pendingStory ?? 'dog';
+    // ONE BOARD: remember this row's mode on this device (the live board doesn't return it yet).
+    rememberRowMode(score, initials, difficulty, boardMode);
     // Always keep this device's board (offline fallback + personal best).
-    const local = addEntry(score, initials, undefined, difficulty, this.pendingStart);
+    const local = addEntry(score, initials, undefined, difficulty, this.pendingStart, boardMode);
     if (remoteEnabled && this.remoteBoard && !this.runLocalOnly) {
       // Optimistic: show the entry on the shared board until the server replies.
-      const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty, this.pendingStart);
+      const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty, this.pendingStart, boardMode);
       this.leaderboard = optimistic.board;
       this.highlightIndex = optimistic.index;
       this.boardIsRemote = true;
@@ -2849,7 +2837,7 @@ export class Game {
       this.highlightIndex = local.index;
       this.boardIsRemote = false;
     }
-    this.high = loadHighScore();
+    this.high = this.pendingStory ? loadStoryHigh(this.pendingStory) : loadHighScore();
     this.audio.playUi();
     this.state = 'gameover';
     this.lockRestart();
@@ -3152,6 +3140,23 @@ export class Game {
       return;
     }
 
+    document.body.classList.toggle('fsb-homing', this.zipHome.busy);
+    if (this.zipHome.busy) {
+      // The run's last pet is floating down to Earth: play is frozen for a moment, then game over.
+      this.zipHome.update(dt);
+      this.particles.update(dt);
+      this.renderer.update(dt, 40);
+      if (this.zipHome.finalDone()) {
+        const next = this.homeThen;
+        this.homeThen = null;
+        this.zipHome.clear();
+        document.body.classList.remove('fsb-homing');
+        next?.();
+      }
+      this.input.clearJustPressed();
+      return;
+    }
+
     if (this.continueT > 0) {
       // Last dog lost with a continue left: frozen until tapped or the countdown runs out.
       this.continueT -= dt;
@@ -3383,6 +3388,7 @@ export class Game {
       this.bossEvents();
     }
     this.particles.update(dt);
+    this.zipHome.update(dt);
     if (this.missionRun) this.car.update(dt, this.scrollSpeed, this.viewH);
     if (this.ghostRun) this.wagon.update(dt, this.scrollSpeed, this.viewH);
     this.renderer.update(dt, this.scrollSpeed);
@@ -3409,17 +3415,16 @@ export class Game {
     const drain = ((boosting ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
-      // Out of shade with clones / pack dogs left: one is lost, the rest carry on.
-      this.loseLeadShip(this.packRun ? 0.85 * hz.hitGraceMul : 1.0);
+      // Out of treat charge with clones / pack pets left: one floats home to Earth, the rest carry on.
+      this.loseLeadShip(this.packRun ? 0.85 * hz.hitGraceMul : 1.0, true);
       this.charge = 0.75;
     }
-    if (this.charge <= 0 && this.packRun && this.lastDogLost()) return;
+    if (this.charge <= 0 && this.packRun && this.lastDogLost(true)) return;
     if (this.charge <= 0) {
-      this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
-      this.renderer.bumpShake(14);
-      this.renderer.bumpFlash(0.7);
-      this.endRun();
       this.input.clearJustPressed();
+      // The last pet is out of treats: it floats home to Earth, then the game-over screen.
+      if (this.flyHomeThen(true, () => this.endRun())) return;
+      this.endRun();
       return;
     }
 
@@ -3479,8 +3484,8 @@ export class Game {
             break;
           }
           if (this.packRun) {
-            // The last dog of the pack is hit: game over (or a continue, if enabled).
-            if (this.lastDogLost()) return;
+            // The last pet of the pack is hit: it floats home to Earth, then game over.
+            if (this.lastDogLost(false)) return;
             break;
           }
           this.charge = clamp(this.charge - 0.28 * hz.hitDamageMul, 0, 1);
@@ -3490,8 +3495,9 @@ export class Game {
           this.renderer.bumpFlash(0.35);
           this.particles.burst(this.player.x, this.player.y, '#ff6b35', this.touchPrimary ? 10 : 20, 220);
           if (this.charge <= 0) {
-            this.endRun();
             this.input.clearJustPressed();
+            if (this.flyHomeThen(true, () => this.endRun())) return;
+            this.endRun();
             return;
           }
           break;
@@ -3721,7 +3727,7 @@ export class Game {
   /**
    * Pass the current level. Returns true when the run ended (cleared 111 = victory).
    * 1-9: a ~2 s "LEVEL N COMPLETED / YOU'VE BEEN PROMOTED!" interstitial, then the next level
-   * starts fresh (hazards cleared, ramp reset, shades full) with the score carried over.
+   * starts fresh (hazards cleared, ramp reset, food meter full) with the score carried over.
    * 10: every player gets a "YOU BEAT LEVEL 10" interstitial, then the gold zone (level 11, clone
    * mode). On the shared board the run's ticket is requested now (the server logs the 'start'),
    * dated back by the play time so far so the whole run fits the ticket.
@@ -4112,7 +4118,7 @@ export class Game {
     this.player.invuln = Math.max(this.player.invuln, 1.0);
   }
 
-  /** A boss arrives: hazards stop spawning (shades and rings keep coming). */
+  /** A boss arrives: hazards stop spawning (food bowls and rings keep coming). */
   private startBoss(def: BossDef): void {
     const local = loadLeaderboard();
     const bestLvl = local.reduce((a, e) => Math.max(a, e.difficulty ?? 0), 0);
@@ -4272,13 +4278,13 @@ export class Game {
     this.hitFx(this.player.x, this.player.y, true);
     if (this.charge > 0) return false;
     if (this.ships > 1) {
-      this.loseLeadShip(BOSS_HIT_GRACE);
+      this.loseLeadShip(BOSS_HIT_GRACE, true);
       this.charge = 0.75;
       return false;
     }
-    if (this.packRun) return this.lastDogLost();
-    this.endRun();
+    if (this.packRun) return this.lastDogLost(true);
     this.input.clearJustPressed();
+    if (!this.flyHomeThen(true, () => this.endRun())) this.endRun();
     return true;
   }
 
@@ -4292,7 +4298,7 @@ export class Game {
     this.audio.playPromote();
   }
 
-  /** A new stage starts fresh: hazards cleared, ramp back to the level's base, shades full. */
+  /** A new stage starts fresh: hazards cleared, ramp back to the level's base, food meter full. */
   private freshStage(): void {
     this.bossDone = false;
     this.boss = null;
@@ -4331,9 +4337,21 @@ export class Game {
   }
 
   /** The player's ship is lost (hit or out of shade) while clones remain: a clone takes over. */
-  private loseLeadShip(grace = 1.0): void {
+  private loseLeadShip(grace = 1.0, outOfTreats = false): void {
     this.ships = Math.max(1, this.ships - this.hitCost);
-    while (this.ships - 1 < this.formation.occupiedCount) this.formation.dropOutermost();
+    let shown = false;
+    while (this.ships - 1 < this.formation.occupiedCount) {
+      // The pet that leaves floats home to Earth (never just vanishes).
+      const sl = this.formation.dropOutermost();
+      if (sl && !shown) {
+        this.zipHome.zip(sl.breed, sl.x, sl.y, sl.scale, outOfTreats);
+        shown = true;
+      }
+    }
+    if (!shown && !this.missionRun && !this.ghostRun) {
+      // Only an undrawn reserve pet left (big swarms): show one zipping home from the lead.
+      this.zipHome.zip(this.player.breed, this.player.x, this.player.y, Math.min(1, this.player.scale), outOfTreats);
+    }
     this.player.invuln = grace;
     this.hitFx(this.player.x, this.player.y, true);
     if (this.packRun) this.dogLost(grace);
@@ -4373,24 +4391,42 @@ export class Game {
     for (const sl of this.formation.slots) if (sl.occupied) sl.invuln = Math.max(sl.invuln, grace);
     this.player.invuln = Math.max(this.player.invuln, grace);
     this.spawnFloater(this.player.x, this.player.y - 30, tr('fl_eaten'), '#ffe66d');
-    this.particles.burst(this.player.x, this.player.y, '#ffe66d', this.touchPrimary ? 6 : 12, 140);
+    this.particles.burst(this.player.x, this.player.y, '#bff6ff', this.touchPrimary ? 4 : 8, 90);
+  }
+
+  /**
+   * HOME TO EARTH: the run's last pet floats down past the playfield onto Earth (play frozen
+   * ~2 s; + the placeholder taunt if the score missed the board), then `then` runs. Vehicle modes
+   * keep their own ending. Returns false when no float was started (caller ends at once).
+   */
+  private flyHomeThen(outOfTreats: boolean, then: () => void): boolean {
+    if (this.missionRun || this.ghostRun || this.zipHome.busy) return false;
+    const score = Math.min(SCORE_CAP, Math.floor(this.score));
+    const board = this.remoteBoard && !this.runLocalOnly ? this.remoteBoard : loadLeaderboard();
+    const missed = !qualifiesForBoard(score, board);
+    this.zipHome.final(this.player.breed, this.player.x, this.player.y, Math.max(0.8, this.player.scale), outOfTreats, missed);
+    this.homeThen = then;
+    this.input.clearTouch();
+    return true;
   }
 
   /**
    * The last dog is gone. With a continue left (LAST_DOG_CONTINUES > 0), freeze on a 10 s
    * "CONTINUE?" countdown; otherwise game over. Returns true (the frame should stop).
    */
-  private lastDogLost(): boolean {
-    this.particles.burst(this.player.x, this.player.y, '#ffaa44', this.touchPrimary ? 12 : 28, 260);
-    this.renderer.bumpShake(14);
-    this.renderer.bumpFlash(0.7);
+  private lastDogLost(outOfTreats: boolean): boolean {
+    this.renderer.bumpShake(4);
     this.audio.playHit();
-    if (this.continuesLeft > 0) {
-      this.continueT = CONTINUE_SECONDS;
-      this.input.clearTouch();
-    } else {
-      this.endRun();
-    }
+    const after = (): void => {
+      if (this.continuesLeft > 0) {
+        this.continueT = CONTINUE_SECONDS;
+        this.input.clearTouch();
+      } else {
+        this.endRun();
+      }
+    };
+    // The last pet floats home to Earth first (no explosion, nothing dies).
+    if (!this.flyHomeThen(outOfTreats, after)) after();
     this.input.clearJustPressed();
     return true;
   }
@@ -4439,6 +4475,8 @@ export class Game {
       return;
     }
     this.hitFx(s.x, s.y, false);
+    // The pet that was hit floats home to Earth (a reserve pet may fill its slot).
+    this.zipHome.zip(s.breed, s.x, s.y, s.scale, false);
     this.ships = Math.max(1, this.ships - this.hitCost);
     if (this.reserve > 0) {
       // A reserve ship fills the slot, easing in from the player's ship with a short grace.
@@ -4832,7 +4870,8 @@ export class Game {
         const popBottom = this.viewH - (this.touchPrimary ? this.touchReserves().bottom : 24);
         const avoid = this.touchPrimary && this.wagon.pops.length > 0 ? this.controlRectsCached() : [];
         this.wagon.drawFx(ctx, this.carScale, this.viewW, (n) => this.renderer.u(n), this.pulse, this.renderer.lite, { top: popTop, bottom: popBottom, avoid });
-      } else this.renderer.drawPlayer(ctx, this.player, this.charge);
+      } else if (!this.zipHome.busy) this.renderer.drawPlayer(ctx, this.player, this.charge);
+      this.zipHome.draw(ctx, this.viewW, this.viewH, (n) => this.renderer.u(n));
       if (this.shieldT > 0) drawPizzaShield(ctx, this.player.x, this.player.y, Math.max(this.player.w, this.player.h) * 0.75 + 14, this.pulse, this.shieldT);
       this.renderer.drawFloaters(ctx, this.floaters);
     } else {
@@ -4874,8 +4913,10 @@ export class Game {
         this.renderer.drawPromotion(ctx, tr('cont_title'), tr(this.touchPrimary ? 'cont_touch' : 'cont_keys', { n: Math.ceil(this.continueT) }), this.continueT, CONTINUE_SECONDS, this.score);
       }
       if (this.promoT > 0) {
-        this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, this.promoDur, this.score);
+        this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, this.promoDur, this.score, this.runPetFood());
       }
+      // HOME TO EARTH: the run's last pet floating down past the playfield onto Earth.
+      this.zipHome.drawFinal(ctx, this.viewW, this.viewH, (n) => this.renderer.u(n));
     }
     if (this.photoT > 0) drawGroupPhoto(ctx, this.bossesFought, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse);
     if (this.prizeT > 0) drawPrizeReveal(ctx, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse, PRIZE_SECONDS - this.prizeT);
@@ -4907,9 +4948,7 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.pendingStory
-          ? tr('lb_story', { m: CAMPAIGN_NAME[this.pendingStory] })
-          : this.pendingMission
+        this.pendingMission
           ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local'))
           : this.pendingGhost
             ? tr('lb_ghost_local')

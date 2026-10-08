@@ -1040,12 +1040,12 @@ body.touch-device.hand-left #diff-ctl {
   gap: 14px;
 }
 
-#eleven-fx .fx-shades {
+#eleven-fx .fx-star {
   display: block;
   opacity: 0;
   transform: translateY(-120px);
   filter: drop-shadow(0 0 12px rgba(255, 210, 90, 0.7));
-  animation: fx-shades 1.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
+  animation: fx-star 1.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
 }
 
 #eleven-fx .fx-msg {
@@ -1066,7 +1066,7 @@ body.touch-device.hand-left #diff-ctl {
   animation: diff-glow 1.6s ease-out;
 }
 
-/* Timeline guarantee: shades / line / flare are fully invisible before the
+/* Timeline guarantee: star / line / flare are fully invisible before the
    backdrop starts to fade in or out, so they never sit on top of visible copy. */
 @keyframes fx-backdrop {
   0% { opacity: 0; }
@@ -1080,7 +1080,7 @@ body.touch-device.hand-left #diff-ctl {
   70%, 100% { opacity: 0; }
 }
 
-@keyframes fx-shades {
+@keyframes fx-star {
   0%, 11% { opacity: 0; transform: translateY(-120px); }
   34% { opacity: 1; transform: translateY(0); }
   70% { opacity: 1; transform: translateY(0); }
@@ -1101,7 +1101,7 @@ body.touch-device.hand-left #diff-ctl {
 
 @media (prefers-reduced-motion: reduce) {
   #eleven-fx .fx-flare { animation-name: fx-flare-soft; }
-  #eleven-fx .fx-shades { animation-name: fx-fade; transform: none; }
+  #eleven-fx .fx-star { animation-name: fx-fade; transform: none; }
   #diff-ctl.reveal { animation: none; }
 }
 
@@ -3989,6 +3989,20 @@ body.quit-open #story-row {
 #modes-menu #story-row .story-best:empty {
   display: none;
 }
+/* Pet food: the mode's food + animal traits (English, like mode names). */
+#modes-menu #story-row .story-food {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffbef0;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  text-align: center;
+  max-width: 100%;
+}
+#modes-menu #story-row .story-food:empty {
+  display: none;
+}
 #modes-menu #story-row .story-ico {
   display: flex;
   align-items: center;
@@ -4122,4 +4136,11 @@ body.quit-open #story-row {
 }
 #catsuit .cs-icon svg {
   filter: drop-shadow(0 0 8px rgba(127, 255, 255, 0.6));
+}
+
+/* HOME TO EARTH: while the last pet floats down onto Earth, the touch controls step aside. */
+body.fsb-homing #touch-controls,
+body.fsb-homing #touch-hint {
+  opacity: 0.12;
+  transition: opacity 0.2s;
 }

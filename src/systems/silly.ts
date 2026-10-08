@@ -86,7 +86,7 @@ export const GROCERIES: Record<string, string[]> = {
     '(SHUSHES THE AUDIENCE) EARPLUGS',
     'ONE (1) RECLINER, PRE-RECLINED',
     '(FALLS ASLEEP MID-SENTENCE) PILLOWS... ZZZ',
-    '3D GLASSES (FOR SLEEPING)',
+    'A COZY BLANKET (FOR SLEEPING)',
   ],
   cbb: [
     '(HONK HONK) CANNON GREASE',
