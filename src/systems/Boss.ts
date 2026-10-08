@@ -1,4 +1,5 @@
 import { barkWord } from '../utils/pets';
+import { sequelTuning } from '../utils/campaign';
 /**
  * THE BOSSES: a boss fight at the end of every tenth level (10, 20, ... 110) and a final one at
  * the end of level 111 (leading to VICTORY). Every boss is an original, maximally silly cartoon
@@ -489,10 +490,14 @@ export class BossFight {
   /** GAME SPEED multiplier from the last update (real-time floors, see BossEase.realTele). */
   private speed = 1;
 
-  constructor(def: BossDef, runSeed: number, jabs: string[] = []) {
+  /**
+   * sequel = story-mode difficulty multiplier (utils/campaign.ts; 0 or 1 = dog mode): volleys come
+   * sooner (floored at dog mode's fastest cadence) with one more projectile; nothing else changes.
+   */
+  constructor(def: BossDef, runSeed: number, jabs: string[] = [], sequel = 0) {
     this.jabs = jabs;
     this.def = def;
-    this.tune = def.mini ? miniTuning(def.level) : easedTuning(def);
+    this.tune = sequelTuning(def.mini ? miniTuning(def.level) : easedTuning(def), !!def.mini, sequel);
     this.seed = subSeed(runSeed, def.level);
     this.rng = mulberry32(this.seed);
     this.fxRng = mulberry32(this.seed ^ 0x5eed);

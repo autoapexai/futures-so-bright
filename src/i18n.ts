@@ -1,4 +1,4 @@
-import { pet } from './utils/pets';
+import { pet, petChoice } from './utils/pets';
 import { FLAG_US, FLAG_MX, FLAG_VN, FLAG_CN, FLAG_FR, FLAG_DE, FLAG_BR, FLAG_IT, FLAG_NL, FLAG_PL, FLAG_TR, FLAG_ID, FLAG_PH, FLAG_SE, FLAG_RU, FLAG_UA, FLAG_JP, FLAG_KR, FLAG_IN, FLAG_TH } from './flags';
 /**
  * Player-facing strings (many languages) and the language preference.
@@ -491,6 +491,23 @@ const en = {
   ds_hint_keys: 'CLICK HERE TO SEE THE BOARD  ·  ENTER TO RIDE AGAIN',
   ds_feed_title: 'DESERT SEARCH PARTY REPORT',
   ds_feed_lead: 'Somewhere, a player just missed the board:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Beat dog mode to invent a cat space suit.",
+  an_hint: "Beat cat mode to unlock.",
+  cm_breathe: "We can't breathe up here!",
+  cm_zoom: "Zoom! Back home to Earth!",
+  cm_suit_title: "CATS NEED A SPACE SUIT!",
+  cm_suit_body: "Cats can't breathe in space. Beat dog mode (clear level 111) to invent a cat space suit.",
+  cm_replay: "Watch again",
+  cm_sub: "Dogs and cats team up in space!",
+  pl_sub: "Platypuses in space helmets!",
+  mn_sub: "Manatees in space helmets!",
+  story_best: "BEST {s}",
+  un_suit: "CAT SPACE SUIT INVENTED!",
+  un_mode: "{m} UNLOCKED!",
+  un_two: "{a} + {b} UNLOCKED!",
+  lb_story: "{m} · THIS DEVICE",
+  locked_aria: "{m}, locked. {h}",
 };
 
 export type Key = keyof typeof en;
@@ -833,6 +850,23 @@ const es: Record<Key, string> = {
   ds_hint_keys: 'CLIC AQUÍ PARA VER LA TABLA  ·  ENTER PARA OTRA VUELTA',
   ds_feed_title: 'INFORME DE LA PATRULLA DEL DESIERTO',
   ds_feed_lead: 'En algún lugar, alguien se quedó fuera de la tabla:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Gana el modo perro para inventar un traje espacial para gatos.",
+  an_hint: "Gana el modo gato para desbloquear.",
+  cm_breathe: "¡Aquí arriba no podemos respirar!",
+  cm_zoom: "¡Zum! ¡De vuelta a casa, a la Tierra!",
+  cm_suit_title: "¡LOS GATOS NECESITAN UN TRAJE ESPACIAL!",
+  cm_suit_body: "Los gatos no pueden respirar en el espacio. Gana el modo perro (supera el nivel 111) para inventar un traje espacial para gatos.",
+  cm_replay: "Ver otra vez",
+  cm_sub: "¡Perros y gatos unidos en el espacio!",
+  pl_sub: "¡Ornitorrincos con casco espacial!",
+  mn_sub: "¡Manatíes con casco espacial!",
+  story_best: "RÉCORD {s}",
+  un_suit: "¡TRAJE ESPACIAL PARA GATOS INVENTADO!",
+  un_mode: "¡{m} DESBLOQUEADO!",
+  un_two: "¡{a} + {b} DESBLOQUEADOS!",
+  lb_story: "{m} · ESTE DISPOSITIVO",
+  locked_aria: "{m}, bloqueado. {h}",
 };
 
 const vi: Record<Key, string> = {
@@ -1172,6 +1206,23 @@ const vi: Record<Key, string> = {
   ds_hint_keys: 'BẤM VÀO ĐÂY ĐỂ XEM BẢNG  ·  ENTER ĐỂ CHƠI LẠI',
   ds_feed_title: 'BÁO CÁO ĐỘI TÌM KIẾM SA MẠC',
   ds_feed_lead: 'Ở đâu đó, một người chơi vừa trượt khỏi bảng:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Phá đảo chế độ chó để phát minh bộ đồ phi hành gia cho mèo.",
+  an_hint: "Phá đảo chế độ mèo để mở khóa.",
+  cm_breathe: "Trên này tụi mình không thở được!",
+  cm_zoom: "Vèo! Về nhà, về Trái Đất thôi!",
+  cm_suit_title: "MÈO CẦN BỘ ĐỒ PHI HÀNH GIA!",
+  cm_suit_body: "Mèo không thở được ngoài không gian. Phá đảo chế độ chó (qua màn 111) để phát minh bộ đồ phi hành gia cho mèo.",
+  cm_replay: "Xem lại",
+  cm_sub: "Chó và mèo cùng hợp sức trong không gian!",
+  pl_sub: "Thú mỏ vịt đội mũ phi hành gia!",
+  mn_sub: "Lợn biển đội mũ phi hành gia!",
+  story_best: "KỶ LỤC {s}",
+  un_suit: "ĐÃ PHÁT MINH BỘ ĐỒ PHI HÀNH GIA CHO MÈO!",
+  un_mode: "ĐÃ MỞ KHÓA {m}!",
+  un_two: "ĐÃ MỞ KHÓA {a} + {b}!",
+  lb_story: "{m} · THIẾT BỊ NÀY",
+  locked_aria: "{m}, đang khóa. {h}",
 };
 
 const zh: Record<Key, string> = {
@@ -1511,6 +1562,23 @@ const zh: Record<Key, string> = {
   ds_hint_keys: '点这里查看排行榜  ·  ENTER 再来一局',
   ds_feed_title: '沙漠搜救队报告',
   ds_feed_lead: '某处，一位玩家刚刚与排行榜擦肩而过：',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "通关狗狗模式，发明猫咪太空服。",
+  an_hint: "通关猫咪模式即可解锁。",
+  cm_breathe: "我们在这上面没法呼吸！",
+  cm_zoom: "嗖！回家，回地球啦！",
+  cm_suit_title: "猫咪需要太空服！",
+  cm_suit_body: "猫咪在太空中无法呼吸。通关狗狗模式（通过第 111 关）来发明猫咪太空服。",
+  cm_replay: "再看一次",
+  cm_sub: "狗狗和猫咪在太空联手！",
+  pl_sub: "戴太空头盔的鸭嘴兽！",
+  mn_sub: "戴太空头盔的海牛！",
+  story_best: "最高分 {s}",
+  un_suit: "猫咪太空服发明成功！",
+  un_mode: "{m} 已解锁！",
+  un_two: "{a} + {b} 已解锁！",
+  lb_story: "{m} · 本设备",
+  locked_aria: "{m}，已锁定。{h}",
 };
 
 const fr: Record<Key, string> = {
@@ -1849,6 +1917,23 @@ const fr: Record<Key, string> = {
   ds_hint_keys: 'CLIQUE ICI POUR VOIR LE CLASSEMENT  ·  ENTRÉE POUR REJOUER',
   ds_feed_title: 'RAPPORT DE LA PATROUILLE DU DÉSERT',
   ds_feed_lead: 'Quelque part, un joueur vient de rater le classement :',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Gagne le mode chien pour inventer une combinaison spatiale pour chats.",
+  an_hint: "Gagne le mode chat pour débloquer.",
+  cm_breathe: "On ne peut pas respirer là-haut !",
+  cm_zoom: "Zoum ! Retour à la maison, sur Terre !",
+  cm_suit_title: "LES CHATS ONT BESOIN D'UNE COMBINAISON SPATIALE !",
+  cm_suit_body: "Les chats ne peuvent pas respirer dans l'espace. Gagne le mode chien (termine le niveau 111) pour inventer une combinaison spatiale pour chats.",
+  cm_replay: "Revoir",
+  cm_sub: "Chiens et chats font équipe dans l'espace !",
+  pl_sub: "Des ornithorynques en casque spatial !",
+  mn_sub: "Des lamantins en casque spatial !",
+  story_best: "RECORD {s}",
+  un_suit: "COMBINAISON SPATIALE POUR CHATS INVENTÉE !",
+  un_mode: "{m} DÉBLOQUÉ !",
+  un_two: "{a} + {b} DÉBLOQUÉS !",
+  lb_story: "{m} · CET APPAREIL",
+  locked_aria: "{m}, verrouillé. {h}",
 };
 
 const de: Record<Key, string> = {
@@ -2187,6 +2272,23 @@ const de: Record<Key, string> = {
   ds_hint_keys: 'HIER KLICKEN FÜR DIE LISTE  ·  ENTER FÜR NOCHMAL',
   ds_feed_title: 'WÜSTEN-SUCHTRUPP-BERICHT',
   ds_feed_lead: 'Irgendwo hat ein Spieler die Liste knapp verpasst:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Schaffe den Hundemodus, um einen Katzen-Raumanzug zu erfinden.",
+  an_hint: "Schaffe den Katzenmodus zum Freischalten.",
+  cm_breathe: "Hier oben können wir nicht atmen!",
+  cm_zoom: "Zisch! Ab nach Hause zur Erde!",
+  cm_suit_title: "KATZEN BRAUCHEN EINEN RAUMANZUG!",
+  cm_suit_body: "Katzen können im Weltraum nicht atmen. Schaffe den Hundemodus (Level 111), um einen Katzen-Raumanzug zu erfinden.",
+  cm_replay: "Nochmal ansehen",
+  cm_sub: "Hunde und Katzen als Team im Weltraum!",
+  pl_sub: "Schnabeltiere mit Raumhelm!",
+  mn_sub: "Seekühe mit Raumhelm!",
+  story_best: "BESTWERT {s}",
+  un_suit: "KATZEN-RAUMANZUG ERFUNDEN!",
+  un_mode: "{m} FREIGESCHALTET!",
+  un_two: "{a} + {b} FREIGESCHALTET!",
+  lb_story: "{m} · DIESES GERÄT",
+  locked_aria: "{m}, gesperrt. {h}",
 };
 
 const pt: Record<Key, string> = {
@@ -2525,6 +2627,23 @@ const pt: Record<Key, string> = {
   ds_hint_keys: 'CLIQUE AQUI PARA VER O PLACAR  ·  ENTER PARA JOGAR DE NOVO',
   ds_feed_title: 'RELATÓRIO DA PATRULHA DO DESERTO',
   ds_feed_lead: 'Em algum lugar, um jogador acabou de ficar fora do placar:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Vença o modo cachorro para inventar um traje espacial para gatos.",
+  an_hint: "Vença o modo gato para desbloquear.",
+  cm_breathe: "Não conseguimos respirar aqui em cima!",
+  cm_zoom: "Zum! De volta pra casa, na Terra!",
+  cm_suit_title: "GATOS PRECISAM DE UM TRAJE ESPACIAL!",
+  cm_suit_body: "Gatos não conseguem respirar no espaço. Vença o modo cachorro (passe do nível 111) para inventar um traje espacial para gatos.",
+  cm_replay: "Ver de novo",
+  cm_sub: "Cachorros e gatos juntos no espaço!",
+  pl_sub: "Ornitorrincos de capacete espacial!",
+  mn_sub: "Peixes-boi de capacete espacial!",
+  story_best: "RECORDE {s}",
+  un_suit: "TRAJE ESPACIAL PARA GATOS INVENTADO!",
+  un_mode: "{m} DESBLOQUEADO!",
+  un_two: "{a} + {b} DESBLOQUEADOS!",
+  lb_story: "{m} · ESTE APARELHO",
+  locked_aria: "{m}, bloqueado. {h}",
 };
 
 const it: Record<Key, string> = {
@@ -2863,6 +2982,23 @@ const it: Record<Key, string> = {
   ds_hint_keys: 'CLICCA QUI PER VEDERE LA CLASSIFICA  ·  INVIO PER RIGIOCARE',
   ds_feed_title: 'RAPPORTO DELLA PATRUGLIA DEL DESERTO',
   ds_feed_lead: 'Da qualche parte, un giocatore ha appena mancato la classifica:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Batti la modalità cane per inventare una tuta spaziale per gatti.",
+  an_hint: "Batti la modalità gatto per sbloccare.",
+  cm_breathe: "Quassù non riusciamo a respirare!",
+  cm_zoom: "Zum! Si torna a casa, sulla Terra!",
+  cm_suit_title: "I GATTI HANNO BISOGNO DI UNA TUTA SPAZIALE!",
+  cm_suit_body: "I gatti non possono respirare nello spazio. Batti la modalità cane (supera il livello 111) per inventare una tuta spaziale per gatti.",
+  cm_replay: "Guarda di nuovo",
+  cm_sub: "Cani e gatti insieme nello spazio!",
+  pl_sub: "Ornitorinchi con il casco spaziale!",
+  mn_sub: "Lamantini con il casco spaziale!",
+  story_best: "RECORD {s}",
+  un_suit: "TUTA SPAZIALE PER GATTI INVENTATA!",
+  un_mode: "{m} SBLOCCATA!",
+  un_two: "{a} + {b} SBLOCCATE!",
+  lb_story: "{m} · QUESTO DISPOSITIVO",
+  locked_aria: "{m}, bloccata. {h}",
 };
 
 const nl: Record<Key, string> = {
@@ -3201,6 +3337,23 @@ const nl: Record<Key, string> = {
   ds_hint_keys: 'KLIK HIER OM HET BORD TE ZIEN  ·  ENTER OM OPNIEUW TE RIJDEN',
   ds_feed_title: 'WOESTIJN-ZOEKTEAM RAPPORT',
   ds_feed_lead: 'Ergens miste een speler net het bord:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Versla de hondenmodus om een ruimtepak voor katten uit te vinden.",
+  an_hint: "Versla de kattenmodus om te ontgrendelen.",
+  cm_breathe: "We kunnen hierboven niet ademen!",
+  cm_zoom: "Zoef! Terug naar huis, naar de aarde!",
+  cm_suit_title: "KATTEN HEBBEN EEN RUIMTEPAK NODIG!",
+  cm_suit_body: "Katten kunnen niet ademen in de ruimte. Versla de hondenmodus (haal level 111) om een ruimtepak voor katten uit te vinden.",
+  cm_replay: "Nog eens kijken",
+  cm_sub: "Honden en katten samen in de ruimte!",
+  pl_sub: "Vogelbekdieren met ruimtehelm!",
+  mn_sub: "Zeekoeien met ruimtehelm!",
+  story_best: "RECORD {s}",
+  un_suit: "RUIMTEPAK VOOR KATTEN UITGEVONDEN!",
+  un_mode: "{m} ONTGRENDELD!",
+  un_two: "{a} + {b} ONTGRENDELD!",
+  lb_story: "{m} · DIT APPARAAT",
+  locked_aria: "{m}, vergrendeld. {h}",
 };
 
 const pl: Record<Key, string> = {
@@ -3539,6 +3692,23 @@ const pl: Record<Key, string> = {
   ds_hint_keys: 'KLIKNIJ TU, BY ZOBACZYĆ TABLICĘ  ·  ENTER, BY ZAGRAĆ PONOWNIE',
   ds_feed_title: 'RAPORT PUSTYNNEGO PATROLU',
   ds_feed_lead: 'Gdzieś gracz właśnie ominął tablicę:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Ukończ tryb psa, aby wynaleźć kosmiczny skafander dla kotów.",
+  an_hint: "Ukończ tryb kota, aby odblokować.",
+  cm_breathe: "Tu na górze nie możemy oddychać!",
+  cm_zoom: "Szuu! Wracamy do domu, na Ziemię!",
+  cm_suit_title: "KOTY POTRZEBUJĄ SKAFANDRA!",
+  cm_suit_body: "Koty nie mogą oddychać w kosmosie. Ukończ tryb psa (przejdź poziom 111), aby wynaleźć skafander dla kotów.",
+  cm_replay: "Obejrzyj jeszcze raz",
+  cm_sub: "Psy i koty razem w kosmosie!",
+  pl_sub: "Dziobaki w kosmicznych hełmach!",
+  mn_sub: "Manaty w kosmicznych hełmach!",
+  story_best: "REKORD {s}",
+  un_suit: "WYNALEZIONO SKAFANDER DLA KOTÓW!",
+  un_mode: "ODBLOKOWANO {m}!",
+  un_two: "ODBLOKOWANO {a} + {b}!",
+  lb_story: "{m} · TO URZĄDZENIE",
+  locked_aria: "{m}, zablokowany. {h}",
 };
 
 const tr: Record<Key, string> = {
@@ -3877,6 +4047,23 @@ const tr: Record<Key, string> = {
   ds_hint_keys: 'TABLOYU GÖRMEK İÇİN BURAYA TIKLA  ·  TEKRAR İÇİN ENTER',
   ds_feed_title: 'ÇÖL ARAMA EKİBİ RAPORU',
   ds_feed_lead: 'Bir yerde bir oyuncu az farkla tabloyu kaçırdı:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Kedi uzay giysisi icat etmek için köpek modunu bitir.",
+  an_hint: "Kilidi açmak için kedi modunu bitir.",
+  cm_breathe: "Burada nefes alamıyoruz!",
+  cm_zoom: "Vınn! Eve, Dünya'ya dönüyoruz!",
+  cm_suit_title: "KEDİLERİN UZAY GİYSİSİNE İHTİYACI VAR!",
+  cm_suit_body: "Kediler uzayda nefes alamaz. Kedi uzay giysisi icat etmek için köpek modunu bitir (111. seviyeyi geç).",
+  cm_replay: "Tekrar izle",
+  cm_sub: "Köpekler ve kediler uzayda takım oluyor!",
+  pl_sub: "Uzay kasklı ornitorenkler!",
+  mn_sub: "Uzay kasklı denizinekleri!",
+  story_best: "REKOR {s}",
+  un_suit: "KEDİ UZAY GİYSİSİ İCAT EDİLDİ!",
+  un_mode: "{m} AÇILDI!",
+  un_two: "{a} + {b} AÇILDI!",
+  lb_story: "{m} · BU CİHAZ",
+  locked_aria: "{m}, kilitli. {h}",
 };
 
 const id: Record<Key, string> = {
@@ -4215,6 +4402,23 @@ const id: Record<Key, string> = {
   ds_hint_keys: 'KLIK DI SINI UNTUK LIHAT PAPAN  ·  ENTER UNTUK MAIN LAGI',
   ds_feed_title: 'LAPORAN PATROLI GURUN',
   ds_feed_lead: 'Di suatu tempat, seorang pemain baru saja gagal masuk papan:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Tamatkan mode anjing untuk menciptakan baju antariksa kucing.",
+  an_hint: "Tamatkan mode kucing untuk membuka.",
+  cm_breathe: "Kami tidak bisa bernapas di atas sini!",
+  cm_zoom: "Wuss! Pulang ke Bumi!",
+  cm_suit_title: "KUCING BUTUH BAJU ANTARIKSA!",
+  cm_suit_body: "Kucing tidak bisa bernapas di luar angkasa. Tamatkan mode anjing (lewati level 111) untuk menciptakan baju antariksa kucing.",
+  cm_replay: "Tonton lagi",
+  cm_sub: "Anjing dan kucing bekerja sama di luar angkasa!",
+  pl_sub: "Platipus berhelm antariksa!",
+  mn_sub: "Manatee berhelm antariksa!",
+  story_best: "TERBAIK {s}",
+  un_suit: "BAJU ANTARIKSA KUCING DICIPTAKAN!",
+  un_mode: "{m} TERBUKA!",
+  un_two: "{a} + {b} TERBUKA!",
+  lb_story: "{m} · PERANGKAT INI",
+  locked_aria: "{m}, terkunci. {h}",
 };
 
 const fil: Record<Key, string> = {
@@ -4553,6 +4757,23 @@ const fil: Record<Key, string> = {
   ds_hint_keys: 'I-CLICK DITO PARA MAKITA ANG BOARD  ·  ENTER PARA MAGLARO ULIT',
   ds_feed_title: 'ULAT NG DESERT SEARCH PARTY',
   ds_feed_lead: 'Sa isang lugar, kakamiss lang ng isang player ang board:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Tapusin ang dog mode para makaimbento ng space suit ng pusa.",
+  an_hint: "Tapusin ang cat mode para ma-unlock.",
+  cm_breathe: "Hindi kami makahinga rito sa itaas!",
+  cm_zoom: "Zoom! Uwi na sa Earth!",
+  cm_suit_title: "KAILANGAN NG PUSA NG SPACE SUIT!",
+  cm_suit_body: "Hindi makahinga ang mga pusa sa kalawakan. Tapusin ang dog mode (lampasan ang level 111) para makaimbento ng space suit ng pusa.",
+  cm_replay: "Panoorin ulit",
+  cm_sub: "Magkakampi ang aso at pusa sa kalawakan!",
+  pl_sub: "Mga platypus na may space helmet!",
+  mn_sub: "Mga manatee na may space helmet!",
+  story_best: "PINAKAMATAAS {s}",
+  un_suit: "NAIMBENTO ANG SPACE SUIT NG PUSA!",
+  un_mode: "NA-UNLOCK ANG {m}!",
+  un_two: "NA-UNLOCK ANG {a} + {b}!",
+  lb_story: "{m} · DEVICE NA ITO",
+  locked_aria: "{m}, naka-lock. {h}",
 };
 
 const sv: Record<Key, string> = {
@@ -4891,6 +5112,23 @@ const sv: Record<Key, string> = {
   ds_hint_keys: 'KLICKA HÄR FÖR ATT SE LISTAN  ·  ENTER FÖR ATT SPELA IGEN',
   ds_feed_title: 'ÖKENSPANINGSGRUPPENS RAPPORT',
   ds_feed_lead: 'Någonstans missade en spelare precis listan:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Klara hundläget för att uppfinna en rymddräkt för katter.",
+  an_hint: "Klara kattläget för att låsa upp.",
+  cm_breathe: "Vi kan inte andas här uppe!",
+  cm_zoom: "Svisch! Hem till jorden!",
+  cm_suit_title: "KATTER BEHÖVER EN RYMDDRÄKT!",
+  cm_suit_body: "Katter kan inte andas i rymden. Klara hundläget (bana 111) för att uppfinna en rymddräkt för katter.",
+  cm_replay: "Se igen",
+  cm_sub: "Hundar och katter i team i rymden!",
+  pl_sub: "Näbbdjur med rymdhjälm!",
+  mn_sub: "Sjökor med rymdhjälm!",
+  story_best: "REKORD {s}",
+  un_suit: "RYMDDRÄKT FÖR KATTER UPPFUNNEN!",
+  un_mode: "{m} UPPLÅST!",
+  un_two: "{a} + {b} UPPLÅSTA!",
+  lb_story: "{m} · DEN HÄR ENHETEN",
+  locked_aria: "{m}, låst. {h}",
 };
 const ru: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5228,6 +5466,23 @@ const ru: Record<Key, string> = {
   ds_hint_keys: 'КЛИКНИ ЗДЕСЬ ДЛЯ ТАБЛИЦЫ  ·  ENTER — СНОВА В ПУТЬ',
   ds_feed_title: 'ОТЧЁТ ПУСТЫННОГО ПОИСКА',
   ds_feed_lead: 'Где-то игрок только что не попал в таблицу:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Пройди режим собак, чтобы изобрести скафандр для кошек.",
+  an_hint: "Пройди режим кошек, чтобы открыть.",
+  cm_breathe: "Мы не можем тут дышать!",
+  cm_zoom: "Вжух! Домой, на Землю!",
+  cm_suit_title: "КОШКАМ НУЖЕН СКАФАНДР!",
+  cm_suit_body: "Кошки не могут дышать в космосе. Пройди режим собак (уровень 111), чтобы изобрести скафандр для кошек.",
+  cm_replay: "Посмотреть ещё раз",
+  cm_sub: "Собаки и кошки вместе в космосе!",
+  pl_sub: "Утконосы в космических шлемах!",
+  mn_sub: "Ламантины в космических шлемах!",
+  story_best: "РЕКОРД {s}",
+  un_suit: "СКАФАНДР ДЛЯ КОШЕК ИЗОБРЕТЁН!",
+  un_mode: "{m} ОТКРЫТ!",
+  un_two: "{a} + {b} ОТКРЫТЫ!",
+  lb_story: "{m} · ЭТО УСТРОЙСТВО",
+  locked_aria: "{m}, закрыто. {h}",
 };
 const uk: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5565,6 +5820,23 @@ const uk: Record<Key, string> = {
   ds_hint_keys: 'КЛИКНИ ЗДЕСЬ ДЛЯ ТАБЛИЦЫ  ·  ENTER — СНОВА В ПУТЬ',
   ds_feed_title: 'ОТЧЕТ ПУСТЫННОГО ПОИСКА',
   ds_feed_lead: 'Где-то игрок только что не попал в таблицу:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "Пройди режим собак, щоб винайти скафандр для котів.",
+  an_hint: "Пройди режим котів, щоб відкрити.",
+  cm_breathe: "Ми не можемо тут дихати!",
+  cm_zoom: "Вжух! Додому, на Землю!",
+  cm_suit_title: "КОТАМ ПОТРІБЕН СКАФАНДР!",
+  cm_suit_body: "Коти не можуть дихати в космосі. Пройди режим собак (рівень 111), щоб винайти скафандр для котів.",
+  cm_replay: "Подивитися ще раз",
+  cm_sub: "Собаки й коти разом у космосі!",
+  pl_sub: "Качкодзьоби в космічних шоломах!",
+  mn_sub: "Ламантини в космічних шоломах!",
+  story_best: "РЕКОРД {s}",
+  un_suit: "СКАФАНДР ДЛЯ КОТІВ ВИНАЙДЕНО!",
+  un_mode: "{m} ВІДКРИТО!",
+  un_two: "{a} + {b} ВІДКРИТО!",
+  lb_story: "{m} · ЦЕЙ ПРИСТРІЙ",
+  locked_aria: "{m}, закрито. {h}",
 };
 const ja: Record<Key, string> = {
   hud_score: 'スコア  ',
@@ -5902,6 +6174,23 @@ const ja: Record<Key, string> = {
   ds_hint_keys: 'ここをクリックしてボード  ·  ENTERでもういちど',
   ds_feed_title: '砂漠捜索レポート',
   ds_feed_lead: 'どこかで、誰かがボードを逃したよ:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "イヌモードをクリアして、ネコの宇宙服を発明しよう。",
+  an_hint: "ネコモードをクリアで解放。",
+  cm_breathe: "ここじゃ息ができないよ！",
+  cm_zoom: "ビューン！地球のおうちへ帰ろう！",
+  cm_suit_title: "ネコには宇宙服が必要！",
+  cm_suit_body: "ネコは宇宙で息ができません。イヌモードをクリア（レベル111）して、ネコの宇宙服を発明しよう。",
+  cm_replay: "もう一度見る",
+  cm_sub: "イヌとネコが宇宙でチームアップ！",
+  pl_sub: "宇宙ヘルメットのカモノハシ！",
+  mn_sub: "宇宙ヘルメットのマナティー！",
+  story_best: "ベスト {s}",
+  un_suit: "ネコの宇宙服を発明！",
+  un_mode: "{m} 解放！",
+  un_two: "{a} + {b} 解放！",
+  lb_story: "{m} · この端末",
+  locked_aria: "{m}、ロック中。{h}",
 };
 const ko: Record<Key, string> = {
   hud_score: '점수  ',
@@ -6239,6 +6528,23 @@ const ko: Record<Key, string> = {
   ds_hint_keys: '여기를 클릭해 보드  ·  ENTER로 다시 타기',
   ds_feed_title: '사막 수색대 보고',
   ds_feed_lead: '어딘가에서 플레이어가 보드를 놓쳤어요:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "강아지 모드를 깨고 고양이 우주복을 발명하세요.",
+  an_hint: "고양이 모드를 깨면 잠금 해제.",
+  cm_breathe: "여기선 숨을 쉴 수 없어!",
+  cm_zoom: "슝! 지구 집으로 돌아가자!",
+  cm_suit_title: "고양이에게 우주복이 필요해요!",
+  cm_suit_body: "고양이는 우주에서 숨을 쉴 수 없어요. 강아지 모드를 깨고(레벨 111) 고양이 우주복을 발명하세요.",
+  cm_replay: "다시 보기",
+  cm_sub: "강아지와 고양이가 우주에서 힘을 합쳐요!",
+  pl_sub: "우주 헬멧을 쓴 오리너구리!",
+  mn_sub: "우주 헬멧을 쓴 매너티!",
+  story_best: "최고 {s}",
+  un_suit: "고양이 우주복 발명!",
+  un_mode: "{m} 잠금 해제!",
+  un_two: "{a} + {b} 잠금 해제!",
+  lb_story: "{m} · 이 기기",
+  locked_aria: "{m}, 잠김. {h}",
 };
 const hi: Record<Key, string> = {
   hud_score: 'स्कोर  ',
@@ -6576,6 +6882,23 @@ const hi: Record<Key, string> = {
   ds_hint_keys: 'बोर्ड देखने के लिए यहाँ क्लिक  ·  ENTER फिर सवारी',
   ds_feed_title: 'रेगिस्तान खोज दल रिपोर्ट',
   ds_feed_lead: 'कहीं, एक खिलाड़ी अभी बोर्ड चूक गया:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "बिल्ली का स्पेस सूट बनाने के लिए डॉग मोड जीतो।",
+  an_hint: "अनलॉक करने के लिए कैट मोड जीतो।",
+  cm_breathe: "हम यहाँ ऊपर साँस नहीं ले पा रहे!",
+  cm_zoom: "ज़ूम! वापस घर, धरती पर!",
+  cm_suit_title: "बिल्लियों को स्पेस सूट चाहिए!",
+  cm_suit_body: "बिल्लियाँ अंतरिक्ष में साँस नहीं ले सकतीं। बिल्ली का स्पेस सूट बनाने के लिए डॉग मोड जीतो (लेवल 111 पार करो)।",
+  cm_replay: "फिर से देखो",
+  cm_sub: "कुत्ते और बिल्लियाँ अंतरिक्ष में एक टीम!",
+  pl_sub: "स्पेस हेलमेट वाले प्लैटिपस!",
+  mn_sub: "स्पेस हेलमेट वाले मैनाटी!",
+  story_best: "सर्वश्रेष्ठ {s}",
+  un_suit: "बिल्ली का स्पेस सूट बन गया!",
+  un_mode: "{m} अनलॉक!",
+  un_two: "{a} + {b} अनलॉक!",
+  lb_story: "{m} · यह डिवाइस",
+  locked_aria: "{m}, लॉक है। {h}",
 };
 const th: Record<Key, string> = {
   hud_score: 'คะแนน  ',
@@ -6913,6 +7236,23 @@ const th: Record<Key, string> = {
   ds_hint_keys: 'คลิกที่นี่เพื่อดูกระดาน  ·  ENTER ขับอีกครั้ง',
   ds_feed_title: 'รายงานทีมค้นหาทะเลทราย',
   ds_feed_lead: 'ที่ไหนสักแห่ง ผู้เล่นเพิ่งพลาดกระดาน:',
+  // STORY MODES (cat suit / platypus / manatee)
+  cm_hint: "ผ่านโหมดหมาเพื่อประดิษฐ์ชุดอวกาศแมว",
+  an_hint: "ผ่านโหมดแมวเพื่อปลดล็อก",
+  cm_breathe: "ข้างบนนี้หายใจไม่ออกเลย!",
+  cm_zoom: "ฟิ้ว! กลับบ้านที่โลกกันเถอะ!",
+  cm_suit_title: "แมวต้องมีชุดอวกาศ!",
+  cm_suit_body: "แมวหายใจในอวกาศไม่ได้ ผ่านโหมดหมา (ผ่านด่าน 111) เพื่อประดิษฐ์ชุดอวกาศแมว",
+  cm_replay: "ดูอีกครั้ง",
+  cm_sub: "หมากับแมวร่วมทีมกันในอวกาศ!",
+  pl_sub: "ตุ่นปากเป็ดใส่หมวกอวกาศ!",
+  mn_sub: "พะยูนใส่หมวกอวกาศ!",
+  story_best: "สูงสุด {s}",
+  un_suit: "ประดิษฐ์ชุดอวกาศแมวสำเร็จ!",
+  un_mode: "ปลดล็อก {m} แล้ว!",
+  un_two: "ปลดล็อก {a} + {b} แล้ว!",
+  lb_story: "{m} · อุปกรณ์นี้",
+  locked_aria: "{m} ล็อกอยู่ {h}",
 };
 export const STRINGS: Record<Lang, Record<Key, string>> = { en, es, vi, zh, fr, de, pt, it, nl, pl, tr, id, fil, sv, ru, uk, ja, ko, hi, th };
 
@@ -6926,7 +7266,7 @@ export function t(key: Key, vars?: Record<string, string | number>): string {
 /** Pet-aware string: dogs keep the base key; cats / together use `_cats` / `_together` suffixes. */
 export function tPet(base: Key, vars?: Record<string, string | number>): string {
   const p = pet();
-  if (p === 'dogs') return t(base, vars);
+  if (p === 'dogs' || p === 'platypus' || p === 'manatee') return t(base, vars);
   const keyed = `${base}_${p}` as Key;
   if (keyed in STRINGS[lang()]) return t(keyed, vars);
   return t(base, vars);
@@ -6936,7 +7276,7 @@ export function tPet(base: Key, vars?: Record<string, string | number>): string 
 export function hudShipWord(n: number): string {
   const p = pet();
   if (p === 'cats') return t(n === 1 ? 'hud_cat' : 'hud_cats');
-  if (p === 'together') return t(n === 1 ? 'hud_pet' : 'hud_pets');
+  if (p !== 'dogs') return t(n === 1 ? 'hud_pet' : 'hud_pets');
   return t(n === 1 ? 'hud_dog' : 'hud_dogs');
 }
 
@@ -6944,7 +7284,7 @@ export function hudShipWord(n: number): string {
 export function modeShipsLabel(n: string | number): string {
   const p = pet();
   if (p === 'cats') return t('mode_cats', { n });
-  if (p === 'together') return t('mode_pets', { n });
+  if (p !== 'dogs') return t('mode_pets', { n });
   return t('mode_dogs', { n });
 }
 
@@ -6952,7 +7292,7 @@ export function modeShipsLabel(n: string | number): string {
 export function modeAriaLabel(m: string, n: string | number): string {
   const p = pet();
   if (p === 'cats') return t('mode_aria_cats', { m, n });
-  if (p === 'together') return t('mode_aria_pets', { m, n });
+  if (p !== 'dogs') return t('mode_aria_pets', { m, n });
   return t('mode_aria', { m, n });
 }
 
@@ -7865,7 +8205,7 @@ export function applyDomStrings(): void {
   const label = document.getElementById('lang-label');
   if (label && label.textContent !== t('lang_label')) label.textContent = t('lang_label');
   // PETS row (dogs / cats / together)
-  const pNow = pet();
+  const pNow = petChoice();
   document.querySelectorAll<HTMLElement>('#pet-row .pet-opt').forEach((b) => {
     const on = b.dataset.pet === pNow;
     b.classList.toggle('selected', on);

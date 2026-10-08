@@ -1,5 +1,5 @@
 import { Game } from './systems/Game';
-import { applyHandPreference } from './utils/storage';
+import { applyHandPreference, saveCatSuit, saveAnimalsUnlocked, saveCatTried } from './utils/storage';
 import { trackPageView } from './utils/track';
 import { applyDomStrings, installCanvasFonts, loadLangFonts } from './i18n';
 
@@ -92,6 +92,20 @@ window.addEventListener('resize', syncVvh);
 window.addEventListener('pageshow', syncVvh);
 window.visualViewport?.addEventListener('resize', syncVvh);
 window.visualViewport?.addEventListener('scroll', syncVvh);
+
+// Dev / test builds only (compiled out of production): ?unlock=suit | all | none sets the story
+// unlocks (CAT SPACE SUIT; + PLATYPUS / MANATEE) without playing 111 levels; ?unlock=fresh also
+// forgets the first-try cat scene. Never shown in the player UI.
+if (import.meta.env.DEV || __FSB_TEST__) {
+  const u = new URLSearchParams(window.location.search).get('unlock');
+  if (u === 'suit' || u === 'all') saveCatSuit(true);
+  if (u === 'all') saveAnimalsUnlocked(true);
+  if (u === 'none' || u === 'fresh') {
+    saveCatSuit(false);
+    saveAnimalsUnlocked(false);
+  }
+  if (u === 'fresh') saveCatTried(false);
+}
 
 const game = new Game(canvas, { touchPrimary });
 trackPageView();

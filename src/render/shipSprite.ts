@@ -12,14 +12,15 @@ import { pet } from '../utils/pets';
 
 import { roundRectPath as rr } from './shapes';
 
+export type Species = 'dog' | 'cat' | 'platypus' | 'manatee';
 export type EarKind = 'erect' | 'bigErect' | 'flop' | 'longFlop' | 'poof' | 'tiny';
 export type TailKind = 'up' | 'curl' | 'poof' | 'straight' | 'plume';
 
 export interface Breed {
   id: string;
   name: string;
-  /** 'dog' (default pack) or 'cat' (cats mode / mixed together pack). */
-  species: 'dog' | 'cat';
+  /** 'dog' (default pack), 'cat' (cat mode / mixed pack), or a story-mode animal (utils/campaign.ts). */
+  species: Species;
   /** AKC midpoint weight (lb), see dog-breeds-akc.csv. Cat tiers reuse dog weights. */
   weightLb: number;
   /** In-game nickname for the tiniest ones. */
@@ -73,6 +74,54 @@ export const CAT_BREEDS: readonly Breed[] = [
   { species: 'cat', id: 'ragamuffin', name: 'Ragamuffin', weightLb: 170, fur: '#ffe66d', fur2: '#2a1050', bodyL: 16, bodyH: 9.5, legL: 7, headR: 9, snout: 6, ear: 'flop', tail: 'plume' },
 ];
 
+/**
+ * STORY MODES (utils/campaign.ts): PLATYPUS MODE and MANATEE MODE swap the dogs for that animal.
+ * Each roster mirrors the dog tiers 1:1 (same weightLb and body numbers), so sizes and hitboxes
+ * are exactly dog mode's; only the painting differs (see paintCritter). fur2 is the belly / bill.
+ */
+const PLATYPUS_FUR: readonly [string, string, string][] = [
+  // [name, fur, bill]
+  ['Puggle', '#c98a4b', '#7f9fb8'],
+  ['Paddle', '#b8743a', '#8aa7c0'],
+  ['Sunny', '#d9a05a', '#7f9fb8'],
+  ['Pebble', '#a86a34', '#93b0c6'],
+  ['Bubbles', '#c27d42', '#9ab4ff'],
+  ['Splash', '#b06c33', '#7fb7c8'],
+  ['Duckie', '#d39350', '#8aa7c0'],
+  ['Captain', '#bf7e44', '#7f9fb8'],
+  ['Rocket', '#b5763c', '#8fa0d8'],
+  ['Comet', '#c88748', '#7fb7c8'],
+  ['Big Bill', '#a86a34', '#93b0c6'],
+  ['Admiral', '#b97a40', '#8aa7c0'],
+];
+const MANATEE_FUR: readonly [string, string, string][] = [
+  // [name, body, snout]
+  ['Bean', '#9fb2c6', '#cbd8e6'],
+  ['Button', '#a9a6d8', '#d6d2f2'],
+  ['Marshmallow', '#b4c4d4', '#e2eaf2'],
+  ['Dumpling', '#93a8bd', '#c6d4e2'],
+  ['Pudding', '#8fb8c0', '#c4e0e4'],
+  ['Biscuit', '#a3b0c8', '#d0d8e8'],
+  ['Mochi', '#b0a8cc', '#dcd6ee'],
+  ['Gentle Gus', '#96aabe', '#c8d6e4'],
+  ['Sea Cow', '#9cb0c2', '#cfdbe7'],
+  ['Lettuce', '#8fb4b0', '#c4e0dc'],
+  ['Big Hug', '#a0aec4', '#d0dae8'],
+  ['Grand Gus', '#94a6bc', '#c8d4e4'],
+];
+const critters = (species: 'platypus' | 'manatee', fur: readonly [string, string, string][]): Breed[] =>
+  BREEDS.map((d, i) => ({
+    ...d,
+    species,
+    id: `${species}-${i}`,
+    name: fur[i][0],
+    fur: fur[i][1],
+    fur2: fur[i][2],
+    fluff: undefined,
+  }));
+export const PLATYPUS_BREEDS: readonly Breed[] = critters('platypus', PLATYPUS_FUR);
+export const MANATEE_BREEDS: readonly Breed[] = critters('manatee', MANATEE_FUR);
+
 /** Linear size vs a standard ship: cube root of weight (body volume), 40 lb = 1.0x. */
 export const breedScale = (b: Breed): number => Math.cbrt(b.weightLb / 40);
 
@@ -80,7 +129,18 @@ export const breedScale = (b: Breed): number => Math.cbrt(b.weightLb / 40);
 export const BREED_RMS = Math.sqrt(BREEDS.reduce((a, b) => a + breedScale(b) ** 2, 0) / BREEDS.length);
 
 /** All breeds (dogs + cats) for id lookup. */
-const ALL_BREEDS: readonly Breed[] = [...BREEDS, ...CAT_BREEDS];
+const ALL_BREEDS: readonly Breed[] = [...BREEDS, ...CAT_BREEDS, ...PLATYPUS_BREEDS, ...MANATEE_BREEDS];
+
+/** Story-mode animal roster for a species run (null for dogs / cats / together). */
+function critterRoster(p: string): readonly Breed[] | null {
+  return p === 'platypus' ? PLATYPUS_BREEDS : p === 'manatee' ? MANATEE_BREEDS : null;
+}
+const tierIndex = (b: Breed): number => {
+  const m = /-(\d+)$/.exec(b.id);
+  if (b.species === 'platypus' || b.species === 'manatee') return m ? Number(m[1]) : 7;
+  const i = (b.species === 'cat' ? CAT_BREEDS : BREEDS).findIndex((x) => x.id === b.id);
+  return i >= 0 ? i : 7;
+};
 
 /** Dog index → matching cat tier (same weightLb / body). */
 export function catTierOf(dog: Breed): Breed {
@@ -99,6 +159,8 @@ export function breedForPet(dogOrAnyId: string): Breed {
   const dog = BREEDS.find((b) => b.id === dogOrAnyId);
   const cat = CAT_BREEDS.find((b) => b.id === dogOrAnyId);
   const p = pet();
+  const crit = critterRoster(p);
+  if (crit) return crit[dog ? tierIndex(dog) : cat ? tierIndex(cat) : 7];
   if (p === 'cats') {
     if (cat) return cat;
     if (dog) return catTierOf(dog);
@@ -112,6 +174,8 @@ export function breedForPet(dogOrAnyId: string): Breed {
 /** Random breed from the active pet mix. Together: 50/50 cat or dog (peaceful mix). */
 export function randomBreed(): Breed {
   const p = pet();
+  const crit = critterRoster(p);
+  if (crit) return crit[Math.floor(Math.random() * crit.length)];
   if (p === 'cats') return CAT_BREEDS[Math.floor(Math.random() * CAT_BREEDS.length)];
   if (p === 'dogs') return BREEDS[Math.floor(Math.random() * BREEDS.length)];
   return Math.random() < 0.5
@@ -125,6 +189,8 @@ export function randomBreed(): Breed {
  */
 export function slotBreed(i: number): Breed {
   const p = pet();
+  const crit = critterRoster(p);
+  if (crit) return crit[Math.floor(Math.random() * crit.length)];
   if (p === 'cats') return CAT_BREEDS[Math.floor(Math.random() * CAT_BREEDS.length)];
   if (p === 'dogs') return BREEDS[Math.floor(Math.random() * BREEDS.length)];
   // together: alternate starting with a cat so the lead dog flies with cats beside it
@@ -143,7 +209,15 @@ export const PLAYER_CAT = CAT_BREEDS[7];
 
 /** Lead ship for the current pet choice (together keeps the Border Collie lead). */
 export function playerBreedNow(): Breed {
-  return pet() === 'cats' ? PLAYER_CAT : PLAYER_BREED;
+  const p = pet();
+  const crit = critterRoster(p);
+  if (crit) return crit[7];
+  return p === 'cats' ? PLAYER_CAT : PLAYER_BREED;
+}
+
+/** Same body tier in another species' roster (story modes keep every dog's size). */
+export function rosterFor(species: string): readonly Breed[] {
+  return critterRoster(species) ?? (species === 'cats' ? CAT_BREEDS : BREEDS);
 }
 
 export interface ShipPaint {
@@ -157,6 +231,15 @@ export interface ShipPaint {
   outline?: boolean;
   /** Draw the static jet flame (sprites); the player draws an animated one itself. */
   flame?: boolean;
+  /**
+   * Cats wear a space suit (body suit, boots, backpack, neck ring) unless noSuit: CAT MODE needs
+   * the suit. noSuit is only for the first-try "can't breathe up here" scene (catSuitScene.ts).
+   */
+  noSuit?: boolean;
+  /** No helmet bubble (the suitless cats in that scene). */
+  noHelmet?: boolean;
+  /** Ear size multiplier (the scene's cartoon ear "pop"). */
+  earK?: number;
 }
 
 /**
@@ -164,9 +247,14 @@ export interface ShipPaint {
  * units (~52 x 30 px at 1.0x). Callers scale the context for breed / mode size.
  */
 export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = {}): void {
+  if (b.species === 'platypus' || b.species === 'manatee') {
+    paintCritter(g, b, o);
+    return;
+  }
   const lens = o.lens ?? 'rgba(0, 255, 220, 0.8)';
   const accent = o.accent ?? '#00f0ff';
   const isCat = b.species === 'cat';
+  const suited = isCat && !o.noSuit && !o.outline;
   const L = b.bodyL;
   const H = b.bodyH;
   const bx = -4; // body centre x
@@ -250,6 +338,18 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
     }
     g.restore();
   }
+  if (suited) {
+    // space-suit boots
+    g.fillStyle = '#eef4ff';
+    for (const [lx, lean] of [[bx - L * 0.7, -0.35], [bx - L * 0.45, -0.25], [bx + L * 0.5, 0.35], [bx + L * 0.75, 0.45]] as const) {
+      g.save();
+      g.translate(lx, legY);
+      g.rotate(lean);
+      rr(g, -legW / 2 - 0.4, b.legL * 0.45, legW + 0.8, b.legL * 0.6 + 1.2, legW / 2);
+      g.fill();
+      g.restore();
+    }
+  }
 
   // body
   g.fillStyle = furFill(bx - L, bx + L);
@@ -288,6 +388,34 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
     g.fill();
   }
 
+  if (suited) {
+    // backpack (air tank) with a status light
+    g.fillStyle = '#c9d6ea';
+    rr(g, bx - L * 0.55, by - H - 3.2, L * 0.75, 4.4, 1.6);
+    g.fill();
+    g.fillStyle = '#7dffb0';
+    g.beginPath();
+    g.arc(bx - L * 0.45 + 1.2, by - H - 1, 0.9, 0, Math.PI * 2);
+    g.fill();
+    // white suit over the body, accent stripe and chest badge (tail and paws peek out)
+    const sg = g.createLinearGradient(bx - L, 0, bx + L, 0);
+    sg.addColorStop(0, '#b9c7dc');
+    sg.addColorStop(0.55, '#eef4ff');
+    sg.addColorStop(1, '#ffffff');
+    g.fillStyle = sg;
+    rr(g, bx - L * 0.92, by - H * 0.95, L * 1.88, H * 1.9, H * 0.95);
+    g.fill();
+    g.fillStyle = accent;
+    g.globalAlpha = 0.85;
+    rr(g, bx - L * 0.92, by - H * 0.12, L * 1.88, Math.max(1.6, H * 0.32), H * 0.16);
+    g.fill();
+    g.globalAlpha = 1;
+    g.fillStyle = '#ffe66d';
+    g.beginPath();
+    g.arc(bx + L * 0.55, by - H * 0.45, Math.max(1.3, H * 0.22), 0, Math.PI * 2);
+    g.fill();
+  }
+
   // collar (accent)
   g.strokeStyle = accent;
   g.lineWidth = 2;
@@ -298,16 +426,18 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
 
   // helmet bubble (behind head details, in front of body)
   const hr = b.headR + Math.max(5, b.snout * 0.55) + 2.5;
-  g.fillStyle = 'rgba(180, 240, 255, 0.14)';
-  g.beginPath();
-  g.arc(hx + b.snout * 0.3, hy, hr, 0, Math.PI * 2);
-  g.fill();
+  if (!o.noHelmet) {
+    g.fillStyle = suited ? 'rgba(180, 240, 255, 0.2)' : 'rgba(180, 240, 255, 0.14)';
+    g.beginPath();
+    g.arc(hx + b.snout * 0.3, hy, hr, 0, Math.PI * 2);
+    g.fill();
+  }
 
   // ears behind head (cats: twin triangles)
   g.fillStyle = o.outline ? dark : b.fur2 && b.ear !== 'poof' ? shade(b.fur2 === '#ffffff' ? b.fur : b.fur2, 0) : b.fur;
   const er = b.headR;
   if (isCat) {
-    const k = b.ear === 'bigErect' ? 1.2 : b.ear === 'tiny' ? 0.75 : 1;
+    const k = (b.ear === 'bigErect' ? 1.2 : b.ear === 'tiny' ? 0.75 : 1) * (o.earK ?? 1);
     g.beginPath();
     g.moveTo(hx - er * 0.85, hy - er * 0.15);
     g.lineTo(hx - er * 0.55, hy - er - 8 * k);
@@ -405,6 +535,15 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
   g.fill();
   g.shadowBlur = 0;
 
+  if (o.noHelmet) return;
+  if (suited) {
+    // suit neck ring where the helmet locks on
+    g.strokeStyle = '#c9d6ea';
+    g.lineWidth = 2.4;
+    g.beginPath();
+    g.arc(hx + b.snout * 0.3, hy, hr, Math.PI * 0.55, Math.PI * 0.95);
+    g.stroke();
+  }
   // helmet rim + glint
   g.strokeStyle = accent;
   g.globalAlpha = 0.75;
@@ -419,6 +558,228 @@ export function paintShip(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint = 
   g.arc(hx + b.snout * 0.3, hy, hr - 2.5, -Math.PI * 0.85, -Math.PI * 0.55);
   g.stroke();
   g.globalAlpha = 1;
+}
+
+/** The signature shades on a head at (hx, hy) of radius r (shared by every animal). */
+function paintShades(g: CanvasRenderingContext2D, hx: number, hy: number, r: number, lens: string, glow: boolean): void {
+  g.fillStyle = '#0a0018';
+  rr(g, hx - r * 0.35, hy - r * 0.55, r * 1.35, 5, 1.5);
+  g.fill();
+  if (glow) {
+    g.shadowBlur = 10;
+    g.shadowColor = lens;
+  }
+  g.fillStyle = lens;
+  rr(g, hx - r * 0.25, hy - r * 0.5, r * 0.5, 3.6, 1);
+  g.fill();
+  rr(g, hx + r * 0.35, hy - r * 0.5, r * 0.5, 3.6, 1);
+  g.fill();
+  g.shadowBlur = 0;
+}
+
+/** Space-helmet bubble rim + glint around (cx, cy). */
+function paintHelmetRim(g: CanvasRenderingContext2D, cx: number, cy: number, hr: number, accent: string): void {
+  g.strokeStyle = accent;
+  g.globalAlpha = 0.75;
+  g.lineWidth = 1.6;
+  g.beginPath();
+  g.arc(cx, cy, hr, 0, Math.PI * 2);
+  g.stroke();
+  g.globalAlpha = 0.6;
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 1.4;
+  g.beginPath();
+  g.arc(cx, cy, hr - 2.5, -Math.PI * 0.85, -Math.PI * 0.55);
+  g.stroke();
+  g.globalAlpha = 1;
+}
+
+/**
+ * PLATYPUS MODE / MANATEE MODE animals, same frame as the dogs (facing right, centred, standard-ship
+ * units, same body numbers so the size reads the same) with the shades and a space helmet.
+ * Platypus: flat beaver tail, webbed feet, a blue-grey duck bill. Manatee: round grey body,
+ * paddle tail, little flippers and a big whiskery snout.
+ */
+function paintCritter(g: CanvasRenderingContext2D, b: Breed, o: ShipPaint): void {
+  const lens = o.lens ?? 'rgba(0, 255, 220, 0.8)';
+  const accent = o.accent ?? '#00f0ff';
+  const dark = '#0a0018';
+  const L = b.bodyL;
+  const H = Math.max(b.bodyH, 6);
+  const bx = -4;
+  const by = 2;
+  const out = !!o.outline;
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  if (o.flame) {
+    g.fillStyle = 'rgba(0, 255, 255, 0.45)';
+    g.beginPath();
+    g.moveTo(bx - L + 1, by - 4);
+    g.lineTo(bx - L - 16, by);
+    g.lineTo(bx - L + 1, by + 4);
+    g.closePath();
+    g.fill();
+  }
+  const furFill = (x0: number, x1: number): string | CanvasGradient => {
+    if (out) return dark;
+    const gr = g.createLinearGradient(x0, 0, x1, 0);
+    gr.addColorStop(0, shade(b.fur, -0.3));
+    gr.addColorStop(0.6, b.fur);
+    gr.addColorStop(1, shade(b.fur, 0.12));
+    return gr;
+  };
+  const edge = (): void => {
+    if (!out) return;
+    g.strokeStyle = accent;
+    g.lineWidth = 1.6;
+    g.stroke();
+  };
+  let hx: number;
+  let hy: number;
+  let hr: number;
+  let r: number;
+  if (b.species === 'platypus') {
+    r = Math.max(5.5, b.headR * 0.9);
+    hx = bx + L * 0.95;
+    hy = by - H * 0.35;
+    // flat beaver tail
+    g.fillStyle = out ? dark : shade(b.fur, -0.35);
+    g.beginPath();
+    g.ellipse(bx - L - 5, by + 0.5, 8, 3.6, -0.12, 0, Math.PI * 2);
+    g.fill();
+    edge();
+    if (!out) {
+      g.strokeStyle = shade(b.fur, -0.5);
+      g.lineWidth = 0.6;
+      for (const dx of [-3, 0, 3]) {
+        g.beginPath();
+        g.moveTo(bx - L - 5 + dx, by - 2);
+        g.lineTo(bx - L - 5 + dx, by + 3);
+        g.stroke();
+      }
+    }
+    // webbed feet
+    g.fillStyle = out ? dark : b.fur2;
+    for (const fx of [bx - L * 0.55, bx + L * 0.55]) {
+      g.beginPath();
+      g.moveTo(fx - 1.5, by + H * 0.7);
+      g.lineTo(fx - 4, by + H + 4);
+      g.lineTo(fx + 4, by + H + 4);
+      g.lineTo(fx + 1.5, by + H * 0.7);
+      g.closePath();
+      g.fill();
+      edge();
+    }
+    // body
+    g.fillStyle = furFill(bx - L, bx + L);
+    rr(g, bx - L, by - H, L * 2, H * 2, H);
+    g.fill();
+    edge();
+    if (!out) {
+      g.fillStyle = shade(b.fur, 0.35);
+      g.globalAlpha = 0.55;
+      rr(g, bx - L * 0.6, by + H * 0.1, L * 1.3, H * 0.75, H * 0.4);
+      g.fill();
+      g.globalAlpha = 1;
+    }
+    hr = r + 9;
+    if (!o.noHelmet) {
+      g.fillStyle = 'rgba(180, 240, 255, 0.14)';
+      g.beginPath();
+      g.arc(hx + 3, hy, hr, 0, Math.PI * 2);
+      g.fill();
+    }
+    // head + bill
+    g.fillStyle = furFill(hx - r, hx + r);
+    g.beginPath();
+    g.arc(hx, hy, r, 0, Math.PI * 2);
+    g.fill();
+    edge();
+    g.fillStyle = out ? dark : b.fur2;
+    rr(g, hx + r * 0.45, hy - r * 0.05, r * 0.8 + 6, r * 0.62, r * 0.31);
+    g.fill();
+    edge();
+    if (!out) {
+      g.fillStyle = shade(b.fur2, -0.4);
+      g.beginPath();
+      g.arc(hx + r * 1.05 + 4, hy + r * 0.12, 0.8, 0, Math.PI * 2);
+      g.arc(hx + r * 1.05 + 2, hy + r * 0.12, 0.8, 0, Math.PI * 2);
+      g.fill();
+    }
+    paintShades(g, hx - 1, hy - 0.5, r, lens, !!o.glow);
+    if (!o.noHelmet) paintHelmetRim(g, hx + 3, hy, hr, accent);
+    return;
+  }
+  // manatee
+  r = Math.max(6, b.headR);
+  hx = bx + L * 0.9;
+  hy = by - H * 0.25;
+  // paddle tail
+  g.fillStyle = out ? dark : shade(b.fur, -0.2);
+  g.beginPath();
+  g.ellipse(bx - L - 4, by + 0.5, Math.max(4.5, H * 0.7), Math.max(5, H * 0.95), 0, 0, Math.PI * 2);
+  g.fill();
+  edge();
+  // body (big and round)
+  g.fillStyle = furFill(bx - L, bx + L);
+  g.beginPath();
+  g.ellipse(bx, by, L * 1.02, H * 1.18, 0, 0, Math.PI * 2);
+  g.fill();
+  edge();
+  if (!out) {
+    // gentle wrinkles + lighter belly
+    g.strokeStyle = shade(b.fur, -0.2);
+    g.lineWidth = 0.7;
+    for (const dx of [-0.45, -0.15]) {
+      g.beginPath();
+      g.arc(bx + L * dx, by, H * 0.9, -0.5, 0.5);
+      g.stroke();
+    }
+    g.fillStyle = b.fur2;
+    g.globalAlpha = 0.45;
+    g.beginPath();
+    g.ellipse(bx + L * 0.1, by + H * 0.55, L * 0.7, H * 0.45, 0, 0, Math.PI * 2);
+    g.fill();
+    g.globalAlpha = 1;
+  }
+  // flipper
+  g.fillStyle = out ? dark : shade(b.fur, -0.15);
+  g.beginPath();
+  g.ellipse(bx + L * 0.4, by + H * 0.95, 4.5, 2.4, 0.6, 0, Math.PI * 2);
+  g.fill();
+  edge();
+  hr = r + 8;
+  if (!o.noHelmet) {
+    g.fillStyle = 'rgba(180, 240, 255, 0.14)';
+    g.beginPath();
+    g.arc(hx + 3, hy, hr, 0, Math.PI * 2);
+    g.fill();
+  }
+  // head + whiskery snout
+  g.fillStyle = furFill(hx - r, hx + r);
+  g.beginPath();
+  g.arc(hx, hy, r, 0, Math.PI * 2);
+  g.fill();
+  edge();
+  g.fillStyle = out ? dark : b.fur2;
+  g.beginPath();
+  g.ellipse(hx + r * 0.8, hy + r * 0.3, r * 0.62, r * 0.5, 0, 0, Math.PI * 2);
+  g.fill();
+  edge();
+  if (!out) {
+    g.fillStyle = shade(b.fur2, -0.45);
+    for (const [dx, dy] of [[0.6, 0.25], [0.85, 0.42], [1.0, 0.2], [0.7, 0.5]] as const) {
+      g.beginPath();
+      g.arc(hx + r * dx, hy + r * dy, 0.55, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = dark;
+    g.beginPath();
+    g.arc(hx + r * 1.25, hy + r * 0.12, 0.9, 0, Math.PI * 2);
+    g.fill();
+  }
+  paintShades(g, hx - 1.5, hy - 0.5, r, lens, !!o.glow);
+  if (!o.noHelmet) paintHelmetRim(g, hx + 3, hy, hr, accent);
 }
 
 /** Lighten (amt > 0) or darken (amt < 0) a #rrggbb colour. */
@@ -440,7 +801,7 @@ export const SPRITE_AY = 26;
 
 /** Cached pre-rendered ship (supersampled 2x); one drawImage per ship in swarms. */
 export function shipSprite(b: Breed, o: ShipPaint = {}): HTMLCanvasElement {
-  const key = `${b.id}|${o.lens ?? ''}|${o.accent ?? ''}|${o.outline ? 1 : 0}|${o.flame ? 1 : 0}`;
+  const key = `${b.id}|${o.lens ?? ''}|${o.accent ?? ''}|${o.outline ? 1 : 0}|${o.flame ? 1 : 0}|${o.noSuit ? 1 : 0}|${o.noHelmet ? 1 : 0}|${o.earK ?? 1}`;
   const hit = spriteCache.get(key);
   if (hit) return hit;
   const k = 2;
@@ -486,6 +847,30 @@ const CAT_GLYPH = [
   '..#.#....#.#....',
   '..#.#....#.#....',
 ];
+/** Platypus: flat tail, round body, duck bill. */
+const PLATYPUS_GLYPH = [
+  '................',
+  '..........###...',
+  '.........#####..',
+  '###......#######',
+  '############....',
+  '.##########.....',
+  '..#########.....',
+  '..##.....##.....',
+  '................',
+];
+/** Manatee: paddle tail, big round body, snout. */
+const MANATEE_GLYPH = [
+  '................',
+  '.....######.....',
+  '##..#########...',
+  '###############.',
+  '###############.',
+  '##.###########..',
+  '.....#######....',
+  '.......#........',
+  '................',
+];
 /** Glyph box in glyph px; the dog's body centre is at (GLYPH_AX, GLYPH_AY). */
 export const GLYPH_W = 16;
 export const GLYPH_H = 9;
@@ -510,7 +895,7 @@ function glyphCanvas(): [HTMLCanvasElement, CanvasRenderingContext2D | null] {
 export function dogGlyph(b: Breed): HTMLCanvasElement {
   const hit = glyphCache.get(b.id);
   if (hit) return hit;
-  const rows = b.species === 'cat' ? CAT_GLYPH : GLYPH;
+  const rows = b.species === 'cat' ? CAT_GLYPH : b.species === 'platypus' ? PLATYPUS_GLYPH : b.species === 'manatee' ? MANATEE_GLYPH : GLYPH;
   const [c, g] = glyphCanvas();
   if (g) {
     const k = GLYPH_K;

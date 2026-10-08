@@ -7,8 +7,10 @@ import { Renderer, GATE_GLOW_SECONDS } from './Renderer';
 import { Formation, CLONE_SCALE, type CloneSlot } from '../entities/Formation';
 import { FIRST_CLONE_LEVEL, LEVEL_SECONDS, shipHitCost, shipsForLevel } from '../utils/cloneLevels';
 import { clamp } from '../utils/math';
-import { playerBreedNow, breedScale, type Breed } from '../render/shipSprite';
-import { setPet, onPet, type PetChoice } from '../utils/pets';
+import { playerBreedNow, breedScale, paintShip, PLATYPUS_BREEDS, MANATEE_BREEDS, type Breed } from '../render/shipSprite';
+import { setPet, onPet, setRunSpecies, type PetChoice, type Species } from '../utils/pets';
+import { CAMPAIGN_CARD, CAMPAIGN_NAME, campaignLevers, campaignMult, type Campaign } from '../utils/campaign';
+import { lockedSuitSvg, showCatSuitLocked, catSuitOpen } from './catSuitScene';
 import { DONATE_URL, VENMO_HANDLE, VENMO_APP_URL, VENMO_APP_WAIT_MS, V4V_MESSAGE } from '../config';
 import { MODES, CALVIN_TRIPLETS, MISSION_MODE, GHOST_MODE, isMission, isGhost, isRideMode, modeBreeds, type ModeDef } from '../utils/modes';
 import { MissionCar, PARTS as MISSION_PART_LIST, CAR_UP, CAR_DOWN, CAR_HALF, type MissionSfx } from './missionCar';
@@ -38,6 +40,17 @@ import {
   loadMissionHigh, loadGhostHigh, saveGhostHigh, loadGhostBoard, addGhostEntry,
   saveMissionHigh,
   addMissionEntry,
+  loadCatSuit,
+  saveCatSuit,
+  loadAnimalsUnlocked,
+  saveAnimalsUnlocked,
+  loadCatTried,
+  saveCatTried,
+  loadStoryHigh,
+  saveStoryHigh,
+  loadStoryBoard,
+  addStoryEntry,
+  type StoryId,
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
@@ -83,6 +96,11 @@ import {
   hazardLevers,
   clampLevel,
 } from '../utils/difficulty';
+
+/** Who flies in each story mode (CAT MODE = part two: dogs AND cats together). */
+const STORY_SPECIES: Record<StoryId, Species> = { part2: 'together', platypus: 'platypus', manatee: 'manatee' };
+/** Story-mode title card length (s). */
+const STORY_CARD_SECONDS = 3.2;
 
 export type GameState = 'title' | 'playing' | 'paused' | 'initials' | 'gameover';
 
@@ -347,6 +365,19 @@ export class Game {
   private readonly wagon = new GhostWagon();
   /** GHOST BOARD dialog open (mirrors DEV BOARD; local scores only). */
   private ghostBoardOpen = false;
+  /**
+   * STORY PROGRESSION (utils/campaign.ts): the current run's campaign ('dog' = the normal game;
+   * 'part2' = CAT MODE, 'platypus' / 'manatee'). Story runs are local-only (own best + board).
+   */
+  private campaign: Campaign = 'dog';
+  /** Campaign for the next startRun (set by the MODES story cards / ride again). */
+  private pendingCampaign: Campaign = 'dog';
+  /** The ended run's story mode (initials / game over / ride again), or null. */
+  private pendingStory: StoryId | null = null;
+  /** Unlock card queued after the level 111 victory (CAT SPACE SUIT / PLATYPUS + MANATEE). */
+  private unlockNotice: [string, string] | null = null;
+  /** Length of the promotion card on screen (story title cards run longer). */
+  private promoDur = PROMO_SECONDS;
   /** Last DEV BOARD fetched (null = never / unavailable). */
   private devBoard: LeaderboardEntry[] | null = null;
   /** COMBING THE DESERT: the missed-the-TOP-11 taunt card (systems/desertSearch.ts). */
@@ -758,6 +789,8 @@ export class Game {
       onLang(syncGhostText);
       grow.append(gb, gboard);
       list.prepend(grow);
+      // STORY MODES (top of the list): CAT MODE (part two), then PLATYPUS / MANATEE MODE.
+      list.prepend(this.buildStoryRow(bindTap));
     }
     // TRY DEV MODE (title screen): the featured call to action. The big button starts an
     // ON A MISSION run right away (same as its MODES entry); the small DEV BOARD button opens
@@ -890,6 +923,11 @@ export class Game {
       bindTap(b, () => {
         if (this.modesGhostTap()) return;
         const id = b.dataset.pet as PetChoice;
+        // Cats can't fly without the CAT SPACE SUIT (beat dog mode first).
+        if ((id === 'cats' || id === 'together') && !loadCatSuit()) {
+          this.lockedCats();
+          return;
+        }
         if (id === 'dogs' || id === 'cats' || id === 'together') setPet(id);
         this.audio.playUi();
       });
@@ -1062,6 +1100,7 @@ export class Game {
     if (overRun && this.missionRun) return;
     const row = document.getElementById('mission-row');
     if (row) row.hidden = !this.missionUnlocked;
+    this.syncStoryCards();
     this.modesOpen = true;
     this.modesOpenedAt = performance.now();
     const el = document.getElementById('modes-menu');
@@ -1317,6 +1356,117 @@ export class Game {
     if (st) st.textContent = board.length ? tr('ghost_local') : tr('ghost_empty');
   }
 
+  /**
+   * STORY MODES row on MODES: CAT MODE (full width), PLATYPUS MODE and MANATEE MODE. Names stay
+   * English; hints / subtitles are translated. Locked cards show the suit / lock icon and a hint.
+   */
+  private buildStoryRow(bindTap: (el: HTMLElement | null, fn: () => void) => void): HTMLElement {
+    const row = document.createElement('div');
+    row.id = 'story-row';
+    const card = (id: StoryId): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.id = `story-${id}`;
+      b.className = `hand-btn mode-pick story-pick story-${id}`;
+      b.draggable = false;
+      b.innerHTML = '<span class="story-ico" aria-hidden="true"></span><span class="mode-name"></span><span class="mode-ships story-sub"></span><span class="story-best"></span>';
+      const name = b.querySelector<HTMLElement>('.mode-name');
+      if (name) name.textContent = CAMPAIGN_NAME[id];
+      bindTap(b, () => this.pickStory(id));
+      return b;
+    };
+    row.append(card('part2'), card('platypus'), card('manatee'));
+    onLang(() => this.syncStoryCards());
+    return row;
+  }
+
+  /** Locked / unlocked looks, hints and bests on the story cards and the PETS row. */
+  private syncStoryCards(): void {
+    const suit = loadCatSuit();
+    const animals = loadAnimalsUnlocked();
+    for (const id of ['part2', 'platypus', 'manatee'] as StoryId[]) {
+      const b = document.getElementById(`story-${id}`);
+      if (!b) continue;
+      const open = id === 'part2' ? suit : animals;
+      b.classList.toggle('locked', !open);
+      const ico = b.querySelector<HTMLElement>('.story-ico');
+      if (ico && ico.dataset.k !== `${open}`) {
+        ico.dataset.k = `${open}`;
+        if (id === 'part2') ico.innerHTML = lockedSuitSvg(34, !suit);
+        else ico.innerHTML = open ? this.critterIcon(id) : '<span class="lock-emoji">🔒</span>';
+      }
+      const sub = b.querySelector<HTMLElement>('.story-sub');
+      const hint = id === 'part2' ? tr('cm_hint') : tr('an_hint');
+      const blurb = id === 'part2' ? `${CAMPAIGN_CARD.part2[0]} · ${tr('cm_sub')}` : id === 'platypus' ? tr('pl_sub') : tr('mn_sub');
+      if (sub) sub.textContent = open ? blurb : hint;
+      const best = b.querySelector<HTMLElement>('.story-best');
+      const hi = loadStoryHigh(id);
+      if (best) best.textContent = open && hi > 0 ? tr('story_best', { s: fmtNum(hi) }) : '';
+      b.setAttribute('aria-label', open ? `${CAMPAIGN_NAME[id]}: ${blurb}` : tr('locked_aria', { m: CAMPAIGN_NAME[id], h: hint }));
+    }
+    document.querySelectorAll<HTMLElement>('#pet-row .pet-opt').forEach((o) => {
+      o.classList.toggle('locked', !suit && o.dataset.pet !== 'dogs');
+    });
+  }
+
+  /** A small helmeted animal portrait for an unlocked PLATYPUS / MANATEE card (canvas -> img). */
+  private critterIcon(id: 'platypus' | 'manatee'): string {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 96;
+      c.height = 64;
+      const g = c.getContext('2d');
+      if (!g) return '';
+      g.translate(44, 36);
+      g.scale(1.25, 1.25);
+      paintShip(g, (id === 'platypus' ? PLATYPUS_BREEDS : MANATEE_BREEDS)[7], {});
+      return `<img src="${c.toDataURL()}" width="48" height="32" alt="">`;
+    } catch {
+      return '';
+    }
+  }
+
+  /** CAT MODE locked: the bounce-home scene the first time, the NEED A SPACE SUIT card after. */
+  private lockedCats(): void {
+    if (catSuitOpen()) return;
+    const first = !loadCatTried();
+    saveCatTried();
+    this.audio.playUi();
+    showCatSuitLocked({
+      scene: first,
+      sfx: (k) => (k === 'pop' ? this.audio.playBoost() : k === 'zip' ? this.audio.playPromote() : this.audio.playUi()),
+      onClose: () => {
+        this.input.clearTouch();
+        this.input.clearJustPressed();
+        this.modesOpenedAt = performance.now() - 300;
+      },
+    });
+  }
+
+  /** A story card: locked = the hint flow; unlocked = start that story mode at the selected level. */
+  private pickStory(id: StoryId): void {
+    if (!this.modesOpen || this.modesGhostTap() || this.devOpen || this.ghostBoardOpen || catSuitOpen()) return;
+    // A story run is its own run: CHANGE MODE mid-run doesn't switch into one.
+    if (this.quitOpen) return;
+    if (id === 'part2' && !loadCatSuit()) {
+      this.lockedCats();
+      return;
+    }
+    if (id !== 'part2' && !loadAnimalsUnlocked()) {
+      const b = document.getElementById(`story-${id}`);
+      b?.classList.remove('nope');
+      void b?.offsetWidth;
+      b?.classList.add('nope');
+      this.audio.playUi();
+      this.announce(tr('locked_aria', { m: CAMPAIGN_NAME[id], h: tr('an_hint') }));
+      return;
+    }
+    this.closeModes();
+    void this.audio.unlock();
+    this.pendingCampaign = id;
+    this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, true);
+  }
+
   /** Start a fan-mode run at the selected level (11 is never a starting level for modes). */
   private pickMode(m: ModeDef): void {
     if (!this.modesOpen || this.modesGhostTap() || this.devOpen || this.ghostBoardOpen) return;
@@ -1400,6 +1550,17 @@ export class Game {
     this.continueT = 0;
     this.score = 0;
     this.mode = null;
+    if (this.campaign !== 'dog') {
+      // Leaving a story run: back to the normal pack and the normal best.
+      this.campaign = 'dog';
+      this.unlockNotice = null;
+      setRunSpecies(null);
+      this.player.breed = playerBreedNow();
+      this.player.scale = breedScale(playerBreedNow());
+      this.player.w = 52 * this.player.scale;
+      this.player.h = 28 * this.player.scale;
+      this.high = loadHighScore();
+    }
     if (this.missionRun || this.ghostRun) {
       // Back to the normal title: the Border Collie and the normal best.
       this.missionRun = false;
@@ -2160,6 +2321,12 @@ export class Game {
       return;
     }
     if (this.ticketPending) return;
+    if (this.state === 'gameover' && this.pendingStory) {
+      // RIDE AGAIN after a story run plays that story mode again.
+      this.pendingCampaign = this.pendingStory;
+      this.startRun(Math.min(this.difficulty, MAX_PUBLIC_DIFFICULTY), null, true);
+      return;
+    }
     if (this.difficulty === SECRET_DIFFICULTY && this.speedKeepsLocal()) {
       // (SPEED_ON_PUBLIC_BOARD = false only) a speed run stays on this device: no ticket request at all.
       this.startRun(SECRET_DIFFICULTY, null, true);
@@ -2217,7 +2384,18 @@ export class Game {
     this.ghostRun = isGhost(mode);
     this.pendingMission = false;
     this.pendingGhost = false;
-    this.high = this.missionRun ? loadMissionHigh() : this.ghostRun ? loadGhostHigh() : loadHighScore();
+    this.pendingStory = null;
+    // STORY MODES: set who flies before the pack / player are built; local-only like GHOST DUSTERS.
+    this.campaign = isRideMode(mode) ? 'dog' : this.pendingCampaign;
+    this.pendingCampaign = 'dog';
+    this.unlockNotice = null;
+    const story = this.storyId();
+    setRunSpecies(story ? STORY_SPECIES[story] : null);
+    if (story) {
+      ticket = null;
+      localOnly = true;
+    }
+    this.high = story ? loadStoryHigh(story) : this.missionRun ? loadMissionHigh() : this.ghostRun ? loadGhostHigh() : loadHighScore();
     if (this.missionRun) {
       ticket = null;
       localOnly = true;
@@ -2244,7 +2422,7 @@ export class Game {
     this.runTime = 0;
     this.runId++;
     this.runDifficulty = at;
-    trackRunStart(mode ? mode.name : null, difficulty);
+    trackRunStart(story ? CAMPAIGN_NAME[story] : mode ? mode.name : null, difficulty);
     this.victory = false;
     this.runStartLevel = at;
     // A boss-fight start only where that level has a live boss / mini-boss.
@@ -2320,6 +2498,8 @@ export class Game {
     // FIGHT THE BOSS: the level clock starts just short of its end, so the usual entry brings the
     // boss / mini-boss in after a breath (same fight, rules, rewards and scoring).
     if (this.runFight) this.levelTime = LEVEL_SECONDS - FIGHT_LEAD_S;
+    // Story modes open with their title card (PART TWO: DOGS AND CATS IN SPACE ...).
+    if (story) this.showPromotion(CAMPAIGN_CARD[story][0], CAMPAIGN_CARD[story][1], () => {}, STORY_CARD_SECONDS);
     this.world.reset();
     this.barks.length = 0;
     this.barkT = 0;
@@ -2395,6 +2575,11 @@ export class Game {
     this.boss = null;
     this.pendingMission = this.missionRun;
     this.pendingGhost = this.ghostRun;
+    this.pendingStory = this.storyId();
+    if (this.pendingStory) {
+      this.endStoryRun(this.pendingStory);
+      return;
+    }
     if (this.pendingGhost) {
       this.endGhostRun();
       return;
@@ -2447,6 +2632,64 @@ export class Game {
    * ON A MISSION game over: only the mission best and the DEV BOARD (or this device's mission
    * board) are touched. The public board, the normal TOP 11 and the normal best never see it.
    */
+  /** This run's story mode, or null for the normal game (dog mode). */
+  private storyId(): StoryId | null {
+    return this.campaign === 'dog' ? null : this.campaign;
+  }
+
+  /** Story-mode game over: that mode's own best and local board only (never the public board). */
+  private endStoryRun(id: StoryId): void {
+    // Menus after the run read the normal pet choice again (the story animal stays on screen).
+    setRunSpecies(null);
+    const best = loadStoryHigh(id);
+    this.newBest = this.pendingScore > best;
+    saveStoryHigh(id, this.pendingScore);
+    this.high = loadStoryHigh(id);
+    this.boardIsRemote = false;
+    this.leaderboard = loadStoryBoard(id);
+    this.highlightIndex = -1;
+    if (qualifiesForBoard(this.pendingScore, this.leaderboard)) this.enterInitials();
+    else {
+      this.state = 'gameover';
+      this.setBodyFlags();
+    }
+  }
+
+  private confirmStoryInitials(id: StoryId, initials: string): void {
+    const local = addStoryEntry(id, this.pendingScore, initials, this.pendingDifficulty, this.pendingStart);
+    this.leaderboard = local.board;
+    this.highlightIndex = local.index;
+    this.boardIsRemote = false;
+    this.high = loadStoryHigh(id);
+    this.audio.playUi();
+    this.state = 'gameover';
+    this.lockRestart();
+    this.setBodyFlags();
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+  }
+
+  /**
+   * Level 111 cleared: dog mode (a normal or fan-mode run, not the vehicle modes) invents the CAT
+   * SPACE SUIT; part two unlocks PLATYPUS MODE + MANATEE MODE. Saved at once (with the rest of the
+   * progress in localStorage). Returns the unlock card to show, or null if nothing new.
+   */
+  private recordStoryWin(): [string, string] | null {
+    if (this.campaign === 'dog' && !this.missionRun && !this.ghostRun) {
+      if (loadCatSuit()) return null;
+      saveCatSuit();
+      this.syncStoryCards();
+      return [tr('un_suit'), tr('un_mode', { m: CAMPAIGN_NAME.part2 })];
+    }
+    if (this.campaign === 'part2') {
+      if (loadAnimalsUnlocked()) return null;
+      saveAnimalsUnlocked();
+      this.syncStoryCards();
+      return [tr('un_two', { a: CAMPAIGN_NAME.platypus, b: CAMPAIGN_NAME.manatee }), tr('pl_sub')];
+    }
+    return null;
+  }
+
   /** GHOST DUSTERS game over: local GHOST BOARD only (no remote SQL / public board). */
   private endGhostRun(): void {
     const best = loadGhostHigh();
@@ -2576,6 +2819,10 @@ export class Game {
     }
     if (this.pendingGhost) {
       this.confirmGhostInitials(this.initialsChars.join(''));
+      return;
+    }
+    if (this.pendingStory) {
+      this.confirmStoryInitials(this.pendingStory, this.initialsChars.join(''));
       return;
     }
     const initials = this.initialsChars.join('');
@@ -2953,8 +3200,18 @@ export class Game {
       this.prizeT -= dt;
       if (this.prizeT <= 0) {
         this.prizeT = 0;
-        this.victory = true;
-        this.endRun();
+        const notice = this.unlockNotice;
+        this.unlockNotice = null;
+        if (notice) {
+          // The unlock card (CAT SPACE SUIT INVENTED! / PLATYPUS + MANATEE), then VICTORY.
+          this.showPromotion(notice[0], notice[1], () => {
+            this.victory = true;
+            this.endRun();
+          }, STORY_CARD_SECONDS);
+        } else {
+          this.victory = true;
+          this.endRun();
+        }
       }
       this.input.clearJustPressed();
       return;
@@ -3062,7 +3319,8 @@ export class Game {
     // Difficulty scales base speed + ramp (m) and points (pts). m is the eased hazard speed
     // (original level 1 eased for 1-10, original level 5 for 11; see utils/difficulty.ts).
     const d = this.runDifficulty;
-    const hz = hazardLevers(d);
+    // Story modes scale speed / density within dog mode's fairness limits (utils/campaign.ts).
+    const hz = campaignLevers(d, this.campaign);
     const m = hz.speed;
     const pts = pointMultiplier(d);
     this.scrollSpeed = 240 * m + this.stageDist * 0.035 * m + (boosting ? 90 : 0) + (this.toastT > 0 ? 320 : 0);
@@ -3473,6 +3731,8 @@ export class Game {
   private clearStage(): boolean {
     const cleared = this.runDifficulty;
     if (cleared >= MAX_LEVEL) {
+      // Beating the game: story unlocks are saved right away (see recordStoryWin).
+      this.unlockNotice = this.recordStoryWin();
       // Group photo of every boss fought this run, then VICTORY.
       this.photoT = 6;
       this.bannerT = 0;
@@ -3856,7 +4116,7 @@ export class Game {
   private startBoss(def: BossDef): void {
     const local = loadLeaderboard();
     const bestLvl = local.reduce((a, e) => Math.max(a, e.difficulty ?? 0), 0);
-    this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length));
+    this.boss = new BossFight(def, this.runSeed, historyJabs(this.high, bestLvl, local.length), campaignMult(this.campaign, def.level));
     this.bossRightT = -1e9;
     // (The group photo is of the big bosses only.)
     if (!def.mini) this.bossesFought.push(def);
@@ -4022,10 +4282,11 @@ export class Game {
     return true;
   }
 
-  private showPromotion(title: string, sub: string, next: () => void): void {
+  private showPromotion(title: string, sub: string, next: () => void, dur = PROMO_SECONDS): void {
     this.promoTitle = title;
     this.promoSub = sub;
-    this.promoT = PROMO_SECONDS;
+    this.promoT = dur;
+    this.promoDur = dur;
     this.promoNext = next;
     this.bannerT = 0;
     this.audio.playPromote();
@@ -4613,7 +4874,7 @@ export class Game {
         this.renderer.drawPromotion(ctx, tr('cont_title'), tr(this.touchPrimary ? 'cont_touch' : 'cont_keys', { n: Math.ceil(this.continueT) }), this.continueT, CONTINUE_SECONDS, this.score);
       }
       if (this.promoT > 0) {
-        this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, PROMO_SECONDS, this.score);
+        this.renderer.drawPromotion(ctx, this.promoTitle, this.promoSub, this.promoT, this.promoDur, this.score);
       }
     }
     if (this.photoT > 0) drawGroupPhoto(ctx, this.bossesFought, this.viewW, this.viewH, (n) => this.renderer.u(n), this.pulse);
@@ -4646,7 +4907,9 @@ export class Game {
         this.newBest,
         this.leaderboard,
         this.highlightIndex,
-        this.pendingMission
+        this.pendingStory
+          ? tr('lb_story', { m: CAMPAIGN_NAME[this.pendingStory] })
+          : this.pendingMission
           ? (this.boardIsRemote ? tr('lb_dev') : tr('lb_dev_local'))
           : this.pendingGhost
             ? tr('lb_ghost_local')

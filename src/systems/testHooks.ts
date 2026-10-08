@@ -13,6 +13,10 @@ import { scalePoints } from '../utils/speed';
 import { TAUNTS, pickTauntIndex, SEARCH_MS } from './desertSearch';
 import { setBroadcastForTest, broadcastOn, TAUNT_BROADCAST } from '../utils/tauntFeed';
 import { CAR_HALF, CAR_DOWN, CAR_UP, PARTS as MISSION_PART_LIST } from './missionCar';
+import { campaignLevers } from '../utils/campaign';
+import { loadCatSuit, loadAnimalsUnlocked, saveCatSuit, saveAnimalsUnlocked, saveCatTried } from '../utils/storage';
+import { pet } from '../utils/pets';
+import { paintShip, BREEDS, CAT_BREEDS, PLATYPUS_BREEDS, MANATEE_BREEDS } from '../render/shipSprite';
 
 const MISSION_PARTS_TOTAL = MISSION_PART_LIST.length;
 
@@ -68,6 +72,15 @@ export function installTestHooks(game: unknown): void {
       cloneOpen: g.cloneOpen,
       ticketPending: g.ticketPending,
       mode: g.mode ? g.mode.id : null,
+      campaign: g.campaign,
+      pendingStory: g.pendingStory,
+      promoTitle: g.promoT > 0 ? g.promoTitle : null,
+      promoSub: g.promoT > 0 ? g.promoSub : null,
+      species: pet(),
+      playerSpecies: g.player.breed.species,
+      packSpecies: g.formation.slots.filter((s: any) => s.occupied).map((s: any) => s.breed.species),
+      suit: loadCatSuit(),
+      animals: loadAnimalsUnlocked(),
       missionRun: g.missionRun,
       ghostRun: g.ghostRun,
       missionUnlocked: g.missionUnlocked,
@@ -127,6 +140,30 @@ export function installTestHooks(game: unknown): void {
       const m = MODES.find((x) => x.id === id);
       if (m) g.switchMode(m, true);
       return g.mode ? g.mode.id : null;
+    },
+    /** STORY MODES: set unlocks like the dev ?unlock= param ('suit' | 'all' | 'none' | 'fresh'). */
+    unlock: (k: 'suit' | 'all' | 'none' | 'fresh') => {
+      if (k === 'suit' || k === 'all') saveCatSuit(true);
+      if (k === 'all') saveAnimalsUnlocked(true);
+      if (k === 'none' || k === 'fresh') {
+        saveCatSuit(false);
+        saveAnimalsUnlocked(false);
+      }
+      if (k === 'fresh') saveCatTried(false);
+      g.syncStoryCards();
+    },
+    /** STORY MODES: start a story run directly (same path as its MODES card). */
+    startStory: (id: 'part2' | 'platypus' | 'manatee') => {
+      g.pendingCampaign = id;
+      g.startRun(1, null, true);
+    },
+    /** Hazard levers in effect for this run's campaign at its level. */
+    levers: () => campaignLevers(g.runDifficulty, g.campaign),
+    /** Art check: paint any animal onto a test canvas (dogs, suited cats, platypus, manatee). */
+    art: { paintShip, BREEDS, CAT_BREEDS, PLATYPUS_BREEDS, MANATEE_BREEDS },
+    /** Skip the current promotion / title card. */
+    skipPromo: () => {
+      g.promoT = 0.001;
     },
     /** Silliness pack helpers. */
     addPower: (kind: 'toaster' | 'blender' | 'microwave') => g.world.addPower(kind, g.player.x + 60, g.player.y),

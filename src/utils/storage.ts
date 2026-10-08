@@ -413,3 +413,78 @@ export function addGhostEntry(score: number, initials: string, level?: number, s
   saveGhostHigh(score);
   return result;
 }
+
+// --- STORY PROGRESSION (utils/campaign.ts): unlocks + each story mode's own best and local board ---
+/** Beat dog mode: the CAT SPACE SUIT is invented (CAT MODE / part two unlocked). */
+const CAT_SUIT_KEY = 'fsb_cat_suit_v1';
+/** Beat part two: PLATYPUS MODE and MANATEE MODE unlocked (together). */
+const ANIMALS_KEY = 'fsb_animals_unlocked_v1';
+/** The first-try "cats can't breathe up here" scene has been shown on this device. */
+const CAT_TRIED_KEY = 'fsb_cat_tried_v1';
+
+function flag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+function setFlag(key: string, on: boolean): void {
+  try {
+    if (on) localStorage.setItem(key, '1');
+    else localStorage.removeItem(key);
+  } catch {
+    /* storage blocked */
+  }
+}
+
+export const loadCatSuit = (): boolean => flag(CAT_SUIT_KEY);
+export const saveCatSuit = (on = true): void => setFlag(CAT_SUIT_KEY, on);
+export const loadAnimalsUnlocked = (): boolean => flag(ANIMALS_KEY);
+export const saveAnimalsUnlocked = (on = true): void => setFlag(ANIMALS_KEY, on);
+export const loadCatTried = (): boolean => flag(CAT_TRIED_KEY);
+export const saveCatTried = (on = true): void => setFlag(CAT_TRIED_KEY, on);
+
+/** Story-mode ids with their own best + board ('part2' = CAT MODE). */
+export type StoryId = 'part2' | 'platypus' | 'manatee';
+const storyHighKey = (id: StoryId): string => `fsb_${id}_high`;
+const storyBoardKey = (id: StoryId): string => `fsb_${id}_board`;
+
+/** This device's runs of one story mode (top 11; never the public board). */
+export function loadStoryBoard(id: StoryId): LeaderboardEntry[] {
+  try {
+    return parseBoard(localStorage.getItem(storyBoardKey(id))) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Best score of one story mode on this device (separate from the dog-mode high score). */
+export function loadStoryHigh(id: StoryId): number {
+  try {
+    const stored = Math.max(0, parseInt(localStorage.getItem(storyHighKey(id)) ?? '0', 10) || 0);
+    const board = loadStoryBoard(id);
+    return Math.max(stored, board.length ? board[0].score : 0);
+  } catch {
+    return 0;
+  }
+}
+
+export function saveStoryHigh(id: StoryId, score: number): void {
+  try {
+    if (score > loadStoryHigh(id)) localStorage.setItem(storyHighKey(id), String(Math.floor(score)));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+export function addStoryEntry(id: StoryId, score: number, initials: string, level?: number, start?: number): { board: LeaderboardEntry[]; index: number } {
+  const result = insertEntry(score, initials, loadStoryBoard(id), level, start);
+  try {
+    localStorage.setItem(storyBoardKey(id), JSON.stringify(result.board));
+  } catch {
+    /* storage blocked */
+  }
+  saveStoryHigh(id, score);
+  return result;
+}

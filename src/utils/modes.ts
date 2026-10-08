@@ -8,7 +8,7 @@
  * run starts; losing ships never grows the rest. THE CALVIN TWINS stay 2 dogs all run; the
  * menu Easter egg swaps in THE CALVIN TRIPLETS (3 dogs). TOO FAT is deliberately exempt.
  */
-import { BREEDS, CAT_BREEDS, playerBreedNow, breedForPet, randomBreed, type Breed } from '../render/shipSprite';
+import { BREEDS, CAT_BREEDS, playerBreedNow, breedForPet, randomBreed, rosterFor, type Breed } from '../render/shipSprite';
 import { pet } from './pets';
 
 export type ModeBehavior = 'none' | 'mirror' | 'calvin' | 'decoy' | 'mission' | 'ghost';
@@ -126,7 +126,7 @@ export function modeBreeds(m: ModeDef, n: number): Breed[] {
   const out: Breed[] = [];
   const pair = PAIR_BREED[m.behavior];
   const p = pet();
-  const roster = p === 'cats' ? CAT_BREEDS : BREEDS;
+  const roster = rosterFor(p);
   for (let i = 0; i < n; i++) {
     let b: Breed;
     if (pair) b = breedForPet(pair);
