@@ -2685,7 +2685,7 @@ export class Game {
       if (loadAnimalsUnlocked()) return null;
       saveAnimalsUnlocked();
       this.syncStoryCards();
-      return [tr('un_two', { a: CAMPAIGN_NAME.platypus, b: CAMPAIGN_NAME.manatee }), tr('pl_sub')];
+      return [tr('un_mode', { m: CAMPAIGN_NAME.platypus }), tr('un_mode', { m: CAMPAIGN_NAME.manatee })];
     }
     return null;
   }

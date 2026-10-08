@@ -1315,7 +1315,9 @@ export class Renderer {
       ctx.shadowColor = 'rgba(255, 180, 60, 0.95)';
     }
     const ts = this.fitFont(ctx, title, '900', this.u(portrait ? 34 : 40), "'Orbitron', sans-serif", maxW, this.u(16));
-    fillMax(ctx, title, W / 2, cy, maxW);
+    // Long titles (e.g. unlock cards) squeeze to fit instead of running off the screen.
+    if (ctx.measureText(title).width > maxW) ctx.fillText(title, W / 2, cy, maxW);
+    else fillMax(ctx, title, W / 2, cy, maxW);
     // Subtitle pops in a beat later and blinks like an arcade attract line.
     if (age > 0.35) {
       const blink = Math.floor(age * 6) % 2 === 0 || age > 0.85;
