@@ -53,7 +53,7 @@ import {
   type HandPreference,
   type LeaderboardEntry,
 } from '../utils/storage';
-import { boardModeOf, petFoodLine, type BoardMode } from '../utils/petFood';
+import { MODE_LABEL, boardModeOf, petFoodLine, type BoardMode } from '../utils/petFood';
 import { ZipHome } from './zipHome';
 import { remoteEnabled, fetchRemoteBoard, submitRemoteScore, amITop, startRemoteRun } from '../utils/remoteBoard';
 import { DesertSearch, DESERT_SEARCH_ON_MISSION } from './desertSearch';
@@ -179,6 +179,10 @@ const PORTRAIT_W = 600;
 export interface GameOptions {
   touchPrimary?: boolean;
 }
+
+/** HIGH SCORES panel rows (this device's board keeps the game's TOP 11). */
+const HS_ROWS = 11;
+const esc = (v: string): string => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -353,6 +357,10 @@ export class Game {
   /** The level this run began on (the board's START column). */
   private runStartLevel = 1;
   private pendingStart = 1;
+  /** Level the finished run reached (HIGH SCORES board). */
+  private pendingReached = 1;
+  /** HIGH SCORES panel (this device's board); title / game-over only. */
+  private hsOpen = false;
   /** LEVEL SELECT FIGHT THE BOSS: this run began at its start level's boss / mini-boss. */
   private runFight = false;
   private pendingFight = false;
@@ -623,6 +631,11 @@ export class Game {
       this.openSettings();
     });
     bindTap(document.getElementById('settings-close'), () => this.closeSettings());
+    bindTap(document.getElementById('hs-btn'), () => {
+      void this.audio.unlock();
+      this.openHighScores();
+    });
+    bindTap(document.getElementById('hs-close'), () => this.closeHighScores());
     const sensRange = document.getElementById('joy-sens-range') as HTMLInputElement | null;
     if (sensRange) {
       sensRange.min = String(JOY_SENS_MIN);
@@ -632,6 +645,7 @@ export class Game {
       sensRange.addEventListener('pointerdown', (e) => e.stopPropagation());
     }
     this.syncSettingsUi();
+    this.renderHighScores();
 
     // How to Play (title & game-over menus): replay the walkthrough.
     // Demo loop: hide the frame if the video can't load (it never blocks or delays play).
@@ -995,6 +1009,7 @@ export class Game {
       loadLangFonts();
       syncHandBtn(loadHandPreference());
       this.syncSettingsUi();
+      this.renderHighScores();
       this.syncDifficultyUi();
       this.setBodyFlags();
       refreshPetLabels();
@@ -1121,8 +1136,60 @@ export class Game {
     return ((r.top - c.top) * this.viewH) / c.height;
   }
 
+  /** HIGH SCORES: this device's board (initials, score, mode, level reached). Title / game-over only. */
+  private openHighScores(): void {
+    if (this.hsOpen || this.settingsOpen || this.modesOpen || this.quitOpen) return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.levelSelect.isOpen()) return;
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    this.hsOpen = true;
+    this.renderHighScores();
+    const el = document.getElementById('hs-menu');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private closeHighScores(): void {
+    if (!this.hsOpen) return;
+    this.hsOpen = false;
+    const el = document.getElementById('hs-menu');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private renderHighScores(): void {
+    const setText = (id: string, v: string): void => {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== v) el.textContent = v;
+    };
+    setText('hs-title', tr('hs_title'));
+    setText('hs-sub', tr('hs_sub'));
+    setText('hs-close', tr('set_close'));
+    const btn = document.getElementById('hs-btn');
+    if (btn) {
+      btn.textContent = tr('hs_btn');
+      btn.setAttribute('aria-label', tr('hs_btn'));
+    }
+    const body = document.getElementById('hs-rows');
+    if (!body || !this.hsOpen) return;
+    const board = loadLeaderboard().slice(0, HS_ROWS);
+    const head = `<tr><th>#</th><th>${esc(tr('hs_col_name'))}</th><th class="hs-num">${esc(tr('hs_col_score'))}</th><th>${esc(tr('hs_col_mode'))}</th><th class="hs-num">${esc(tr('hs_col_level'))}</th></tr>`;
+    const rows = board.map((e, i) => {
+      const mine = this.state === 'gameover' && i === this.highlightIndex && !this.boardIsRemote;
+      return `<tr${mine ? ' class="hs-mine"' : ''}><td>${i + 1}</td><td>${esc(maskInitials(e.initials))}</td><td class="hs-num">${fmtNum(e.score)}</td><td>${esc(MODE_LABEL[boardModeOf(e.mode)])}</td><td class="hs-num">${e.reached ?? '–'}</td></tr>`;
+    });
+    body.innerHTML = head + (rows.length ? rows.join('') : `<tr><td colspan="5" class="hs-empty">${esc(tr('hs_empty'))}</td></tr>`);
+  }
+
   private openSettings(): void {
-    if (this.settingsOpen || this.modesOpen || this.quitOpen) return;
+    if (this.settingsOpen || this.hsOpen || this.modesOpen || this.quitOpen) return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.levelSelect.isOpen()) return;
     const ok = this.state === 'title' || this.state === 'gameover' || (this.state === 'paused' && this.tutStep < 0);
     if (!ok) return;
@@ -2173,7 +2240,7 @@ export class Game {
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
     if (this.modesOpen) return; // the MODES menu handles its own taps
-    if (this.settingsOpen) return; // so does SETTINGS
+    if (this.settingsOpen || this.hsOpen) return; // so do SETTINGS and HIGH SCORES
     if (this.quitOpen) return; // so does the QUIT RUN? confirm
     if (this.congratsOpen) {
       if (e.cancelable) e.preventDefault();
@@ -2400,7 +2467,7 @@ export class Game {
   }
 
   private togglePause(): void {
-    if (this.modesOpen || this.settingsOpen) return;
+    if (this.modesOpen || this.settingsOpen || this.hsOpen) return;
     if (this.state === 'paused' && this.quitOpen) this.closeQuitConfirm();
     if (this.state === 'playing') {
       this.state = 'paused';
@@ -2667,6 +2734,7 @@ export class Game {
     this.pendingMode = this.storyId() ?? (this.mode ? this.mode.id : null);
     this.pendingModes = Math.max(1, this.modesUsed.size);
     this.pendingStart = this.runStartLevel;
+    this.pendingReached = Math.max(1, Math.floor(this.level || this.runStartLevel || 1));
     this.pendingFight = this.runFight;
     this.pendingSpeed = this.runSpeedMax;
     stopSpeech();
@@ -2919,7 +2987,7 @@ export class Game {
     // ONE BOARD: remember this row's mode on this device (the live board doesn't return it yet).
     rememberRowMode(score, initials, difficulty, boardMode);
     // Always keep this device's board (offline fallback + personal best).
-    const local = addEntry(score, initials, undefined, difficulty, this.pendingStart, boardMode);
+    const local = addEntry(score, initials, undefined, difficulty, this.pendingStart, boardMode, this.pendingReached);
     if (remoteEnabled && this.remoteBoard && !this.runLocalOnly) {
       // Optimistic: show the entry on the shared board until the server replies.
       const optimistic = insertEntry(score, initials, this.remoteBoard, difficulty, this.pendingStart, boardMode);
@@ -3148,6 +3216,11 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.hsOpen) {
+        if (this.input.consume('escape') || this.input.consume('enter')) this.closeHighScores();
+        this.input.clearJustPressed();
+        return;
+      }
       if (this.settingsOpen) {
         this.handleSettingsKeys();
         return;
@@ -3183,6 +3256,11 @@ export class Game {
         return;
       }
       if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
+      if (this.hsOpen) {
+        if (this.input.consume('escape') || this.input.consume('enter')) this.closeHighScores();
         this.input.clearJustPressed();
         return;
       }

@@ -1,14 +1,14 @@
 /**
- * Joystick sensitivity (SETTINGS menu). Scales how far the thumb must travel for a given stick
- * output: at 2.0x half the drag gives the same push, at 0.5x it takes twice the drag. Full push
- * (and so max ship speed) is still reachable at every setting; only the virtual stick is affected.
- * 1.0x is the original (pre-setting) feel; new players start at the gentler JOY_SENS_DEFAULT.
+ * Joystick sensitivity (SETTINGS menu): multiplies the virtual stick's output (clamped to full
+ * push). 1.0x is the original feel; 0.1x moves the ship at one tenth speed; 2.0x reaches full
+ * push with half the drag. Only the virtual (touch) stick is affected, never the keyboard.
+ * New players start at the gentler JOY_SENS_DEFAULT.
  */
 export const JOY_SENS_KEY = 'fsb_joystick_sens_v1';
-export const JOY_SENS_MIN = 0.5;
+export const JOY_SENS_MIN = 0.1;
 export const JOY_SENS_MAX = 2.0;
 export const JOY_SENS_STEP = 0.1;
-export const JOY_SENS_DEFAULT = 0.7;
+export const JOY_SENS_DEFAULT = 0.5;
 /** The original feel (every build before the setting existed). */
 export const JOY_SENS_CLASSIC = 1.0;
 

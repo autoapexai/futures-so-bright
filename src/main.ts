@@ -2,6 +2,7 @@ import { Game } from './systems/Game';
 import { applyHandPreference, saveCatSuit, saveAnimalsUnlocked, saveCatTried } from './utils/storage';
 import { trackPageView } from './utils/track';
 import { applyDomStrings, installCanvasFonts, loadLangFonts } from './i18n';
+import { inScrollable } from './utils/scrollable';
 
 // Language: canvas font fallbacks (Vietnamese / Chinese only), static page text, web fonts.
 installCanvasFonts();
@@ -82,7 +83,12 @@ const syncVvh = (): void => {
 const blockNav = (e: Event): void => {
   if (e.cancelable) e.preventDefault();
 };
-document.addEventListener('touchmove', blockNav, { passive: false, capture: true });
+// Touch moves inside a scrollable panel (MODES, SETTINGS, boards) scroll it; elsewhere they're blocked.
+const blockNavMove = (e: TouchEvent): void => {
+  if (e.touches.length <= 1 && inScrollable(e.target)) return;
+  if (e.cancelable) e.preventDefault();
+};
+document.addEventListener('touchmove', blockNavMove, { passive: false, capture: true });
 document.addEventListener('gesturestart', blockNav, { passive: false });
 document.addEventListener('gesturechange', blockNav, { passive: false });
 document.addEventListener('gestureend', blockNav, { passive: false });

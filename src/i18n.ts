@@ -513,6 +513,14 @@ const en = {
   set_joy: "JOYSTICK SENSITIVITY",
   set_joy_hint: "Lower is gentler. 1.0x is the original feel.",
   set_close: "CLOSE",
+  hs_btn: "HIGH SCORES",
+  hs_title: "HIGH SCORES",
+  hs_sub: "TOP 11 ON THIS DEVICE",
+  hs_empty: "No scores yet. Play a run!",
+  hs_col_name: "NAME",
+  hs_col_score: "SCORE",
+  hs_col_mode: "MODE",
+  hs_col_level: "LEVEL",
 };
 
 export type Key = keyof typeof en;
@@ -877,6 +885,14 @@ const es: Record<Key, string> = {
   set_joy: "SENSIBILIDAD DEL JOYSTICK",
   set_joy_hint: "Más bajo es más suave. 1.0x es la sensación original.",
   set_close: "CERRAR",
+  hs_btn: "PUNTUACIONES",
+  hs_title: "PUNTUACIONES",
+  hs_sub: "TOP 11 EN ESTE DISPOSITIVO",
+  hs_empty: "Aún no hay puntuaciones. ¡Juega una partida!",
+  hs_col_name: "NOMBRE",
+  hs_col_score: "PUNTOS",
+  hs_col_mode: "MODO",
+  hs_col_level: "NIVEL",
 };
 
 const vi: Record<Key, string> = {
@@ -1238,6 +1254,14 @@ const vi: Record<Key, string> = {
   set_joy: "ĐỘ NHẠY CẦN ĐIỀU KHIỂN",
   set_joy_hint: "Thấp hơn là nhẹ nhàng hơn. 1.0x là cảm giác ban đầu.",
   set_close: "ĐÓNG",
+  hs_btn: "ĐIỂM CAO",
+  hs_title: "ĐIỂM CAO",
+  hs_sub: "TOP 11 TRÊN THIẾT BỊ NÀY",
+  hs_empty: "Chưa có điểm. Hãy chơi một lượt!",
+  hs_col_name: "TÊN",
+  hs_col_score: "ĐIỂM",
+  hs_col_mode: "CHẾ ĐỘ",
+  hs_col_level: "CẤP",
 };
 
 const zh: Record<Key, string> = {
@@ -1599,6 +1623,14 @@ const zh: Record<Key, string> = {
   set_joy: "摇杆灵敏度",
   set_joy_hint: "越低越平缓。1.0x 是原来的手感。",
   set_close: "关闭",
+  hs_btn: "最高分",
+  hs_title: "最高分",
+  hs_sub: "本设备前 11 名",
+  hs_empty: "还没有分数。来玩一局吧！",
+  hs_col_name: "名字",
+  hs_col_score: "分数",
+  hs_col_mode: "模式",
+  hs_col_level: "关卡",
 };
 
 const fr: Record<Key, string> = {
@@ -1959,6 +1991,14 @@ const fr: Record<Key, string> = {
   set_joy: "SENSIBILITÉ DU JOYSTICK",
   set_joy_hint: "Plus bas, c’est plus doux. 1.0x est la sensation d’origine.",
   set_close: "FERMER",
+  hs_btn: "MEILLEURS SCORES",
+  hs_title: "MEILLEURS SCORES",
+  hs_sub: "TOP 11 SUR CET APPAREIL",
+  hs_empty: "Pas encore de score. Lance une partie !",
+  hs_col_name: "NOM",
+  hs_col_score: "SCORE",
+  hs_col_mode: "MODE",
+  hs_col_level: "NIVEAU",
 };
 
 const de: Record<Key, string> = {
@@ -2319,6 +2359,14 @@ const de: Record<Key, string> = {
   set_joy: "JOYSTICK-EMPFINDLICHKEIT",
   set_joy_hint: "Niedriger ist sanfter. 1.0x ist das ursprüngliche Gefühl.",
   set_close: "SCHLIESSEN",
+  hs_btn: "BESTENLISTE",
+  hs_title: "BESTENLISTE",
+  hs_sub: "TOP 11 AUF DIESEM GERÄT",
+  hs_empty: "Noch keine Punkte. Spiel eine Runde!",
+  hs_col_name: "NAME",
+  hs_col_score: "PUNKTE",
+  hs_col_mode: "MODUS",
+  hs_col_level: "LEVEL",
 };
 
 const pt: Record<Key, string> = {
@@ -2679,6 +2727,14 @@ const pt: Record<Key, string> = {
   set_joy: "SENSIBILIDADE DO JOYSTICK",
   set_joy_hint: "Mais baixo é mais suave. 1.0x é a sensação original.",
   set_close: "FECHAR",
+  hs_btn: "RECORDES",
+  hs_title: "RECORDES",
+  hs_sub: "TOP 11 NESTE APARELHO",
+  hs_empty: "Ainda sem pontuações. Jogue uma partida!",
+  hs_col_name: "NOME",
+  hs_col_score: "PONTOS",
+  hs_col_mode: "MODO",
+  hs_col_level: "NÍVEL",
 };
 
 const it: Record<Key, string> = {
@@ -3039,6 +3095,14 @@ const it: Record<Key, string> = {
   set_joy: "SENSIBILITÀ DEL JOYSTICK",
   set_joy_hint: "Più basso è più delicato. 1.0x è la sensazione originale.",
   set_close: "CHIUDI",
+  hs_btn: "PUNTEGGI MIGLIORI",
+  hs_title: "PUNTEGGI MIGLIORI",
+  hs_sub: "TOP 11 SU QUESTO DISPOSITIVO",
+  hs_empty: "Ancora nessun punteggio. Fai una partita!",
+  hs_col_name: "NOME",
+  hs_col_score: "PUNTI",
+  hs_col_mode: "MODALITÀ",
+  hs_col_level: "LIVELLO",
 };
 
 const nl: Record<Key, string> = {
@@ -3399,6 +3463,14 @@ const nl: Record<Key, string> = {
   set_joy: "JOYSTICKGEVOELIGHEID",
   set_joy_hint: "Lager is rustiger. 1.0x is het originele gevoel.",
   set_close: "SLUITEN",
+  hs_btn: "TOPSCORES",
+  hs_title: "TOPSCORES",
+  hs_sub: "TOP 11 OP DIT APPARAAT",
+  hs_empty: "Nog geen scores. Speel een potje!",
+  hs_col_name: "NAAM",
+  hs_col_score: "SCORE",
+  hs_col_mode: "MODUS",
+  hs_col_level: "LEVEL",
 };
 
 const pl: Record<Key, string> = {
@@ -3759,6 +3831,14 @@ const pl: Record<Key, string> = {
   set_joy: "CZUŁOŚĆ JOYSTICKA",
   set_joy_hint: "Niżej znaczy łagodniej. 1.0x to pierwotne odczucie.",
   set_close: "ZAMKNIJ",
+  hs_btn: "NAJLEPSZE WYNIKI",
+  hs_title: "NAJLEPSZE WYNIKI",
+  hs_sub: "TOP 11 NA TYM URZĄDZENIU",
+  hs_empty: "Brak wyników. Zagraj!",
+  hs_col_name: "IMIĘ",
+  hs_col_score: "WYNIK",
+  hs_col_mode: "TRYB",
+  hs_col_level: "POZIOM",
 };
 
 const tr: Record<Key, string> = {
@@ -4119,6 +4199,14 @@ const tr: Record<Key, string> = {
   set_joy: "JOYSTICK HASSASİYETİ",
   set_joy_hint: "Düşük daha yumuşaktır. 1.0x orijinal histir.",
   set_close: "KAPAT",
+  hs_btn: "YÜKSEK SKORLAR",
+  hs_title: "YÜKSEK SKORLAR",
+  hs_sub: "BU CİHAZDA İLK 11",
+  hs_empty: "Henüz skor yok. Bir tur oyna!",
+  hs_col_name: "AD",
+  hs_col_score: "SKOR",
+  hs_col_mode: "MOD",
+  hs_col_level: "SEVİYE",
 };
 
 const id: Record<Key, string> = {
@@ -4479,6 +4567,14 @@ const id: Record<Key, string> = {
   set_joy: "SENSITIVITAS JOYSTICK",
   set_joy_hint: "Lebih rendah lebih lembut. 1.0x adalah rasa aslinya.",
   set_close: "TUTUP",
+  hs_btn: "SKOR TERTINGGI",
+  hs_title: "SKOR TERTINGGI",
+  hs_sub: "11 TERATAS DI PERANGKAT INI",
+  hs_empty: "Belum ada skor. Ayo main!",
+  hs_col_name: "NAMA",
+  hs_col_score: "SKOR",
+  hs_col_mode: "MODE",
+  hs_col_level: "LEVEL",
 };
 
 const fil: Record<Key, string> = {
@@ -4839,6 +4935,14 @@ const fil: Record<Key, string> = {
   set_joy: "SENSITIBIDAD NG JOYSTICK",
   set_joy_hint: "Mas mababa, mas banayad. 1.0x ang orihinal na pakiramdam.",
   set_close: "ISARA",
+  hs_btn: "MATATAAS NA ISKOR",
+  hs_title: "MATATAAS NA ISKOR",
+  hs_sub: "TOP 11 SA DEVICE NA ITO",
+  hs_empty: "Wala pang iskor. Maglaro na!",
+  hs_col_name: "PANGALAN",
+  hs_col_score: "ISKOR",
+  hs_col_mode: "MODE",
+  hs_col_level: "LEVEL",
 };
 
 const sv: Record<Key, string> = {
@@ -5199,6 +5303,14 @@ const sv: Record<Key, string> = {
   set_joy: "JOYSTICKKÄNSLIGHET",
   set_joy_hint: "Lägre är mjukare. 1.0x är den ursprungliga känslan.",
   set_close: "STÄNG",
+  hs_btn: "TOPPLISTA",
+  hs_title: "TOPPLISTA",
+  hs_sub: "TOPP 11 PÅ DEN HÄR ENHETEN",
+  hs_empty: "Inga poäng än. Spela en runda!",
+  hs_col_name: "NAMN",
+  hs_col_score: "POÄNG",
+  hs_col_mode: "LÄGE",
+  hs_col_level: "NIVÅ",
 };
 const ru: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5558,6 +5670,14 @@ const ru: Record<Key, string> = {
   set_joy: "ЧУВСТВИТЕЛЬНОСТЬ ДЖОЙСТИКА",
   set_joy_hint: "Ниже — мягче. 1.0x — как было изначально.",
   set_close: "ЗАКРЫТЬ",
+  hs_btn: "РЕКОРДЫ",
+  hs_title: "РЕКОРДЫ",
+  hs_sub: "ТОП-11 НА ЭТОМ УСТРОЙСТВЕ",
+  hs_empty: "Рекордов пока нет. Сыграй!",
+  hs_col_name: "ИМЯ",
+  hs_col_score: "ОЧКИ",
+  hs_col_mode: "РЕЖИМ",
+  hs_col_level: "УРОВЕНЬ",
 };
 const uk: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5917,6 +6037,14 @@ const uk: Record<Key, string> = {
   set_joy: "ЧУТЛИВІСТЬ ДЖОЙСТИКА",
   set_joy_hint: "Нижче — м’якше. 1.0x — як було спочатку.",
   set_close: "ЗАКРИТИ",
+  hs_btn: "РЕКОРДИ",
+  hs_title: "РЕКОРДИ",
+  hs_sub: "ТОП-11 НА ЦЬОМУ ПРИСТРОЇ",
+  hs_empty: "Рекордів ще немає. Зіграй!",
+  hs_col_name: "ІМʼЯ",
+  hs_col_score: "ОЧКИ",
+  hs_col_mode: "РЕЖИМ",
+  hs_col_level: "РІВЕНЬ",
 };
 const ja: Record<Key, string> = {
   hud_score: 'スコア  ',
@@ -6276,6 +6404,14 @@ const ja: Record<Key, string> = {
   set_joy: "スティックのかんど",
   set_joy_hint: "ひくいほど やさしい。1.0x は もとの そうさかん。",
   set_close: "とじる",
+  hs_btn: "ハイスコア",
+  hs_title: "ハイスコア",
+  hs_sub: "このたんまつの トップ11",
+  hs_empty: "まだ スコアが ないよ。あそんでみよう！",
+  hs_col_name: "なまえ",
+  hs_col_score: "スコア",
+  hs_col_mode: "モード",
+  hs_col_level: "レベル",
 };
 const ko: Record<Key, string> = {
   hud_score: '점수  ',
@@ -6635,6 +6771,14 @@ const ko: Record<Key, string> = {
   set_joy: "조이스틱 감도",
   set_joy_hint: "낮을수록 부드러워요. 1.0x는 원래 느낌이에요.",
   set_close: "닫기",
+  hs_btn: "최고 점수",
+  hs_title: "최고 점수",
+  hs_sub: "이 기기의 TOP 11",
+  hs_empty: "아직 점수가 없어요. 한 판 해 봐요!",
+  hs_col_name: "이름",
+  hs_col_score: "점수",
+  hs_col_mode: "모드",
+  hs_col_level: "레벨",
 };
 const hi: Record<Key, string> = {
   hud_score: 'स्कोर  ',
@@ -6994,6 +7138,14 @@ const hi: Record<Key, string> = {
   set_joy: "जॉयस्टिक संवेदनशीलता",
   set_joy_hint: "कम मतलब ज़्यादा कोमल। 1.0x मूल अनुभव है।",
   set_close: "बंद करें",
+  hs_btn: "हाई स्कोर",
+  hs_title: "हाई स्कोर",
+  hs_sub: "इस डिवाइस के टॉप 11",
+  hs_empty: "अभी कोई स्कोर नहीं। एक बार खेलो!",
+  hs_col_name: "नाम",
+  hs_col_score: "स्कोर",
+  hs_col_mode: "मोड",
+  hs_col_level: "लेवल",
 };
 const th: Record<Key, string> = {
   hud_score: 'คะแนน  ',
@@ -7353,6 +7505,14 @@ const th: Record<Key, string> = {
   set_joy: "ความไวจอยสติ๊ก",
   set_joy_hint: "ยิ่งต่ำยิ่งนุ่มนวล 1.0x คือความรู้สึกแบบเดิม",
   set_close: "ปิด",
+  hs_btn: "คะแนนสูงสุด",
+  hs_title: "คะแนนสูงสุด",
+  hs_sub: "11 อันดับแรกในเครื่องนี้",
+  hs_empty: "ยังไม่มีคะแนน มาเล่นกันเลย!",
+  hs_col_name: "ชื่อ",
+  hs_col_score: "คะแนน",
+  hs_col_mode: "โหมด",
+  hs_col_level: "ด่าน",
 };
 export const STRINGS: Record<Lang, Record<Key, string>> = { en, es, vi, zh, fr, de, pt, it, nl, pl, tr, id, fil, sv, ru, uk, ja, ko, hi, th };
 

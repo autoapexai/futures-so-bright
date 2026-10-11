@@ -22,6 +22,8 @@ export interface LeaderboardEntry {
   start?: number;
   /** ONE BOARD: the mode the run was played in (utils/petFood.ts). Missing = dog mode. */
   mode?: BoardMode;
+  /** Highest level reached in the run (HIGH SCORES board); missing on older rows. */
+  reached?: number;
 }
 
 /** Copy `mode` onto an entry only when it isn't plain dog mode (keeps old-shaped rows unchanged). */
@@ -98,6 +100,8 @@ function parseBoard(raw: string | null): LeaderboardEntry[] | null {
       const st = Math.round(Number((item as LeaderboardEntry).start));
       const e: LeaderboardEntry = d >= 1 && d <= 111 ? { score, initials, difficulty: d } : { score, initials };
       if (e.difficulty && st >= 1 && st <= e.difficulty) e.start = st;
+      const rc = Math.round(Number((item as LeaderboardEntry).reached));
+      if (rc >= 1 && rc <= 999) e.reached = rc;
       out.push(withMode(e, (item as LeaderboardEntry).mode));
     }
     out.sort((a, b) => b.score - a.score);
@@ -136,6 +140,7 @@ export function saveLeaderboard(entries: LeaderboardEntry[]): void {
         ...(e.difficulty ? { difficulty: e.difficulty } : {}),
         ...(e.start ? { start: e.start } : {}),
         ...(e.mode && e.mode !== 'dog' ? { mode: e.mode } : {}),
+        ...(e.reached && e.reached > 0 ? { reached: Math.floor(e.reached) } : {}),
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_BOARD);
@@ -168,8 +173,9 @@ export function addEntry(
   difficulty?: number,
   start?: number,
   mode?: BoardMode,
+  reached?: number,
 ): { board: LeaderboardEntry[]; index: number } {
-  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty, start, mode);
+  const result = insertEntry(score, initials, board ?? loadLeaderboard(), difficulty, start, mode, reached);
   saveLeaderboard(result.board);
   return result;
 }
@@ -182,6 +188,7 @@ export function insertEntry(
   difficulty?: number,
   start?: number,
   mode?: BoardMode,
+  reached?: number,
 ): { board: LeaderboardEntry[]; index: number } {
   const list = [...board];
   const entry: LeaderboardEntry = withMode(
@@ -190,6 +197,7 @@ export function insertEntry(
       initials: sanitizeInitials(initials),
       ...(difficulty ? { difficulty } : {}),
       ...(difficulty && start && start <= difficulty ? { start } : {}),
+      ...(reached && reached > 0 ? { reached: Math.floor(reached) } : {}),
     },
     mode,
   );

@@ -4185,7 +4185,8 @@ body.fsb-homing #touch-hint {
 #settings-close:active {
   transform: scale(0.96);
 }
-#settings-menu {
+#settings-menu,
+#hs-menu {
   display: none;
   position: fixed;
   inset: 0;
@@ -4198,7 +4199,8 @@ body.fsb-homing #touch-hint {
   pointer-events: auto;
   touch-action: none;
 }
-#settings-menu.open {
+#settings-menu.open,
+#hs-menu.open {
   display: flex;
 }
 body.settings-open .joy-zone,
@@ -4206,10 +4208,14 @@ body.settings-open .touch-action,
 body.settings-open #touch-hint {
   visibility: hidden;
 }
-#settings-menu .set-card {
+#settings-menu .set-card,
+#hs-menu .set-card {
   width: min(460px, 100%);
   max-height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
   padding: clamp(14px, 3vmin, 24px);
   border: 2px solid rgba(0, 240, 255, 0.75);
@@ -4247,7 +4253,7 @@ body.settings-open #touch-hint {
   color: rgba(255, 255, 255, 0.7);
 }
 #joy-sens-range {
-  --fill: 13.3%;
+  --fill: 21%;
   flex: 1 1 auto;
   min-width: 0;
   height: 40px;
@@ -4303,7 +4309,8 @@ body.settings-open #touch-hint {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
 }
-#settings-close {
+#settings-close,
+#hs-close {
   min-width: 140px;
   min-height: 44px;
   padding: 8px 20px;
@@ -4317,4 +4324,71 @@ body.settings-open #touch-hint {
   letter-spacing: 0.12em;
   cursor: pointer;
   touch-action: none;
+}
+
+/* —— HIGH SCORES panel (this device's board) —— */
+#menu-btns #hs-btn {
+  border-color: rgba(255, 230, 109, 0.8);
+  color: #ffe66d;
+  text-shadow: 0 0 8px rgba(255, 210, 90, 0.6);
+}
+#hs-title {
+  margin: 0;
+  font-size: clamp(18px, 3.8vmin, 26px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffe66d;
+  text-shadow: 0 0 12px rgba(255, 210, 90, 0.7);
+}
+#hs-sub {
+  margin: 2px 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.7);
+}
+#hs-rows {
+  width: 100%;
+  margin: 0 0 14px;
+  border-collapse: collapse;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+#hs-rows th {
+  padding: 2px 6px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #ff9de8;
+  text-align: left;
+}
+#hs-rows td {
+  padding: 3px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  white-space: nowrap;
+}
+#hs-rows .hs-num {
+  text-align: right;
+}
+#hs-rows tr.hs-mine td {
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.12);
+}
+#hs-rows .hs-empty {
+  padding: 14px 6px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Phones: a swipe that starts on a MODES card / pet button / board row scrolls the panel
+   (those buttons are touch-action:none elsewhere, which froze the list under the thumb). */
+#modes-menu .cg-card button,
+#modes-menu .cg-card .hand-btn,
+#modes-menu .cg-card [role='button'],
+#settings-menu .set-card button,
+#hs-menu .set-card button,
+#dev-board .cg-card button,
+#ghost-board .cg-card button {
+  touch-action: pan-y !important;
 }

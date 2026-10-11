@@ -1,5 +1,6 @@
 import { clamp } from '../utils/math';
 import { clampJoySens, loadJoySens } from '../utils/joySens';
+import { inScrollable } from '../utils/scrollable';
 
 /** Joystick deadzone (share of the stick radius) and response-curve exponent (v2.1 tuning). */
 export const STICK_DEADZONE = 0.07;
@@ -11,7 +12,7 @@ export class Input {
   /** Analog stick from virtual joystick (−1…1). Zero when unused. */
   private joyX = 0;
   private joyY = 0;
-  /** Joystick sensitivity (SETTINGS): drag distance is multiplied by this before the deadzone / curve. */
+  /** Joystick sensitivity (SETTINGS): multiplies the stick output (capped at full push). */
   private joySens = loadJoySens();
   boostHeld = false;
   /** Fresh FIRE presses (Space keydown / FIRE button down) not yet taken by the game. */
@@ -74,6 +75,7 @@ export class Input {
     document.addEventListener('gestureend', prevent, { passive: false });
 
     const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length <= 1 && inScrollable(e.target)) return; // let MODES / SETTINGS / boards scroll
       if (e.cancelable) e.preventDefault();
     };
     document.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -186,18 +188,16 @@ export class Input {
       const len = Math.hypot(dx, dy);
       const cl = len > r ? r / len : 1;
       knob.style.transform = `translate(calc(-50% + ${dx * cl}px), calc(-50% + ${dy * cl}px))`;
-      // Sensitivity scales the drag before clamping to the unit circle (1.0x = the original math).
-      const s = this.joySens;
-      const slen = len * s;
-      const scl = slen > r ? r / slen : 1;
-      const nx = (dx * s * scl) / r;
-      const ny = (dy * s * scl) / r;
+      const nx = (dx * cl) / r;
+      const ny = (dy * cl) / r;
       const mag = Math.hypot(nx, ny);
       if (mag < dead) {
         this.joyX = 0;
         this.joyY = 0;
       } else {
-        const scale = Math.pow((mag - dead) / (1 - dead), STICK_CURVE);
+        // Sensitivity multiplies the stick output, capped at full push (1.0x = the original math).
+        const base = Math.pow((mag - dead) / (1 - dead), STICK_CURVE);
+        const scale = this.joySens === 1 ? base : Math.min(1, base * this.joySens);
         this.joyX = (nx / mag) * scale;
         this.joyY = (ny / mag) * scale;
       }
@@ -390,7 +390,7 @@ export class Input {
     });
   }
 
-  /** Joystick sensitivity multiplier (0.5x…2.0x); takes effect on the next stick move. */
+  /** Joystick sensitivity multiplier (0.1x…2.0x); takes effect on the next stick move. */
   get joystickSensitivity(): number {
     return this.joySens;
   }
