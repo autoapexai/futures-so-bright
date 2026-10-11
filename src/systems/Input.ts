@@ -1,4 +1,5 @@
 import { clamp } from '../utils/math';
+import { clampJoySens, loadJoySens } from '../utils/joySens';
 
 /** Joystick deadzone (share of the stick radius) and response-curve exponent (v2.1 tuning). */
 export const STICK_DEADZONE = 0.07;
@@ -10,6 +11,8 @@ export class Input {
   /** Analog stick from virtual joystick (−1…1). Zero when unused. */
   private joyX = 0;
   private joyY = 0;
+  /** Joystick sensitivity (SETTINGS): drag distance is multiplied by this before the deadzone / curve. */
+  private joySens = loadJoySens();
   boostHeld = false;
   /** Fresh FIRE presses (Space keydown / FIRE button down) not yet taken by the game. */
   private boostPresses = 0;
@@ -182,9 +185,13 @@ export class Input {
       const r = maxR();
       const len = Math.hypot(dx, dy);
       const cl = len > r ? r / len : 1;
-      const nx = (dx * cl) / r;
-      const ny = (dy * cl) / r;
       knob.style.transform = `translate(calc(-50% + ${dx * cl}px), calc(-50% + ${dy * cl}px))`;
+      // Sensitivity scales the drag before clamping to the unit circle (1.0x = the original math).
+      const s = this.joySens;
+      const slen = len * s;
+      const scl = slen > r ? r / slen : 1;
+      const nx = (dx * s * scl) / r;
+      const ny = (dy * s * scl) / r;
       const mag = Math.hypot(nx, ny);
       if (mag < dead) {
         this.joyX = 0;
@@ -381,6 +388,15 @@ export class Input {
       }
       onEnd();
     });
+  }
+
+  /** Joystick sensitivity multiplier (0.5x…2.0x); takes effect on the next stick move. */
+  get joystickSensitivity(): number {
+    return this.joySens;
+  }
+
+  set joystickSensitivity(v: number) {
+    this.joySens = clampJoySens(v);
   }
 
   consume(key: string): boolean {

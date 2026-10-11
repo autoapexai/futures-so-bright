@@ -69,6 +69,7 @@ import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, mi
 import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mountLangPicker, type LangPicker } from './langPicker';
+import { JOY_SENS_MAX, JOY_SENS_MIN, JOY_SENS_STEP, clampJoySens, fmtJoySens, saveJoySens } from '../utils/joySens';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
   BLENDER_SECONDS,
@@ -298,6 +299,8 @@ export class Game {
   /** Fan mode of the current run (MODES menu), or null for a normal run. */
   private mode: ModeDef | null = null;
   private modesOpen = false;
+  /** SETTINGS panel (joystick sensitivity); opens from title / game-over and the pause screen. */
+  private settingsOpen = false;
   private langPicker: LangPicker | null = null;
   /** performance.now() when the MODES menu opened: taps just after it are the opening tap's ghost click. */
   private modesOpenedAt = 0;
@@ -609,6 +612,26 @@ export class Game {
       this.input.clearTouch();
       this.audio.playUi();
     });
+
+    // SETTINGS (gear + word): title / game-over menu row and the pause screen.
+    bindTap(document.getElementById('settings-btn'), () => {
+      void this.audio.unlock();
+      this.openSettings();
+    });
+    bindTap(document.getElementById('pause-settings-btn'), () => {
+      void this.audio.unlock();
+      this.openSettings();
+    });
+    bindTap(document.getElementById('settings-close'), () => this.closeSettings());
+    const sensRange = document.getElementById('joy-sens-range') as HTMLInputElement | null;
+    if (sensRange) {
+      sensRange.min = String(JOY_SENS_MIN);
+      sensRange.max = String(JOY_SENS_MAX);
+      sensRange.step = String(JOY_SENS_STEP);
+      sensRange.addEventListener('input', () => this.setJoySens(parseFloat(sensRange.value)));
+      sensRange.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+    this.syncSettingsUi();
 
     // How to Play (title & game-over menus): replay the walkthrough.
     // Demo loop: hide the frame if the video can't load (it never blocks or delays play).
@@ -971,6 +994,7 @@ export class Game {
       applyDomStrings();
       loadLangFonts();
       syncHandBtn(loadHandPreference());
+      this.syncSettingsUi();
       this.syncDifficultyUi();
       this.setBodyFlags();
       refreshPetLabels();
@@ -1095,6 +1119,75 @@ export class Game {
     const c = this.canvas.getBoundingClientRect();
     if (c.height <= 0) return 0;
     return ((r.top - c.top) * this.viewH) / c.height;
+  }
+
+  private openSettings(): void {
+    if (this.settingsOpen || this.modesOpen || this.quitOpen) return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.levelSelect.isOpen()) return;
+    const ok = this.state === 'title' || this.state === 'gameover' || (this.state === 'paused' && this.tutStep < 0);
+    if (!ok) return;
+    this.settingsOpen = true;
+    this.syncSettingsUi();
+    const el = document.getElementById('settings-menu');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private closeSettings(): void {
+    if (!this.settingsOpen) return;
+    this.settingsOpen = false;
+    const el = document.getElementById('settings-menu');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private setJoySens(v: number): void {
+    const s = clampJoySens(v);
+    this.input.joystickSensitivity = s;
+    saveJoySens(s);
+    this.syncSettingsUi();
+  }
+
+  /** SETTINGS labels (current language) and the slider / readout for the saved sensitivity. */
+  private syncSettingsUi(): void {
+    const s = this.input.joystickSensitivity;
+    const range = document.getElementById('joy-sens-range') as HTMLInputElement | null;
+    if (range) {
+      if (parseFloat(range.value) !== s) range.value = s.toFixed(1);
+      range.style.setProperty('--fill', `${((s - JOY_SENS_MIN) / (JOY_SENS_MAX - JOY_SENS_MIN)) * 100}%`);
+      range.setAttribute('aria-valuetext', fmtJoySens(s));
+      range.setAttribute('aria-label', tr('set_joy'));
+    }
+    const setText = (id: string, v: string): void => {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== v) el.textContent = v;
+    };
+    setText('joy-sens-value', fmtJoySens(s));
+    setText('joy-sens-label', tr('set_joy'));
+    setText('joy-sens-hint', tr('set_joy_hint'));
+    setText('settings-title', tr('set_btn'));
+    setText('settings-close', tr('set_close'));
+    document.querySelectorAll<HTMLElement>('.settings-open-btn').forEach((b) => {
+      const w = b.querySelector('.set-word');
+      if (w && w.textContent !== tr('set_btn')) w.textContent = tr('set_btn');
+      b.setAttribute('aria-label', tr('set_aria'));
+    });
+  }
+
+  /** Keys while SETTINGS is up: Esc closes; ← / → or [ / ] nudge the sensitivity 0.1. */
+  private handleSettingsKeys(): void {
+    if (this.input.consume('escape')) this.closeSettings();
+    else if (this.input.consume('arrowleft') || this.input.consume('[') || this.input.consume('-')) this.setJoySens(this.input.joystickSensitivity - JOY_SENS_STEP);
+    else if (this.input.consume('arrowright') || this.input.consume(']') || this.input.consume('=') || this.input.consume('+')) this.setJoySens(this.input.joystickSensitivity + JOY_SENS_STEP);
+    this.input.clearJustPressed();
   }
 
   private openModes(): void {
@@ -2080,6 +2173,7 @@ export class Game {
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
     if (this.modesOpen) return; // the MODES menu handles its own taps
+    if (this.settingsOpen) return; // so does SETTINGS
     if (this.quitOpen) return; // so does the QUIT RUN? confirm
     if (this.congratsOpen) {
       if (e.cancelable) e.preventDefault();
@@ -2306,7 +2400,7 @@ export class Game {
   }
 
   private togglePause(): void {
-    if (this.modesOpen) return;
+    if (this.modesOpen || this.settingsOpen) return;
     if (this.state === 'paused' && this.quitOpen) this.closeQuitConfirm();
     if (this.state === 'playing') {
       this.state = 'paused';
@@ -3054,6 +3148,10 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.settingsOpen) {
+        this.handleSettingsKeys();
+        return;
+      }
       if (this.modesOpen) {
         if (this.input.consume('escape')) this.escapeModes();
         this.input.clearJustPressed();
@@ -3088,6 +3186,10 @@ export class Game {
         this.input.clearJustPressed();
         return;
       }
+      if (this.settingsOpen) {
+        this.handleSettingsKeys();
+        return;
+      }
       if (this.modesOpen) {
         if (this.input.consume('escape')) this.escapeModes();
         this.input.clearJustPressed();
@@ -3104,6 +3206,10 @@ export class Game {
       return;
     }
 
+    if (this.settingsOpen) {
+      this.handleSettingsKeys();
+      return;
+    }
     if (this.quitOpen) {
       // QUIT RUN? confirm: Esc closes MODES back to it, else Esc / P keep playing.
       if (this.modesOpen) {

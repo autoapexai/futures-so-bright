@@ -4144,3 +4144,177 @@ body.fsb-homing #touch-hint {
   opacity: 0.12;
   transition: opacity 0.2s;
 }
+
+/* —— SETTINGS: gear + word button (title / game-over menu row, and the pause screen) and the
+   SETTINGS panel (joystick sensitivity). —— */
+.settings-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.settings-open-btn .gear-ico {
+  flex: 0 0 auto;
+  width: 1.4em;
+  height: 1.4em;
+}
+#menu-btns #settings-btn {
+  display: inline-flex;
+  border-color: rgba(0, 240, 255, 0.75);
+  color: #b8ffff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+#pause-settings-btn {
+  margin: 6px auto 0;
+  min-height: 38px;
+  padding: 6px 16px;
+  border: 2px solid rgba(0, 240, 255, 0.75);
+  border-radius: 12px;
+  background: rgba(10, 0, 25, 0.9);
+  color: #b8ffff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#pause-settings-btn:active,
+#settings-close:active {
+  transform: scale(0.96);
+}
+#settings-menu {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(8, 0, 20, 0.92);
+  pointer-events: auto;
+  touch-action: none;
+}
+#settings-menu.open {
+  display: flex;
+}
+body.settings-open .joy-zone,
+body.settings-open .touch-action,
+body.settings-open #touch-hint {
+  visibility: hidden;
+}
+#settings-menu .set-card {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: clamp(14px, 3vmin, 24px);
+  border: 2px solid rgba(0, 240, 255, 0.75);
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0, 220, 255, 0.16), rgba(20, 5, 35, 0.95) 70%);
+  box-shadow: 0 0 30px rgba(0, 220, 255, 0.3);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+}
+#settings-title {
+  margin: 0 0 0.7em;
+  font-size: clamp(18px, 3.8vmin, 26px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #b8ffff;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+}
+#settings-menu .set-row {
+  margin: 0 0 14px;
+}
+#joy-sens-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ff9de8;
+}
+#settings-menu .set-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+#joy-sens-range {
+  --fill: 13.3%;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: none;
+  cursor: pointer;
+}
+#joy-sens-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #00e5ff 0 var(--fill), rgba(255, 255, 255, 0.16) var(--fill) 100%);
+}
+#joy-sens-range::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16);
+}
+#joy-sens-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: #00e5ff;
+}
+#joy-sens-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+}
+#joy-sens-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #00e5ff;
+}
+#joy-sens-value {
+  margin: 2px 0 2px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffe66d;
+  text-shadow: 0 0 10px rgba(255, 210, 90, 0.6);
+}
+#joy-sens-hint {
+  margin: 0;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+#settings-close {
+  min-width: 140px;
+  min-height: 44px;
+  padding: 8px 20px;
+  border: 2px solid rgba(255, 80, 200, 0.75);
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.9);
+  color: #ff9de8;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  touch-action: none;
+}

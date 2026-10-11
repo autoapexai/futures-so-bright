@@ -508,6 +508,11 @@ const en = {
   un_two: "{a} + {b} UNLOCKED!",
   lb_story: "{m} · THIS DEVICE",
   locked_aria: "{m}, locked. {h}",
+  set_btn: "SETTINGS",
+  set_aria: "Settings",
+  set_joy: "JOYSTICK SENSITIVITY",
+  set_joy_hint: "Lower is gentler. 1.0x is the original feel.",
+  set_close: "CLOSE",
 };
 
 export type Key = keyof typeof en;
@@ -867,6 +872,11 @@ const es: Record<Key, string> = {
   un_two: "¡{a} + {b} DESBLOQUEADOS!",
   lb_story: "{m} · ESTE DISPOSITIVO",
   locked_aria: "{m}, bloqueado. {h}",
+  set_btn: "AJUSTES",
+  set_aria: "Ajustes",
+  set_joy: "SENSIBILIDAD DEL JOYSTICK",
+  set_joy_hint: "Más bajo es más suave. 1.0x es la sensación original.",
+  set_close: "CERRAR",
 };
 
 const vi: Record<Key, string> = {
@@ -1223,6 +1233,11 @@ const vi: Record<Key, string> = {
   un_two: "ĐÃ MỞ KHÓA {a} + {b}!",
   lb_story: "{m} · THIẾT BỊ NÀY",
   locked_aria: "{m}, đang khóa. {h}",
+  set_btn: "CÀI ĐẶT",
+  set_aria: "Cài đặt",
+  set_joy: "ĐỘ NHẠY CẦN ĐIỀU KHIỂN",
+  set_joy_hint: "Thấp hơn là nhẹ nhàng hơn. 1.0x là cảm giác ban đầu.",
+  set_close: "ĐÓNG",
 };
 
 const zh: Record<Key, string> = {
@@ -1579,6 +1594,11 @@ const zh: Record<Key, string> = {
   un_two: "{a} + {b} 已解锁！",
   lb_story: "{m} · 本设备",
   locked_aria: "{m}，已锁定。{h}",
+  set_btn: "设置",
+  set_aria: "设置",
+  set_joy: "摇杆灵敏度",
+  set_joy_hint: "越低越平缓。1.0x 是原来的手感。",
+  set_close: "关闭",
 };
 
 const fr: Record<Key, string> = {
@@ -1934,6 +1954,11 @@ const fr: Record<Key, string> = {
   un_two: "{a} + {b} DÉBLOQUÉS !",
   lb_story: "{m} · CET APPAREIL",
   locked_aria: "{m}, verrouillé. {h}",
+  set_btn: "RÉGLAGES",
+  set_aria: "Réglages",
+  set_joy: "SENSIBILITÉ DU JOYSTICK",
+  set_joy_hint: "Plus bas, c’est plus doux. 1.0x est la sensation d’origine.",
+  set_close: "FERMER",
 };
 
 const de: Record<Key, string> = {
@@ -2289,6 +2314,11 @@ const de: Record<Key, string> = {
   un_two: "{a} + {b} FREIGESCHALTET!",
   lb_story: "{m} · DIESES GERÄT",
   locked_aria: "{m}, gesperrt. {h}",
+  set_btn: "EINSTELLUNGEN",
+  set_aria: "Einstellungen",
+  set_joy: "JOYSTICK-EMPFINDLICHKEIT",
+  set_joy_hint: "Niedriger ist sanfter. 1.0x ist das ursprüngliche Gefühl.",
+  set_close: "SCHLIESSEN",
 };
 
 const pt: Record<Key, string> = {
@@ -2644,6 +2674,11 @@ const pt: Record<Key, string> = {
   un_two: "{a} + {b} DESBLOQUEADOS!",
   lb_story: "{m} · ESTE APARELHO",
   locked_aria: "{m}, bloqueado. {h}",
+  set_btn: "CONFIGURAÇÕES",
+  set_aria: "Configurações",
+  set_joy: "SENSIBILIDADE DO JOYSTICK",
+  set_joy_hint: "Mais baixo é mais suave. 1.0x é a sensação original.",
+  set_close: "FECHAR",
 };
 
 const it: Record<Key, string> = {
@@ -2999,6 +3034,11 @@ const it: Record<Key, string> = {
   un_two: "{a} + {b} SBLOCCATE!",
   lb_story: "{m} · QUESTO DISPOSITIVO",
   locked_aria: "{m}, bloccata. {h}",
+  set_btn: "IMPOSTAZIONI",
+  set_aria: "Impostazioni",
+  set_joy: "SENSIBILITÀ DEL JOYSTICK",
+  set_joy_hint: "Più basso è più delicato. 1.0x è la sensazione originale.",
+  set_close: "CHIUDI",
 };
 
 const nl: Record<Key, string> = {
@@ -3354,6 +3394,11 @@ const nl: Record<Key, string> = {
   un_two: "{a} + {b} ONTGRENDELD!",
   lb_story: "{m} · DIT APPARAAT",
   locked_aria: "{m}, vergrendeld. {h}",
+  set_btn: "INSTELLINGEN",
+  set_aria: "Instellingen",
+  set_joy: "JOYSTICKGEVOELIGHEID",
+  set_joy_hint: "Lager is rustiger. 1.0x is het originele gevoel.",
+  set_close: "SLUITEN",
 };
 
 const pl: Record<Key, string> = {
@@ -3709,6 +3754,11 @@ const pl: Record<Key, string> = {
   un_two: "ODBLOKOWANO {a} + {b}!",
   lb_story: "{m} · TO URZĄDZENIE",
   locked_aria: "{m}, zablokowany. {h}",
+  set_btn: "USTAWIENIA",
+  set_aria: "Ustawienia",
+  set_joy: "CZUŁOŚĆ JOYSTICKA",
+  set_joy_hint: "Niżej znaczy łagodniej. 1.0x to pierwotne odczucie.",
+  set_close: "ZAMKNIJ",
 };
 
 const tr: Record<Key, string> = {
@@ -4064,6 +4114,11 @@ const tr: Record<Key, string> = {
   un_two: "{a} + {b} AÇILDI!",
   lb_story: "{m} · BU CİHAZ",
   locked_aria: "{m}, kilitli. {h}",
+  set_btn: "AYARLAR",
+  set_aria: "Ayarlar",
+  set_joy: "JOYSTICK HASSASİYETİ",
+  set_joy_hint: "Düşük daha yumuşaktır. 1.0x orijinal histir.",
+  set_close: "KAPAT",
 };
 
 const id: Record<Key, string> = {
@@ -4419,6 +4474,11 @@ const id: Record<Key, string> = {
   un_two: "{a} + {b} TERBUKA!",
   lb_story: "{m} · PERANGKAT INI",
   locked_aria: "{m}, terkunci. {h}",
+  set_btn: "PENGATURAN",
+  set_aria: "Pengaturan",
+  set_joy: "SENSITIVITAS JOYSTICK",
+  set_joy_hint: "Lebih rendah lebih lembut. 1.0x adalah rasa aslinya.",
+  set_close: "TUTUP",
 };
 
 const fil: Record<Key, string> = {
@@ -4774,6 +4834,11 @@ const fil: Record<Key, string> = {
   un_two: "NA-UNLOCK ANG {a} + {b}!",
   lb_story: "{m} · DEVICE NA ITO",
   locked_aria: "{m}, naka-lock. {h}",
+  set_btn: "MGA SETTING",
+  set_aria: "Mga setting",
+  set_joy: "SENSITIBIDAD NG JOYSTICK",
+  set_joy_hint: "Mas mababa, mas banayad. 1.0x ang orihinal na pakiramdam.",
+  set_close: "ISARA",
 };
 
 const sv: Record<Key, string> = {
@@ -5129,6 +5194,11 @@ const sv: Record<Key, string> = {
   un_two: "{a} + {b} UPPLÅSTA!",
   lb_story: "{m} · DEN HÄR ENHETEN",
   locked_aria: "{m}, låst. {h}",
+  set_btn: "INSTÄLLNINGAR",
+  set_aria: "Inställningar",
+  set_joy: "JOYSTICKKÄNSLIGHET",
+  set_joy_hint: "Lägre är mjukare. 1.0x är den ursprungliga känslan.",
+  set_close: "STÄNG",
 };
 const ru: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5483,6 +5553,11 @@ const ru: Record<Key, string> = {
   un_two: "{a} + {b} ОТКРЫТЫ!",
   lb_story: "{m} · ЭТО УСТРОЙСТВО",
   locked_aria: "{m}, закрыто. {h}",
+  set_btn: "НАСТРОЙКИ",
+  set_aria: "Настройки",
+  set_joy: "ЧУВСТВИТЕЛЬНОСТЬ ДЖОЙСТИКА",
+  set_joy_hint: "Ниже — мягче. 1.0x — как было изначально.",
+  set_close: "ЗАКРЫТЬ",
 };
 const uk: Record<Key, string> = {
   hud_score: 'ОЧКИ  ',
@@ -5837,6 +5912,11 @@ const uk: Record<Key, string> = {
   un_two: "{a} + {b} ВІДКРИТО!",
   lb_story: "{m} · ЦЕЙ ПРИСТРІЙ",
   locked_aria: "{m}, закрито. {h}",
+  set_btn: "НАЛАШТУВАННЯ",
+  set_aria: "Налаштування",
+  set_joy: "ЧУТЛИВІСТЬ ДЖОЙСТИКА",
+  set_joy_hint: "Нижче — м’якше. 1.0x — як було спочатку.",
+  set_close: "ЗАКРИТИ",
 };
 const ja: Record<Key, string> = {
   hud_score: 'スコア  ',
@@ -6191,6 +6271,11 @@ const ja: Record<Key, string> = {
   un_two: "{a} + {b} 解放！",
   lb_story: "{m} · この端末",
   locked_aria: "{m}、ロック中。{h}",
+  set_btn: "せってい",
+  set_aria: "せってい",
+  set_joy: "スティックのかんど",
+  set_joy_hint: "ひくいほど やさしい。1.0x は もとの そうさかん。",
+  set_close: "とじる",
 };
 const ko: Record<Key, string> = {
   hud_score: '점수  ',
@@ -6545,6 +6630,11 @@ const ko: Record<Key, string> = {
   un_two: "{a} + {b} 잠금 해제!",
   lb_story: "{m} · 이 기기",
   locked_aria: "{m}, 잠김. {h}",
+  set_btn: "설정",
+  set_aria: "설정",
+  set_joy: "조이스틱 감도",
+  set_joy_hint: "낮을수록 부드러워요. 1.0x는 원래 느낌이에요.",
+  set_close: "닫기",
 };
 const hi: Record<Key, string> = {
   hud_score: 'स्कोर  ',
@@ -6899,6 +6989,11 @@ const hi: Record<Key, string> = {
   un_two: "{a} + {b} अनलॉक!",
   lb_story: "{m} · यह डिवाइस",
   locked_aria: "{m}, लॉक है। {h}",
+  set_btn: "सेटिंग्स",
+  set_aria: "सेटिंग्स",
+  set_joy: "जॉयस्टिक संवेदनशीलता",
+  set_joy_hint: "कम मतलब ज़्यादा कोमल। 1.0x मूल अनुभव है।",
+  set_close: "बंद करें",
 };
 const th: Record<Key, string> = {
   hud_score: 'คะแนน  ',
@@ -7253,6 +7348,11 @@ const th: Record<Key, string> = {
   un_two: "ปลดล็อก {a} + {b} แล้ว!",
   lb_story: "{m} · อุปกรณ์นี้",
   locked_aria: "{m} ล็อกอยู่ {h}",
+  set_btn: "การตั้งค่า",
+  set_aria: "การตั้งค่า",
+  set_joy: "ความไวจอยสติ๊ก",
+  set_joy_hint: "ยิ่งต่ำยิ่งนุ่มนวล 1.0x คือความรู้สึกแบบเดิม",
+  set_close: "ปิด",
 };
 export const STRINGS: Record<Lang, Record<Key, string>> = { en, es, vi, zh, fr, de, pt, it, nl, pl, tr, id, fil, sv, ru, uk, ja, ko, hi, th };
 

@@ -65,6 +65,7 @@
       <div id="menu-btns">
         <button type="button" id="howto-btn" class="hand-btn" aria-label="How to play" draggable="false" style="touch-action:none">HOW TO PLAY</button>
         <button type="button" id="modes-btn" class="hand-btn" aria-label="Modes" draggable="false" style="touch-action:none">MODES</button>
+        <button type="button" id="settings-btn" class="hand-btn settings-open-btn" aria-label="Settings" draggable="false" style="touch-action:none"><svg class="gear-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5a.5.5 0 0 0 .6.2l2.5-1a7.3 7.3 0 0 0 1.7 1l.4 2.6a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.4l.4-2.7a7.3 7.3 0 0 0 1.7-1l2.5 1a.5.5 0 0 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span class="set-word">SETTINGS</span></button>
       </div>
       <div id="donate" class="v4v-card" role="region" aria-labelledby="v4v-title" aria-hidden="true">
         <p class="v4v-title" id="v4v-title">VALUE FOR VALUE</p>
@@ -107,6 +108,7 @@
           <input type="range" id="speed-range" min="10" max="111" step="1" value="10" aria-label="Game speed" />
           <button type="button" id="speed-plus" class="diff-btn" aria-label="Faster (0.1)" title="Faster ( ] or = )" draggable="false" style="touch-action:none">+</button>
         </div>
+        <button type="button" id="pause-settings-btn" class="settings-open-btn" aria-label="Settings" draggable="false" style="touch-action:none"><svg class="gear-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5a.5.5 0 0 0 .6.2l2.5-1a7.3 7.3 0 0 0 1.7 1l.4 2.6a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.4l.4-2.7a7.3 7.3 0 0 0 1.7-1l2.5 1a.5.5 0 0 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span class="set-word">SETTINGS</span></button>
       </div>
       <div id="eleven-fx" aria-hidden="true">
         <div class="fx-backdrop"></div>
@@ -151,6 +153,23 @@
           <div class="cg-hint">Fan nods only · not affiliated with or endorsed by anyone named</div>
           <button type="button" id="modes-back" class="hand-btn" draggable="false">BACK</button>
           <div id="modes-ver" class="ver-label"></div>
+        </div>
+      </div>
+      <div id="settings-menu" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="settings-title">
+        <div class="set-card">
+          <p id="settings-title">SETTINGS</p>
+          <div class="set-row">
+            <label id="joy-sens-label" for="joy-sens-range">JOYSTICK SENSITIVITY</label>
+            <div class="set-slider">
+              <span class="set-end" aria-hidden="true">0.5x</span>
+              <input type="range" id="joy-sens-range" min="0.5" max="2" step="0.1" value="0.7" list="joy-sens-ticks" aria-describedby="joy-sens-hint" />
+              <span class="set-end" aria-hidden="true">2.0x</span>
+              <datalist id="joy-sens-ticks"><option value="0.7"></option><option value="1"></option></datalist>
+            </div>
+            <p id="joy-sens-value" aria-live="polite">0.7x</p>
+            <p id="joy-sens-hint">Lower is gentler. 1.0x is the original feel.</p>
+          </div>
+          <button type="button" id="settings-close" class="set-close" draggable="false" style="touch-action:none">CLOSE</button>
         </div>
       </div>
       <div id="dev-board" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="dev-title">
