@@ -116,6 +116,23 @@ const RESTART_LOCK_MS = 800;
 /** Length of THE DUCHESS OF PASADENA prize reveal, s. */
 const PRIZE_SECONDS = 5;
 const BANNER_SECONDS = 2.4;
+/** Boss / mini-boss beaten: a warm compliment for this long (play never stops for it). */
+const PRAISE_SECONDS = 0.9;
+/** HOLD-FIRE levels: normal dog mode levels 1..EASY_FIRE_MAX_LEVEL are beatable just by holding FIRE. */
+const EASY_FIRE_MAX_LEVEL = 5;
+/** HOLD-FIRE window of a normal dog-mode run started at the new-player difficulty (s of run time). */
+const EASY_FIRE_SECONDS = 90;
+/** The difficulty a new player starts at (storage.loadDifficulty's fallback). */
+const NEW_PLAYER_DIFFICULTY = 1;
+/** HOLD-FIRE levels: half-height of the lane a bark clears in front of the ship (px). */
+const EASY_FIRE_LANE = 70;
+/** HOLD-FIRE levels: treat charge each popped hazard spills (stars, confetti and treats). */
+const EASY_POP_TREAT = 0.08;
+const CONFETTI = ['#ff4fa3', '#ffe66d', '#7fffff', '#9dff6b', '#c99bff'];
+const PRAISE: Partial<Record<string, string[]>> = {
+  en: ['Good job! You earned that one.', 'Great flying, you beat the boss!', 'Way to go! That was awesome.', "Nice work, champ. The boss didn't stand a chance.", 'You did it! Be proud of that.'],
+  es: ['¡Buen trabajo! Te lo ganaste.', '¡Gran vuelo, venciste al jefe!', '¡Así se hace! Fue increíble.', 'Bien hecho, campeón. El jefe no tuvo oportunidad.', '¡Lo lograste! Siéntete orgulloso.'],
+};
 /** FIGHT THE BOSS start: seconds of level left before the boss / mini-boss arrives. */
 const FIGHT_LEAD_S = 1.5;
 /**
@@ -281,6 +298,12 @@ export class Game {
   private tutLastY = 0;
   private bannerText = '';
   private bannerT = 0;
+  /** Length of the current banner (BANNER_SECONDS, or PRAISE_SECONDS for a boss compliment). */
+  private bannerDur = BANNER_SECONDS;
+  private praisePick = 0;
+  /** This run was started from LEVEL SELECT (HOLD-FIRE tuning on its levels 1-5). */
+  private runPicked = false;
+  private nextRunPicked = false;
   /** Promotion interstitial between stages: play is frozen (not timed, not scored) while > 0. */
   private promoT = 0;
   private promoTitle = '';
@@ -1649,7 +1672,7 @@ export class Game {
       this.closeQuitConfirm();
       this.switchMode(m, true);
       this.bannerText = tr('banner_mode', { m: m.name });
-      this.bannerT = BANNER_SECONDS;
+      this.bannerT = this.bannerDur = BANNER_SECONDS;
       if (this.state === 'paused') this.togglePause();
       this.input.clearTouch();
       this.input.clearJustPressed();
@@ -2575,6 +2598,8 @@ export class Game {
       this.wagon.reset();
     }
     this.runLocalOnly = localOnly;
+    this.runPicked = this.nextRunPicked;
+    this.nextRunPicked = false;
     this.runSpeedMax = this.speedTenths;
     this.applySpeedBoardRule();
     this.audio.playStart();
@@ -2651,7 +2676,7 @@ export class Game {
       this.ships = mode.ships;
       this.setupSwarm(mode.scale);
       this.bannerText = mode.name;
-      this.bannerT = BANNER_SECONDS;
+      this.bannerT = this.bannerDur = BANNER_SECONDS;
     } else {
       this.formation = this.cloneFormation;
       this.formation.clear();
@@ -2662,7 +2687,7 @@ export class Game {
         const m = this.randomMode();
         this.switchMode(m, false);
         this.bannerText = tr('banner_level', { n: at, m: m.name });
-        this.bannerT = BANNER_SECONDS;
+        this.bannerT = this.bannerDur = BANNER_SECONDS;
       }
     }
     // FIGHT THE BOSS: the level clock starts just short of its end, so the usual entry brings the
@@ -3149,6 +3174,7 @@ export class Game {
       this.difficulty = at;
       saveDifficulty(at);
       this.syncDifficultyUi();
+      this.nextRunPicked = true;
       this.startRun(at, null, false, null, at, fight);
       return;
     }
@@ -3596,7 +3622,7 @@ export class Game {
     if (this.score > SCORE_CAP) this.score = SCORE_CAP;
 
     // shade drain
-    const drain = ((boosting ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
+    const drain = ((boosting && !this.easyFire() ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
     this.charge = clamp(this.charge - drain * dt, 0, 1);
     if (this.charge <= 0 && this.ships > 1) {
       // Out of treat charge with clones / pack pets left: one floats home to Earth, the rest carry on.
@@ -3951,12 +3977,12 @@ export class Game {
       if (this.missionRun) {
         // ON A MISSION stays the car all the way to 111 (no random mode swap).
         this.bannerText = tr('banner_level', { n: next, m: MISSION_MODE.name });
-        this.bannerT = BANNER_SECONDS;
+        this.bannerT = this.bannerDur = BANNER_SECONDS;
         return;
       }
       if (this.ghostRun) {
         this.bannerText = tr('banner_level', { n: next, m: GHOST_MODE.name });
-        this.bannerT = BANNER_SECONDS;
+        this.bannerT = this.bannerDur = BANNER_SECONDS;
         return;
       }
       // Every level change switches to a random mode (never the one just played; the Calvin
@@ -3964,7 +3990,7 @@ export class Game {
       const m = this.randomMode();
       this.switchMode(m, false);
       this.bannerText = tr('banner_level', { n: next, m: m.name });
-      this.bannerT = BANNER_SECONDS;
+      this.bannerT = this.bannerDur = BANNER_SECONDS;
     });
     return false;
   }
@@ -4312,7 +4338,7 @@ export class Game {
     if (!def.mini) this.bossesFought.push(def);
     this.world.spawnObstacles = false;
     this.bannerText = def.mini ? miniBanner(def) : def.name;
-    this.bannerT = BANNER_SECONDS;
+    this.bannerT = this.bannerDur = BANNER_SECONDS;
     this.audio.playPromote();
     if (def.mini) this.spawnFloater(this.player.x + 40, this.player.y - 40, miniGateText(def.level), '#ffe66d');
     console.info(`[fsb] boss L${def.level} ${def.modeId} seed ${this.boss.seed}`);
@@ -4406,8 +4432,8 @@ export class Game {
             this.renderer.bumpFlash(0.3);
             this.particles.burst(bf.main.x, bf.main.y, '#ffe66d', this.touchPrimary ? 12 : 30, 260);
             this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, `+${fmtNum(pts)}`, '#ffe66d');
-            this.bannerText = miniBeatenText(pts);
-            this.bannerT = BANNER_SECONDS;
+            void miniBeatenText;
+            this.praise(bf.main.x, bf.main.y);
             break;
           }
           // Flat bonus (no level multiplier) times the GAME SPEED, still capped.
@@ -4423,12 +4449,11 @@ export class Game {
             this.speedTenths === SPEED_DEFAULT ? tr('fl_million') : `+${fmtNum(scalePoints(BOSS_BONUS, this.speedTenths))}`,
             '#ffe66d',
           );
-          this.bannerText = tr('banner_beaten', { b: bf.def.name });
-          this.bannerT = BANNER_SECONDS;
+          this.praise(bf.main.x, bf.main.y);
           break;
         case 'bored':
           this.bannerText = tr('banner_bored', { b: bf.def.name });
-          this.bannerT = BANNER_SECONDS;
+          this.bannerT = this.bannerDur = BANNER_SECONDS;
           break;
         case 'gone':
           this.boss = null;
@@ -4910,6 +4935,8 @@ export class Game {
       this.barks.push({ x: p.x + 30, y: p.y, alive: true });
     }
     if (!this.barks.length) return;
+    // HOLD-FIRE levels: a bark clears the ship's whole lane, not just its centre line.
+    const lane = this.easyFire() ? EASY_FIRE_LANE : 0;
     const back = this.scrollSpeed * dt; // hazards moved left by this much this step
     for (const k of this.barks) {
       if (!k.alive) continue;
@@ -4926,11 +4953,11 @@ export class Game {
           const cx = o.x + o.w / 2;
           left = cx - r;
           right = cx + r;
-          hitY = Math.abs(k.y - (o.y + o.h / 2)) <= r;
+          hitY = Math.abs(k.y - (o.y + o.h / 2)) <= r + lane;
         } else {
           left = o.x;
           right = o.x + o.w;
-          hitY = k.y >= o.y && k.y <= o.y + o.h;
+          hitY = k.y >= o.y - lane && k.y <= o.y + o.h + lane;
         }
         if (!hitY || k.x < left || x0 > right + back) continue;
         k.alive = false;
@@ -4943,9 +4970,30 @@ export class Game {
     this.barks.length = w;
   }
 
+  /** Boss / mini-boss beaten: a rotating compliment (never a taunt) with a confetti burst, 0.9 s. */
+  private praise(x: number, y: number): void {
+    const lines = PRAISE[lang()] ?? PRAISE.en!;
+    this.praisePick = (this.praisePick + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length;
+    this.bannerText = lines[this.praisePick];
+    this.bannerT = this.bannerDur = PRAISE_SECONDS;
+    for (const c of CONFETTI) this.particles.burst(x, y, c, this.touchPrimary ? 5 : 12, 300);
+  }
+
+  /**
+   * HOLD-FIRE tuning applies only to normal dog mode (no fan mode / story / vehicle, after How to
+   * Play): the first 90 s of a run started at the new-player difficulty, or levels 1-5 of a run
+   * picked from LEVEL SELECT. Everything after plays exactly as before.
+   */
+  private easyFire(): boolean {
+    if (this.campaign !== 'dog' || this.mode || this.missionRun || this.ghostRun || this.tutStep >= 0) return false;
+    if (this.runPicked) return this.runDifficulty >= 1 && this.runDifficulty <= EASY_FIRE_MAX_LEVEL;
+    return this.runStartLevel === NEW_PLAYER_DIFFICULTY && this.runTime < EASY_FIRE_SECONDS;
+  }
+
   private hazardHit(o: Obstacle, x: number, y: number, pts: number): void {
     const col = o.kind === 'neon' ? '#7fffff' : o.kind === 'flare' ? '#ffb347' : '#ffe66d';
-    o.hp -= 1;
+    const easy = this.easyFire();
+    o.hp -= easy ? o.hp : 1;
     o.hitT = HAZARD_HIT_FLASH;
     // Same hit burst as a bark on a boss board.
     this.particles.burst(x, y, col, this.touchPrimary ? 3 : 6, 140);
@@ -4969,6 +5017,11 @@ export class Game {
     this.spawnFloater(cx, cy - 10, Math.random() < 0.5 ? 'POOF!' : 'POP!', '#ffffff');
     if (bonus > 0) this.spawnFloater(cx, cy + 14, `+${fmtNum(Math.round(bonus))}`, '#ffe66d');
     this.audio.playComic('boing');
+    if (easy) {
+      // HOLD-FIRE levels: a big cartoon burst of stars, confetti and treats (the treats top up charge).
+      for (const c of CONFETTI) this.particles.burst(cx, cy, c, this.touchPrimary ? 4 : 9, 280);
+      this.charge = Math.min(1, this.charge + EASY_POP_TREAT);
+    }
     this.hazardsPopped++;
   }
 
@@ -5091,8 +5144,8 @@ export class Game {
         this.renderer.drawTutorial(ctx, this.tutStep + 1, TUT_STEPS, tt.title, tt.lines);
       }
       if (this.bannerT > 0 && this.boss && this.bossBannerY > 0) {
-        this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS, this.bossBannerY, this.boss.headerX, this.boss.headerW);
-      } else if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, BANNER_SECONDS);
+        this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, this.bannerDur, this.bossBannerY, this.boss.headerX, this.boss.headerW);
+      } else if (this.bannerT > 0) this.renderer.drawLevelBanner(ctx, this.bannerText, this.bannerT, this.bannerDur);
       if (this.continueT > 0) {
         this.renderer.drawPromotion(ctx, tr('cont_title'), tr(this.touchPrimary ? 'cont_touch' : 'cont_keys', { n: Math.ceil(this.continueT) }), this.continueT, CONTINUE_SECONDS, this.score);
       }
