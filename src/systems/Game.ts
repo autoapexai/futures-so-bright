@@ -69,6 +69,8 @@ import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, mi
 import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mountLangPicker, type LangPicker } from './langPicker';
+import { PRODUCERS, CREATED_BY } from '../data/producers';
+import { V4V_PANEL } from '../data/valueForValue';
 import { JOY_SENS_MAX, JOY_SENS_MIN, JOY_SENS_STEP, clampJoySens, fmtJoySens, saveJoySens } from '../utils/joySens';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
 import {
@@ -384,6 +386,8 @@ export class Game {
   private pendingReached = 1;
   /** HIGH SCORES panel (this device's board); title / game-over only. */
   private hsOpen = false;
+  /** VALUE FOR VALUE / PRODUCERS panels (over SETTINGS). */
+  private subPanel: 'v4v' | 'producers' | null = null;
   /** LEVEL SELECT FIGHT THE BOSS: this run began at its start level's boss / mini-boss. */
   private runFight = false;
   private pendingFight = false;
@@ -659,6 +663,17 @@ export class Game {
       this.openHighScores();
     });
     bindTap(document.getElementById('hs-close'), () => this.closeHighScores());
+    bindTap(document.getElementById('v4v-open'), () => this.openSubPanel('v4v'));
+    bindTap(document.getElementById('producers-open'), () => this.openSubPanel('producers'));
+    bindTap(document.getElementById('v4vp-producers'), () => this.openSubPanel('producers'));
+    bindTap(document.getElementById('prod-to-v4v'), () => this.openSubPanel('v4v'));
+    bindTap(document.getElementById('v4vp-back'), () => this.closeSubPanel());
+    bindTap(document.getElementById('prod-back'), () => this.closeSubPanel());
+    // TIME / TALENT / TREASURE reuse the VALUE FOR VALUE card's buttons (grown-up check included).
+    for (const [mine, theirs] of [['v4vp-time', 'v4v-time'], ['v4vp-talent', 'v4v-talent'], ['v4vp-treasure', 'donate-btn']] as const) {
+      bindTap(document.getElementById(mine), () => document.getElementById(theirs)?.click());
+    }
+    this.renderSubPanels();
     const sensRange = document.getElementById('joy-sens-range') as HTMLInputElement | null;
     if (sensRange) {
       sensRange.min = String(JOY_SENS_MIN);
@@ -1229,6 +1244,7 @@ export class Game {
 
   private closeSettings(): void {
     if (!this.settingsOpen) return;
+    if (this.subPanel) this.closeSubPanel();
     this.settingsOpen = false;
     const el = document.getElementById('settings-menu');
     el?.classList.remove('open');
@@ -1272,8 +1288,73 @@ export class Game {
     });
   }
 
+  private openSubPanel(which: 'v4v' | 'producers'): void {
+    if (!this.settingsOpen) return;
+    if (this.subPanel) document.getElementById(this.subPanel === 'v4v' ? 'v4v-panel' : 'producers-panel')?.classList.remove('open');
+    this.subPanel = which;
+    this.renderSubPanels();
+    const el = document.getElementById(which === 'v4v' ? 'v4v-panel' : 'producers-panel');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    const card = el?.querySelector<HTMLElement>('.set-card');
+    if (card) card.scrollTop = 0;
+    this.audio.playUi();
+  }
+
+  private closeSubPanel(): void {
+    if (!this.subPanel) return;
+    const el = document.getElementById(this.subPanel === 'v4v' ? 'v4v-panel' : 'producers-panel');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    this.subPanel = null;
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  /** VALUE FOR VALUE + PRODUCERS copy (English for every language for now; see data/valueForValue.ts). */
+  private renderSubPanels(): void {
+    const setText = (id: string, v: string): void => {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== v) el.textContent = v;
+    };
+    setText('v4vp-title', V4V_PANEL.title);
+    setText('v4vp-lead', V4V_PANEL.lead);
+    setText('v4vp-last', V4V_PANEL.last);
+    setText('v4vp-producers', V4V_PANEL.producersLink);
+    setText('v4vp-back', tr('dom_modes_back'));
+    setText('v4vp-time', tr('dom_v4v_time'));
+    setText('v4vp-talent', tr('dom_v4v_talent'));
+    setText('v4vp-treasure', tr('dom_donate_btn'));
+    const rows = document.getElementById('v4vp-rows');
+    if (rows && !rows.childElementCount) {
+      for (const [k, v] of V4V_PANEL.rows) {
+        const li = document.createElement('li');
+        const b = document.createElement('b');
+        b.textContent = `${k}:`;
+        li.append(b, ` ${v}`);
+        rows.append(li);
+      }
+    }
+    setText('prod-title', V4V_PANEL.producersTitle);
+    setText('prod-created', CREATED_BY);
+    setText('prod-card', V4V_PANEL.creditCard);
+    setText('prod-to-v4v', V4V_PANEL.backToV4v);
+    setText('prod-back', tr('dom_modes_back'));
+    setText('v4v-open', V4V_PANEL.settingsV4v);
+    setText('producers-open', V4V_PANEL.settingsProducers);
+    const list = document.getElementById('prod-list');
+    if (list && list.childElementCount !== PRODUCERS.length) {
+      list.replaceChildren(...PRODUCERS.map((n) => Object.assign(document.createElement('li'), { textContent: n })));
+    }
+  }
+
   /** Keys while SETTINGS is up: Esc closes; ← / → or [ / ] nudge the sensitivity 0.1. */
   private handleSettingsKeys(): void {
+    if (this.subPanel) {
+      if (this.input.consume('escape')) this.closeSubPanel();
+      this.input.clearJustPressed();
+      return;
+    }
     if (this.input.consume('escape')) this.closeSettings();
     else if (this.input.consume('arrowleft') || this.input.consume('[') || this.input.consume('-')) this.setJoySens(this.input.joystickSensitivity - JOY_SENS_STEP);
     else if (this.input.consume('arrowright') || this.input.consume(']') || this.input.consume('=') || this.input.consume('+')) this.setJoySens(this.input.joystickSensitivity + JOY_SENS_STEP);

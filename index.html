@@ -170,6 +170,10 @@
             <p id="joy-sens-value" aria-live="polite">0.5x</p>
             <p id="joy-sens-hint">Lower is gentler. 1.0x is the original feel.</p>
           </div>
+          <div class="set-links">
+            <button type="button" id="v4v-open" class="set-link" draggable="false" style="touch-action:none">VALUE FOR VALUE</button>
+            <button type="button" id="producers-open" class="set-link" draggable="false" style="touch-action:none">PRODUCERS</button>
+          </div>
           <button type="button" id="settings-close" class="set-close" draggable="false" style="touch-action:none">CLOSE</button>
         </div>
       </div>
@@ -179,6 +183,31 @@
           <p id="hs-sub">TOP 11 ON THIS DEVICE</p>
           <table id="hs-rows"></table>
           <button type="button" id="hs-close" class="set-close" draggable="false" style="touch-action:none">CLOSE</button>
+        </div>
+      </div>
+      <div id="v4v-panel" class="set-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="v4vp-title">
+        <div class="set-card">
+          <p id="v4vp-title" class="panel-title">Value for Value</p>
+          <p id="v4vp-lead" class="panel-lead"></p>
+          <ul id="v4vp-rows" class="panel-rows"></ul>
+          <p id="v4vp-last" class="panel-note"></p>
+          <div class="v4vp-choices">
+            <button type="button" id="v4vp-time" class="set-link" draggable="false" style="touch-action:none">TIME</button>
+            <button type="button" id="v4vp-talent" class="set-link" draggable="false" style="touch-action:none">TALENT</button>
+            <button type="button" id="v4vp-treasure" class="set-link" draggable="false" style="touch-action:none">TREASURE</button>
+          </div>
+          <button type="button" id="v4vp-producers" class="panel-textlink" draggable="false" style="touch-action:none">Producers</button>
+          <button type="button" id="v4vp-back" class="set-close" draggable="false" style="touch-action:none">BACK</button>
+        </div>
+      </div>
+      <div id="producers-panel" class="set-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="prod-title">
+        <div class="set-card">
+          <p id="prod-title" class="panel-title">PRODUCERS</p>
+          <p id="prod-created" class="panel-lead"></p>
+          <ul id="prod-list" class="panel-rows"></ul>
+          <div id="prod-card" class="prod-card"></div>
+          <button type="button" id="prod-to-v4v" class="set-link prod-wide" draggable="false" style="touch-action:none">Back to Value for Value</button>
+          <button type="button" id="prod-back" class="set-close" draggable="false" style="touch-action:none">BACK</button>
         </div>
       </div>
       <div id="dev-board" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="dev-title">
@@ -242,7 +271,7 @@
           <p id="gu-msg" class="gu-msg">TREASURE is a real-money donation on Venmo, which is for grown-ups 18+. Kids, please get a parent.</p>
           <p id="gu-v4v" class="gu-v4v">If the game brings some sunshine to your house, you can give back whatever it&#39;s worth to you. We call that value for value.</p>
           <form id="gu-form" novalidate autocomplete="off">
-            <label for="gu-answer" id="gu-q" class="gu-q">Grown-ups: what is 0 × 0?</label>
+            <label for="gu-answer" id="gu-q" class="gu-q">Grown-ups: what is 47 × 6?</label>
             <input id="gu-answer" name="answer" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" enterkeyhint="done" aria-describedby="gu-err">
             <p id="gu-err" class="gu-err" role="alert" aria-live="assertive"></p>
             <div class="gu-actions"><button type="button" class="gu-cancel" draggable="false">CANCEL</button><button type="submit" id="gu-check" class="gu-check" draggable="false">CHECK</button></div>
