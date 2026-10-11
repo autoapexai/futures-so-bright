@@ -1292,6 +1292,7 @@ export class Game {
     if (!this.settingsOpen) return;
     if (this.subPanel) document.getElementById(this.subPanel === 'v4v' ? 'v4v-panel' : 'producers-panel')?.classList.remove('open');
     this.subPanel = which;
+    document.body.classList.add('subpanel-open');
     this.renderSubPanels();
     const el = document.getElementById(which === 'v4v' ? 'v4v-panel' : 'producers-panel');
     el?.classList.add('open');
@@ -1307,6 +1308,7 @@ export class Game {
     el?.classList.remove('open');
     el?.setAttribute('aria-hidden', 'true');
     this.subPanel = null;
+    document.body.classList.remove('subpanel-open');
     this.input.clearJustPressed();
     this.audio.playUi();
   }

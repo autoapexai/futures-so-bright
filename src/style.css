@@ -4527,3 +4527,19 @@ body.settings-open #touch-hint {
     letter-spacing: 0.04em;
   }
 }
+
+/* SETTINGS / HIGH SCORES / VALUE FOR VALUE / PRODUCERS cards are solid (like the grown-up card),
+   and a panel opened from SETTINGS hides SETTINGS underneath, so nothing shows through. */
+#settings-menu .set-card,
+#hs-menu .set-card,
+#v4v-panel .set-card,
+#producers-panel .set-card {
+  background: radial-gradient(ellipse at 50% 0%, rgba(0, 220, 255, 0.16), rgba(20, 5, 35, 0) 70%), #14052a;
+}
+#v4v-panel,
+#producers-panel {
+  background: rgba(8, 0, 20, 0.97);
+}
+body.subpanel-open #settings-menu .set-card {
+  visibility: hidden;
+}
