@@ -3,6 +3,7 @@ import { applyHandPreference, saveCatSuit, saveAnimalsUnlocked, saveCatTried } f
 import { trackPageView } from './utils/track';
 import { applyDomStrings, installCanvasFonts, loadLangFonts } from './i18n';
 import { inScrollable } from './utils/scrollable';
+import { testerCount } from './utils/testerCount';
 
 // Language: canvas font fallbacks (Vietnamese / Chinese only), static page text, web fonts.
 installCanvasFonts();
@@ -116,3 +117,5 @@ if (import.meta.env.DEV || __FSB_TEST__) {
 const game = new Game(canvas, { touchPrimary });
 trackPageView();
 game.start();
+// Tester copy only: one '/tester-game' GoatCounter hit per page load (never the hidden URL).
+if (import.meta.env.VITE_TESTER_GC === '1') testerCount();
