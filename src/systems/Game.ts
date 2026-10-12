@@ -69,7 +69,7 @@ import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, mi
 import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
 import { mountLangPicker, type LangPicker } from './langPicker';
-import { PRODUCERS, CREATED_BY } from '../data/producers';
+import { PRODUCERS, CREATED_BY, producersNewestFirst } from '../data/producers';
 import { V4V_PANEL } from '../data/valueForValue';
 import { JOY_SENS_MAX, JOY_SENS_MIN, JOY_SENS_STEP, clampJoySens, fmtJoySens, saveJoySens } from '../utils/joySens';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
@@ -1346,8 +1346,10 @@ export class Game {
     setText('producers-open', V4V_PANEL.settingsProducers);
     const list = document.getElementById('prod-list');
     if (list && list.childElementCount !== PRODUCERS.length) {
-      list.replaceChildren(...PRODUCERS.map((n) => Object.assign(document.createElement('li'), { textContent: n })));
+      list.replaceChildren(...producersNewestFirst().map((n) => Object.assign(document.createElement('li'), { textContent: n })));
     }
+    const head = document.getElementById('prod-list-head');
+    if (head) head.hidden = PRODUCERS.length === 0;
   }
 
   /** Keys while SETTINGS is up: Esc closes; ← / → or [ / ] nudge the sensitivity 0.1. */

@@ -4495,6 +4495,27 @@ body.settings-open #touch-hint {
   text-decoration: underline;
   cursor: pointer;
 }
+.prod-list-head {
+  margin: 4px 0 6px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ffe66d;
+}
+.prod-list-head[hidden] {
+  display: none;
+}
+.prod-list {
+  max-height: 34vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
 .prod-card {
   margin: 0 0 14px;
   padding: 16px 12px;
