@@ -39,7 +39,7 @@ export async function sendSuggestion(message: string, name: string, email: strin
   const m = message.trim();
   if (!m || m.length > SUGGEST_MAX) throw new Error(t('v4v_e_len'));
   if (email && !validEmail(email.trim())) throw new Error(t('v4v_e_email'));
-  if (!remoteEnabled) throw new Error(t('v4v_e_offline'));
+  if (!remoteEnabled) throw new Error('Sending is off in the tester copy.');
   await rpc('fsb_suggest', { p_message: m, p_name: name.trim() || null, p_email: email.trim() || null, p_client: await clientHash(), p_hp: honeypot || null }, 8000);
 }
 
@@ -62,7 +62,7 @@ export async function sendResume(name: string, email: string, note: string, file
   if (note.length > 500) throw new Error(t('v4v_e_note'));
   const ok = checkResume(file);
   if (typeof ok === 'string') throw new Error(ok);
-  if (!remoteEnabled) throw new Error(t('v4v_e_offline'));
+  if (!remoteEnabled) throw new Error('Sending is off in the tester copy.');
   const path = (await rpc(
     'fsb_resume_start',
     { p_name: n, p_email: e, p_note: note.trim() || null, p_file_name: file.name.slice(0, 120), p_mime: ok.mime, p_size: file.size, p_client: await clientHash(), p_hp: honeypot || null },

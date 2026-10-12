@@ -120,6 +120,8 @@ const RESTART_LOCK_MS = 800;
 /** Length of THE DUCHESS OF PASADENA prize reveal, s. */
 const PRIZE_SECONDS = 5;
 const BANNER_SECONDS = 2.4;
+/** Shown on the TIME / TALENT forms when the build has no backend (the tester copy). */
+const V4V_OFF_NOTE = 'Sending is off in the tester copy.';
 /** Boss / mini-boss beaten: a warm compliment for this long (play never stops for it). */
 const PRAISE_SECONDS = 0.9;
 /** HOLD-FIRE levels: normal dog mode levels 1..EASY_FIRE_MAX_LEVEL are beatable just by holding FIRE. */
@@ -388,6 +390,9 @@ export class Game {
   private pendingReached = 1;
   /** HIGH SCORES panel (this device's board); title / game-over only. */
   private hsOpen = false;
+  /** Tap actions by element id (Settings / MODES reach moved controls through these). */
+  private taps = new Map<string, () => void>();
+  private bindTapFn: (el: HTMLElement | null, fn: () => void) => void = () => {};
   /** DAILY CHALLENGE: intro panel open; the twist queued for the next run; this run's twist. */
   private dailyOpen = false;
   private nextDaily: TwistId | null = null;
@@ -559,6 +564,7 @@ export class Game {
     const app = document.getElementById('app') ?? canvas;
     app.addEventListener('pointerdown', this.onPointer, { passive: false });
     this.bindChrome();
+    this.setupDeclutter();
     this.desert = new DesertSearch(
       () => this.audio.isMuted,
       () => (this.state === 'title' || this.state === 'gameover') && !this.modesOpen && !this.congratsOpen && !this.cloneOpen,
@@ -577,6 +583,7 @@ export class Game {
     const lastPointerTap = { el: null as HTMLElement | null, t: 0 };
     const bindTap = (el: HTMLElement | null, fn: () => void): void => {
       if (!el) return;
+      if (el.id) this.taps.set(el.id, fn);
       let armed = false;
       let fromPointer = false;
       el.addEventListener('pointerdown', (e) => {
@@ -609,6 +616,7 @@ export class Game {
       });
     };
 
+    this.bindTapFn = bindTap;
     const muteBtn = document.getElementById('mute-btn');
     if (muteBtn) muteBtn.style.touchAction = 'none';
     bindTap(muteBtn, () => {
@@ -729,7 +737,9 @@ export class Game {
       const msg = document.getElementById('v4v-msg');
       const note = document.getElementById('donate-note');
       const syncDonate = (): void => {
-        if (msg) msg.textContent = lang() === 'en' ? V4V_MESSAGE : tr('v4v_message');
+        // Mr. Dan's agreed copy (English for every language for now, like the VALUE FOR VALUE panel).
+        if (msg) msg.textContent = `${V4V_PANEL.lead}\n${V4V_PANEL.last}`;
+        void V4V_MESSAGE;
         if (note) note.textContent = tr('donate_note', { h: VENMO_HANDLE });
       };
       syncDonate();
@@ -1285,7 +1295,91 @@ export class Game {
   }
 
   /** SETTINGS labels (current language) and the slider / readout for the saved sensitivity. */
+  /**
+   * Simple home (Mr. Dan, iteration 97): the home and game-over screens keep only the essentials.
+   * Nothing is deleted: the gold clone button, TRY DEV MODE + DEV BOARD and TRY GHOST DUSTERS +
+   * GHOST BOARD move into MODES; HOW TO PLAY, LEFT HAND, sound, DIFFICULTY and LEVELS are reached
+   * from SETTINGS (buttons that run the very same actions); Privacy / Terms sit at Settings' foot.
+   */
+  private setupDeclutter(): void {
+    const bind = this.bindTapFn;
+    const run = (id: string): void => this.taps.get(id)?.();
+    // MODES: a 'more ways to play' block at the top of the card.
+    const more = document.getElementById('modes-more');
+    if (more) {
+      for (const id of ['clone-btn', 'devmode', 'ghostmode']) {
+        const el = document.getElementById(id);
+        if (el) more.appendChild(el);
+      }
+      // These start a run, which MODES blocks while it is open: close MODES first (capture phase,
+      // before the buttons' own handlers). The two board links open over MODES, so they keep it.
+      const starts = ['clone-btn', 'devmode-big', 'ghostmode-big'];
+      const closeFirst = (e: Event): void => {
+        const t = e.target as HTMLElement | null;
+        if (t && starts.some((id) => document.getElementById(id)?.contains(t)) && this.modesOpen) this.closeModes();
+      };
+      more.addEventListener('pointerup', closeFirst, true);
+      more.addEventListener('click', closeFirst, true);
+    }
+    // SETTINGS: CONTROLS / GAME sections.
+    const afterClose = (id: string) => (): void => {
+      this.closeSettings();
+      run(id);
+    };
+    bind(document.getElementById('set-howto'), afterClose('howto-btn'));
+    bind(document.getElementById('set-levels'), afterClose('lvl-open'));
+    bind(document.getElementById('set-hand'), () => {
+      run('hand-btn');
+      this.syncDeclutterUi();
+    });
+    bind(document.getElementById('set-sound'), () => {
+      run('mute-btn');
+      this.syncDeclutterUi();
+    });
+    bind(document.getElementById('set-diff-minus'), () => {
+      run('diff-minus');
+      this.syncDeclutterUi();
+    });
+    bind(document.getElementById('set-diff-plus'), () => {
+      run('diff-plus');
+      this.syncDeclutterUi();
+    });
+    // Home: PAY WITH TREASURE · Venmo = the game-over TREASURE button (grown-up check first).
+    bind(document.getElementById('home-treasure'), () => {
+      void this.audio.unlock();
+      document.getElementById('donate-btn')?.click();
+    });
+    // TIME / TALENT = the game-over card's buttons (grown-up check, then the suggestion / resume form).
+    bind(document.getElementById('home-time'), () => document.getElementById('v4v-time')?.click());
+    bind(document.getElementById('home-talent'), () => document.getElementById('v4v-talent')?.click());
+    onLang(() => this.syncDeclutterUi());
+    this.syncDeclutterUi();
+  }
+
+  /** Mirror the moved controls' labels into SETTINGS. */
+  private syncDeclutterUi(): void {
+    const set = (id: string, v: string | null | undefined): void => {
+      const el = document.getElementById(id);
+      if (el && v != null && el.textContent !== v) el.textContent = v;
+    };
+    set('set-hand', document.getElementById('hand-btn')?.textContent?.trim());
+    set('set-howto', document.getElementById('howto-btn')?.textContent?.trim());
+    set('set-levels', document.getElementById('lvl-open')?.textContent?.trim());
+    const muted = (document.getElementById('mute-btn')?.textContent ?? '').includes('🔇');
+    set('set-sound', muted ? 'SOUND: OFF  🔇' : 'SOUND: ON  🔊');
+    const main = document.getElementById('diff-main')?.textContent ?? '';
+    const mult = document.getElementById('diff-mult')?.textContent ?? '';
+    set('set-diff-label', `${main} · ${mult}`);
+    const minus = document.getElementById('diff-minus') as HTMLButtonElement | null;
+    const plus = document.getElementById('diff-plus') as HTMLButtonElement | null;
+    const sm = document.getElementById('set-diff-minus') as HTMLButtonElement | null;
+    const sp = document.getElementById('set-diff-plus') as HTMLButtonElement | null;
+    if (sm && minus) sm.disabled = minus.disabled;
+    if (sp && plus) sp.disabled = plus.disabled;
+  }
+
   private syncSettingsUi(): void {
+    this.syncDeclutterUi?.();
     const s = this.input.joystickSensitivity;
     const range = document.getElementById('joy-sens-range') as HTMLInputElement | null;
     if (range) {
@@ -4311,6 +4405,8 @@ export class Game {
       modal.dataset.view = view;
       if (title) title.textContent = view === 'time' ? tr('v4v_time') : tr('v4v_talent');
       errs().forEach((e) => (e.textContent = ''));
+      // Tester copy (no Supabase): say so up front instead of failing on SEND.
+      if (!remoteEnabled) errs().forEach((e) => (e.textContent = V4V_OFF_NOTE));
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
       this.input.clearTouch();
@@ -4362,10 +4458,16 @@ export class Game {
         e.stopPropagation();
         void this.audio.unlock();
         this.audio.stopSadTrombone();
+        // Both forms can collect personal info, so a grown-up check comes first (iteration 97).
         if (view === 'talent') this.askGrownUp('talent', () => open('talent'));
         else {
-          lockPersonal();
-          open('time');
+          this.askGrownUp('time', () => {
+            open('time');
+            // Already checked: the optional name / email open right away (no second check).
+            timeUnlocked = true;
+            if (personal) personal.hidden = false;
+            if (grownBtn) grownBtn.hidden = true;
+          });
         }
       });
     }
@@ -5284,13 +5386,16 @@ export class Game {
   private layoutTitleExtras(): void {
     const btn = document.getElementById('daily-btn');
     const tick = document.getElementById('wins-ticker');
-    const modes = document.getElementById('modes-big');
-    if (!btn || !modes || this.state !== 'title') return;
-    const mr = modes.getBoundingClientRect();
-    if (mr.height <= 0) return;
+    const gold = document.getElementById('home-v4v');
+    if (!btn || this.state !== 'title') return;
     const H = window.innerHeight;
-    const tickH = tick && !tick.hidden ? Math.max(16, tick.getBoundingClientRect().height) : 0;
+    const goldOn = !!gold && document.body.classList.contains('has-donate');
+    const tight = (): boolean => document.body.classList.contains('daily-tight');
+    const tickOn = (): boolean => !!tick && !tick.hidden && !tight();
     const bh = btn.getBoundingClientRect().height || 50;
+    const gh = goldOn ? gold!.getBoundingClientRect().height || 46 : 0;
+    const th = tickOn() ? Math.max(16, tick!.getBoundingClientRect().height) : 0;
+    const gap = 10;
     const touchLayout = this.renderer.touchUi;
     this.renderer.titleCompact = touchLayout;
     if (this.titleShortH && this.titleShortH !== H) {
@@ -5298,50 +5403,60 @@ export class Game {
       this.renderer.titleShort = false;
       document.body.classList.remove('daily-tight');
     }
-    let top: number;
+    const place = (el: HTMLElement | null, top: number): void => {
+      if (!el) return;
+      el.style.top = `${Math.round(top)}px`;
+      el.style.bottom = 'auto';
+    };
     if (touchLayout && this.renderer.titleTextBottom > 0) {
+      for (const el of [btn, gold]) {
+        if (!el) continue;
+        el.style.left = '';
+        el.style.transform = '';
+      }
+      // Phones: title -> (recent wins) -> DAILY -> TREASURE, then START (portrait) or the menu row.
+      const portrait = H > window.innerWidth * 1.1;
+      const startEl = document.querySelector<HTMLElement>('.touch-action[data-action="boost"]');
+      const row = document.getElementById('menu-btns')?.getBoundingClientRect();
+      const floorEl = portrait ? startEl?.getBoundingClientRect() : row;
+      const floor = floorEl && floorEl.height > 0 ? floorEl.top - 12 : H - 80;
       const cr = this.canvas.getBoundingClientRect();
-      top = cr.top + this.renderer.titleTextBottom * (cr.height / Math.max(1, this.viewH)) + 2;
-      const over = top + tickH + (tickH ? 6 : 0) + bh > mr.top - 6;
-      if (over && !this.renderer.titleShort) {
-        this.renderer.titleShort = true;
-        this.titleShortH = H;
-      } else if (over && this.renderer.titleShort && !document.body.classList.contains('daily-tight')) {
-        // Still no room (iPhone SE): a slimmer DAILY button, and the recent-wins line rests.
-        document.body.classList.add('daily-tight');
-        this.titleShortH = H;
-      }
-    } else {
-      // Desktop / no compact copy: beside the gold clone button (left of it), ticker on top.
-      const clone = document.getElementById('clone-btn')?.getBoundingClientRect();
-      if (clone && clone.width > 0 && clone.left > btn.getBoundingClientRect().width + 20) {
-        const bt = clone.bottom - bh;
-        btn.style.left = tick && tickH ? `${Math.round(clone.left - 12)}px` : `${Math.round(clone.left - 12)}px`;
-        btn.style.transform = 'translateX(-100%)';
-        btn.style.top = `${Math.round(bt)}px`;
-        btn.style.bottom = 'auto';
-        if (tick) {
-          tick.style.left = `${Math.round(clone.left - 12)}px`;
-          tick.style.transform = 'translateX(-100%)';
-          tick.style.top = `${Math.round(bt - tickH - 16)}px`;
+      let top = cr.top + this.renderer.titleTextBottom * (cr.height / Math.max(1, this.viewH)) + 4;
+      const need = (th ? th + 6 : 0) + bh + (goldOn ? gap + gh : 0);
+      if (top + need > floor) {
+        if (!this.renderer.titleShort) {
+          this.renderer.titleShort = true;
+          this.titleShortH = H;
+        } else if (!tight()) {
+          // Still no room (iPhone SE landscape and the like): slimmer buttons, the wins line rests.
+          document.body.classList.add('daily-tight');
+          this.titleShortH = H;
         }
-        return;
       }
-      top = mr.top - 10 - bh - (tickH ? tickH + 6 : 0);
+      // Spread the stack in any spare room so the screen breathes (at most 28 px per gap).
+      const spare = Math.max(0, floor - top - need);
+      const extra = Math.min(28, spare / 3);
+      top += extra;
+      if (tickOn()) {
+        place(tick, top);
+        top += th + 6 + extra * 0.5;
+      }
+      place(btn, top);
+      top += bh + gap + extra;
+      if (goldOn) place(gold, top);
+      return;
     }
-    btn.style.left = '';
-    btn.style.transform = '';
-    if (tick) {
-      tick.style.left = '';
-      tick.style.transform = '';
+    // Desktop: DAILY and TREASURE side by side, low and centred (clear of the title copy).
+    const top = H - 34 - Math.max(bh, gh);
+    if (tickOn()) place(tick, top - th - 18);
+    place(btn, top);
+    btn.style.left = goldOn ? 'calc(50% - 8px)' : '50%';
+    btn.style.transform = goldOn ? 'translateX(-100%)' : 'translateX(-50%)';
+    if (goldOn) {
+      place(gold, top + (bh - gh) / 2);
+      gold!.style.left = 'calc(50% + 8px)';
+      gold!.style.transform = 'none';
     }
-    if (tick && tickH && !document.body.classList.contains('daily-tight')) {
-      tick.style.top = `${Math.round(top)}px`;
-      top += tickH + 6;
-    }
-    btn.style.top = `${Math.round(Math.min(top, mr.top - 8 - bh))}px`;
-    btn.style.bottom = 'auto';
-    void H;
   }
 
   /** In-run goal line (small, under the HUD). */

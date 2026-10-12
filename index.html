@@ -74,6 +74,13 @@
         </video>
       </div>
       <button type="button" id="daily-btn" class="hand-btn daily-btn" aria-label="Daily challenge" draggable="false" style="touch-action:none"><span class="daily-badge">★ Streak 0</span><span class="daily-name">DAILY CHALLENGE</span><span class="daily-twist"></span></button>
+      <div id="home-v4v" class="home-v4v" role="group" aria-label="Value for value (grown-ups)">
+        <button type="button" id="home-treasure" class="home-treasure" aria-label="Pay with treasure: Venmo donation, value for value, for grown-ups" draggable="false" style="touch-action:none"><span class="ht-main">PAY WITH TREASURE · Venmo</span><span class="ht-sub">Value for value · grown-ups</span></button>
+        <div class="home-v4v-small">
+          <button type="button" id="home-time" class="home-v4v-btn" aria-label="Give time: send an idea (grown-ups)" draggable="false" style="touch-action:none">TIME</button>
+          <button type="button" id="home-talent" class="home-v4v-btn" aria-label="Give talent: send a resume (grown-ups)" draggable="false" style="touch-action:none">TALENT</button>
+        </div>
+      </div>
       <div id="wins-ticker" class="wins-ticker" role="status" aria-live="off" hidden></div>
       <div id="daily-hud" class="daily-hud" aria-hidden="true"></div>
       <p id="daily-over" class="daily-over" role="status"></p>
@@ -178,6 +185,7 @@
           </div>
           <p id="modes-title">MODES</p>
           <p id="mission-toast" role="status" aria-live="polite"></p>
+          <div id="modes-more" aria-label="More ways to play"></div>
           <div id="modes-chips" class="chips"><div class="mb-chip"><span class="chip-text"></span><span class="chip-bar" aria-hidden="true"><i></i></span></div><div class="wr-chip" hidden></div></div>
           <div id="modes-list"></div>
           <div class="cg-hint">Fan nods only · not affiliated with or endorsed by anyone named</div>
@@ -188,6 +196,8 @@
       <div id="settings-menu" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="settings-title">
         <div class="set-card">
           <p id="settings-title">SETTINGS</p>
+          <section class="set-sec" aria-labelledby="set-h-controls">
+            <p class="set-h" id="set-h-controls">CONTROLS</p>
           <div class="set-row">
             <label id="joy-sens-label" for="joy-sens-range">JOYSTICK SENSITIVITY</label>
             <div class="set-slider">
@@ -199,11 +209,32 @@
             <p id="joy-sens-value" aria-live="polite">0.5x</p>
             <p id="joy-sens-hint">Lower is gentler. 1.0x is the original feel.</p>
           </div>
+            <div class="set-btns">
+              <button type="button" id="set-hand" class="set-link set-touch-only" draggable="false" style="touch-action:none">LEFT HAND</button>
+              <button type="button" id="set-sound" class="set-link" draggable="false" style="touch-action:none">SOUND: ON</button>
+            </div>
+          </section>
+          <section class="set-sec" aria-labelledby="set-h-game">
+            <p class="set-h" id="set-h-game">GAME</p>
+            <div class="set-diff" role="group" aria-label="Difficulty">
+              <button type="button" id="set-diff-minus" class="set-link set-step" aria-label="Easier" draggable="false" style="touch-action:none">&minus;</button>
+              <span id="set-diff-label">DIFFICULTY 1 · 0.6x</span>
+              <button type="button" id="set-diff-plus" class="set-link set-step" aria-label="Harder" draggable="false" style="touch-action:none">+</button>
+            </div>
+            <div class="set-btns">
+              <button type="button" id="set-levels" class="set-link" draggable="false" style="touch-action:none">LEVELS 1-111</button>
+              <button type="button" id="set-howto" class="set-link" draggable="false" style="touch-action:none">HOW TO PLAY</button>
+            </div>
+          </section>
+          <section class="set-sec" aria-labelledby="set-h-support">
+            <p class="set-h" id="set-h-support">SUPPORT</p>
           <div class="set-links">
             <button type="button" id="v4v-open" class="set-link" draggable="false" style="touch-action:none">VALUE FOR VALUE</button>
             <button type="button" id="producers-open" class="set-link" draggable="false" style="touch-action:none">PRODUCERS</button>
           </div>
+          </section>
           <button type="button" id="settings-close" class="set-close" draggable="false" style="touch-action:none">CLOSE</button>
+          <p class="set-legal"><a class="legal-privacy" href="/privacy" target="_blank" rel="noopener" draggable="false">Privacy</a> · <a class="legal-terms" href="/terms" target="_blank" rel="noopener" draggable="false">Terms</a></p>
         </div>
       </div>
       <div id="hs-menu" class="set-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="hs-title">

@@ -4800,3 +4800,360 @@ body.daily-tight #daily-btn .daily-badge {
     letter-spacing: 0.04em;
   }
 }
+
+/* ============ SIMPLE HOME + GAME OVER (iteration 97) ============
+   Home keeps: title + High Score, DAILY CHALLENGE (+ recent wins), PAY WITH TREASURE, a big
+   centred START, one row (HIGH SCORES · MODES · gear), the sound icon and 'Iteration N'.
+   Game over keeps: score + board, the VALUE FOR VALUE card, a big RIDE, and the same row.
+   Everything else moved to MODES / SETTINGS (see Game.setupDeclutter); nothing is deleted. */
+body.title-screen #howto-btn,
+body.gameover #howto-btn,
+body.title-screen #hand-btn,
+body.gameover #hand-btn,
+body.title-screen #diff-ctl,
+body.gameover #diff-ctl,
+body.title-screen #title-chips,
+body.title-screen #demo,
+body.gameover #demo,
+body.title-screen #legal-links,
+body.gameover #legal-links,
+body.title-screen #modes-big,
+body.gameover #mission-nudge,
+body.gameover #ghost-nudge {
+  display: none !important;
+}
+body.title-screen #menu-btns #modes-btn {
+  display: block;
+}
+#menu-btns #hs-btn {
+  order: 1;
+}
+#menu-btns #modes-btn {
+  order: 2;
+}
+#menu-btns #settings-btn {
+  order: 3;
+}
+
+/* Phones (any orientation): the one compact row, centred at the bottom. */
+body.touch-device.title-screen #menu-btns,
+body.touch-device.gameover #menu-btns {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px !important;
+  width: max-content !important;
+  max-width: calc(100vw - 16px);
+  z-index: 17;
+}
+body.touch-device.title-screen #menu-btns .hand-btn,
+body.touch-device.gameover #menu-btns .hand-btn {
+  position: relative !important;
+  inset: auto !important;
+  transform: none;
+  min-width: 0 !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  font-size: 11px !important;
+  white-space: nowrap;
+}
+body.touch-device.title-screen #menu-btns .hand-btn:active,
+body.touch-device.gameover #menu-btns .hand-btn:active {
+  transform: scale(0.96);
+}
+body.touch-device.gameover #menu-btns #modes-btn {
+  display: block;
+}
+@media (max-width: 380px) {
+  body.touch-device.title-screen #settings-btn .set-word,
+  body.touch-device.gameover #settings-btn .set-word {
+    display: none;
+  }
+  body.touch-device.title-screen #menu-btns .hand-btn,
+  body.touch-device.gameover #menu-btns .hand-btn {
+    padding: 10px 12px !important;
+  }
+}
+
+/* Portrait phones: START / RIDE big and centred above the row. */
+@media (orientation: portrait) {
+  body.touch-device.title-screen .touch-btn.touch-action,
+  body.touch-device.gameover .touch-btn.touch-action {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    bottom: calc(max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)) + 44px + 22px) !important;
+  }
+  body.touch-device.title-screen .touch-btn.touch-action {
+    --start-size: calc(var(--boost-size) * 1.2);
+    width: var(--start-size);
+    height: var(--start-size);
+    min-width: var(--start-size);
+    min-height: var(--start-size);
+    font-size: 20px;
+  }
+  body.touch-device.title-screen .touch-btn.touch-action:active,
+  body.touch-device.gameover .touch-btn.touch-action:active {
+    transform: translateX(-50%) scale(0.96);
+  }
+  body.touch-device.title-screen .touch-btn.touch-action::before,
+  body.touch-device.gameover .touch-btn.touch-action::before {
+    inset: -16px;
+  }
+
+  /* Game over: VALUE FOR VALUE is the second focus (after the score), wide, above RIDE. */
+  body.touch-device.has-donate.gameover #donate {
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(460px, calc(100vw - 24px)) !important;
+    max-width: none !important;
+    bottom: calc(max(14px, calc(env(safe-area-inset-bottom, 0px) + 6px)) + 44px + 22px + var(--boost-size) + 14px) !important;
+    padding: 12px 14px 9px !important;
+  }
+  body.touch-device.gameover #donate .v4v-title {
+    font-size: 16px !important;
+    letter-spacing: 0.12em;
+  }
+  body.touch-device.gameover #donate .v4v-msg {
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+    white-space: pre-line;
+  }
+  body.touch-device.gameover #donate .v4v-choices {
+    gap: 8px;
+    margin: 10px 0 6px;
+  }
+  body.touch-device.gameover #donate .v4v-choice {
+    min-height: 52px !important;
+    font-size: 14px !important;
+  }
+  body.touch-device.gameover #donate #donate-btn {
+    flex: 1.5 1 0;
+    font-size: 16px !important;
+    box-shadow: 0 0 18px rgba(255, 210, 60, 0.8);
+    border-color: #fff6c0;
+  }
+  body.touch-device.gameover #donate .donate-note {
+    font-size: 12px !important;
+  }
+}
+@media (orientation: portrait) and (max-height: 600px) {
+  body.touch-device.gameover #donate .v4v-msg {
+    font-size: 13px !important;
+  }
+  body.touch-device.gameover #donate .v4v-choice {
+    min-height: 44px !important;
+  }
+}
+#donate .v4v-msg {
+  white-space: pre-line;
+}
+
+/* Home: VALUE FOR VALUE trio: big gold PAY WITH TREASURE · Venmo + smaller TIME / TALENT
+   (each opens the grown-up check first). */
+#home-v4v {
+  display: none;
+  position: fixed;
+  z-index: 16;
+  left: 50%;
+  top: 60%;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: min(300px, calc(100vw - 32px));
+}
+body.has-donate.title-screen #home-v4v {
+  display: flex;
+}
+body.congrats-open #home-v4v,
+body.clone-open #home-v4v,
+body.modes-open #home-v4v,
+body.settings-open #home-v4v,
+body.lvl-open #home-v4v,
+body.lvl-open #daily-btn,
+body.lvl-open .wins-ticker {
+  display: none !important;
+}
+#home-treasure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 12px 6px;
+  border: 2px solid #fff6c0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffe66d, #ffb347);
+  box-shadow: 0 0 16px rgba(255, 200, 60, 0.6);
+  color: #2a0a3a;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+#home-treasure:active,
+.home-v4v-btn:active {
+  transform: scale(0.96);
+}
+.home-v4v-small {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.home-v4v-btn {
+  flex: 0 1 120px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  font: 900 12px/1 'Orbitron', sans-serif;
+  letter-spacing: 0.1em;
+  color: #1a0030;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+#home-time {
+  background: linear-gradient(180deg, #7fffff, #00c8ff);
+}
+#home-talent {
+  background: linear-gradient(180deg, #ff9de8, #ff4ec8);
+}
+body.daily-tight .home-v4v-btn {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+#home-treasure .ht-main {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+#home-treasure .ht-sub {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+body.daily-tight #home-treasure {
+  padding: 4px 14px 3px;
+}
+body.daily-tight #home-treasure .ht-main {
+  font-size: 12px;
+}
+
+/* MODES: 'more ways to play' (moved from the home screen). */
+#modes-more {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+#modes-more #clone-btn,
+body.modes-open #modes-more #clone-btn,
+body.touch-device.title-screen #modes-more #clone-btn,
+body.touch-device.gameover #modes-more #clone-btn {
+  display: block !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 1 1 100%;
+  margin: 0 !important;
+}
+#modes-more #devmode,
+#modes-more #ghostmode,
+body.modes-open #modes-more #devmode,
+body.modes-open #modes-more #ghostmode {
+  display: flex !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  flex: 1 1 240px;
+  max-width: 100%;
+  margin: 0 !important;
+}
+
+/* SETTINGS: short sections with headings. */
+.set-sec {
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba(127, 255, 255, 0.14);
+}
+.set-h {
+  margin: 0 0 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(127, 255, 255, 0.75);
+  text-align: left;
+}
+.set-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.set-btns .set-link {
+  flex: 1 1 140px;
+}
+.set-diff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.set-diff .set-step {
+  flex: 0 0 44px;
+  min-width: 44px;
+  font-size: 20px !important;
+  padding: 4px 0 !important;
+}
+.set-diff .set-step:disabled {
+  opacity: 0.35;
+}
+#set-diff-label {
+  flex: 1 1 auto;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffc2f0;
+}
+body:not(.touch-device) .set-touch-only {
+  display: none;
+}
+.set-legal {
+  margin: 10px 0 0;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.set-legal a {
+  color: rgba(185, 235, 255, 0.85);
+}
+body.touch-device.title-screen #menu-btns .hand-btn::before,
+body.touch-device.gameover #menu-btns .hand-btn::before {
+  inset: -4px;
+}
