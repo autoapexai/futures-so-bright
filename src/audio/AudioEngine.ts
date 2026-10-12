@@ -16,6 +16,88 @@ export class AudioEngine {
   private musicStep = 0;
   private hatBuffer: AudioBuffer | null = null;
   private htmlAudioKicking = false;
+  /** True while the page is hidden / backgrounded / blurred: every sound source is stopped. */
+  private away = false;
+  /** Media elements we paused on the way out (resumed on return). */
+  private pausedMedia: HTMLMediaElement[] = [];
+  private tromboneWasOn = false;
+  /** Window lost focus (blur) and hasn't had it back yet. */
+  private blurred = false;
+
+  constructor() {
+    if (typeof window === 'undefined') return;
+    // Page Visibility + iOS Safari lifecycle: stop ALL audio when the page goes away.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.sleep();
+      else this.wake();
+    });
+    window.addEventListener('pagehide', () => this.sleep());
+    window.addEventListener('blur', () => {
+      this.blurred = true;
+      this.sleep();
+    });
+    window.addEventListener('pageshow', () => this.wake());
+    window.addEventListener('focus', () => {
+      this.blurred = false;
+      this.wake();
+    });
+  }
+
+  /** Whether audio is currently stopped because the page is hidden / blurred. */
+  get isAway(): boolean {
+    return this.away;
+  }
+
+  /**
+   * Fully stop every sound: cancel the music sequencer and the sad-trombone loop, pause every
+   * <audio>/<video> (including the silent iOS session keeper) and suspend the AudioContext.
+   */
+  sleep(): void {
+    if (this.away) return;
+    this.away = true;
+    if (this.musicTimer !== null) {
+      clearTimeout(this.musicTimer);
+      this.musicTimer = null;
+    }
+    this.tromboneWasOn = this.tromboneTimer !== 0;
+    this.stopSadTrombone();
+    const media = new Set<HTMLMediaElement>(Array.from(document.querySelectorAll<HTMLMediaElement>('audio, video')));
+    if (this.htmlAudio) media.add(this.htmlAudio);
+    this.pausedMedia = [];
+    for (const m of media) {
+      if (!m.paused) {
+        this.pausedMedia.push(m);
+        m.pause();
+      }
+    }
+    try {
+      if (navigator.mediaSession) navigator.mediaSession.playbackState = 'paused';
+    } catch {
+      /* not supported */
+    }
+    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+  }
+
+  /** Back in view: resume only if sound was on (not muted); music restarts where it left off. */
+  wake(): void {
+    if (!this.away) return;
+    if (document.visibilityState !== 'visible') return;
+    if (this.blurred) return;
+    this.away = false;
+    const media = this.pausedMedia;
+    this.pausedMedia = [];
+    for (const m of media) {
+      if (m === this.htmlAudio && this.muted) continue;
+      const p = m.play();
+      if (p) void p.catch(() => { /* next gesture */ });
+    }
+    if (!this.ctx || !this.unlocked) return;
+    if (this.muted) return; // stays suspended; unmuting resumes it
+    void this.ctx.resume();
+    if (this.musicTimer === null) this.startMusic();
+    if (this.tromboneWasOn) this.startSadTrombone();
+    this.tromboneWasOn = false;
+  }
 
   get isMuted(): boolean {
     return this.muted;
@@ -31,6 +113,12 @@ export class AudioEngine {
    * in the same turn as the tap — awaiting resume() first is what mutes iOS.
    */
   async unlock(): Promise<void> {
+    if (this.away) {
+      // A tap means the page is in front again (iOS doesn't always send focus).
+      this.blurred = false;
+      this.wake();
+      if (this.away) return;
+    }
     this.ensureContext();
     this.kickSession();
     if (this.unlocked && this.ctx?.state === 'running') return;
@@ -74,7 +162,7 @@ export class AudioEngine {
       (a as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
       a.preload = 'auto';
       a.addEventListener('pause', () => {
-        if (document.visibilityState !== 'visible' || this.htmlAudioKicking) return;
+        if (document.visibilityState !== 'visible' || this.away || this.htmlAudioKicking) return;
         this.htmlAudioKicking = true;
         const retry = a.play();
         if (retry) {
@@ -104,7 +192,7 @@ export class AudioEngine {
     }
     if (!this.unlocked) {
       this.unlocked = true;
-      this.startMusic();
+      if (this.musicTimer === null) this.startMusic();
       document.addEventListener('visibilitychange', this.onVisibility);
       window.addEventListener('pageshow', this.onVisibility);
       window.addEventListener('focus', this.onVisibility);
@@ -126,13 +214,13 @@ export class AudioEngine {
 
   private onContextState = (): void => {
     const st = this.ctx?.state as string | undefined;
-    if ((st === 'suspended' || st === 'interrupted') && document.visibilityState === 'visible') {
+    if ((st === 'suspended' || st === 'interrupted') && document.visibilityState === 'visible' && !this.away && !this.muted) {
       void this.ctx?.resume();
     }
   };
 
   private onVisibility = (): void => {
-    if (document.visibilityState === 'hidden') return;
+    if (document.visibilityState === 'hidden' || this.away || this.muted) return;
     // Safari often suspends AudioContext after lock / tab switch; also
     // re-kick the silent HTMLAudio so the media session stays alive.
     const st = this.ctx?.state as string | undefined;
@@ -147,7 +235,7 @@ export class AudioEngine {
 
   /** Run SFX after the context is actually running (iOS may resume a tick late). */
   private whenRunning(fn: () => void): void {
-    if (!this.ctx || !this.master) return;
+    if (!this.ctx || !this.master || this.away) return;
     if (this.ctx.state === 'running') {
       fn();
       return;
@@ -160,6 +248,11 @@ export class AudioEngine {
   toggleMute(): boolean {
     this.muted = !this.muted;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.35;
+    if (!this.muted && !this.away && this.ctx && this.unlocked) {
+      const st = this.ctx.state as string;
+      if (st === 'suspended' || st === 'interrupted') void this.ctx.resume();
+      if (this.musicTimer === null) this.startMusic();
+    }
     return this.muted;
   }
 
@@ -318,6 +411,10 @@ export class AudioEngine {
   startSadTrombone(): void {
     this.stopSadTrombone();
     const loop = (): void => {
+      if (this.away) {
+        this.tromboneTimer = 0;
+        return;
+      }
       this.whenRunning(() => {
         if (!this.ctx || !this.master || this.muted) return;
         const c = this.ctx;
@@ -414,6 +511,10 @@ export class AudioEngine {
     const lead = [330, 0, 392, 330, 440, 0, 494, 392];
 
     const tick = () => {
+      if (this.away) {
+        this.musicTimer = null; // hidden: the sequencer stops (no drift); wake() restarts it
+        return;
+      }
       if (!this.ctx || !this.musicGain || this.muted) {
         this.musicTimer = window.setTimeout(tick, beat * 1000);
         this.musicStep++;

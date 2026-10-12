@@ -5157,3 +5157,12 @@ body.touch-device.title-screen #menu-btns .hand-btn::before,
 body.touch-device.gameover #menu-btns .hand-btn::before {
   inset: -4px;
 }
+
+/* Iteration 98: the CLONE card moved into MODES must not inherit the 'hide hand buttons under MODES'
+   rule (it left an empty gap), and the corner sound icon stays out of the MODES panel's corner. */
+body.modes-open #modes-more #clone-btn {
+  visibility: visible !important;
+}
+body.modes-open #mute-btn {
+  visibility: hidden;
+}

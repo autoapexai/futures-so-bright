@@ -537,7 +537,7 @@ export class Game {
     window.addEventListener('touchend', unlockOnGesture, { capture: true, passive: false });
     window.addEventListener('click', unlockOnGesture, { capture: true });
     window.addEventListener('pageshow', () => {
-      void this.audio.unlock();
+      this.audio.wake();
       this.fitCanvas();
     });
 
@@ -555,11 +555,13 @@ export class Game {
       if (document.visibilityState === 'hidden') {
         autoPause();
       } else if (document.visibilityState === 'visible') {
-        void this.audio.unlock();
+        this.audio.wake();
         this.syncWakeLock();
       }
     });
     window.addEventListener('pagehide', autoPause);
+    // iOS Safari / app switch: blur also pauses a run (audio stops in AudioEngine).
+    window.addEventListener('blur', autoPause);
 
     const app = document.getElementById('app') ?? canvas;
     app.addEventListener('pointerdown', this.onPointer, { passive: false });
@@ -2533,7 +2535,7 @@ export class Game {
     // Title-screen demo loop plays only while the title is up.
     const demo = document.getElementById('demo-video') as HTMLVideoElement | null;
     if (demo) {
-      if (this.state === 'title') void demo.play().catch(() => {});
+      if (this.state === 'title' && !this.audio.isAway) void demo.play().catch(() => {});
       else demo.pause();
     }
     const pauseBtn = document.getElementById('pause-btn');

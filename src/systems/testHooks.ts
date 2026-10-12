@@ -90,6 +90,10 @@ export function installTestHooks(game: unknown): void {
     for (let i = 0; i < warp; i++) origTick(dt);
   };
   (window as any).__fsbTest = {
+    audio: () => {
+      const a = g.audio;
+      return { ctx: a.ctx?.state ?? null, away: a.away, musicTimer: a.musicTimer, step: a.musicStep, muted: a.muted, unlocked: a.unlocked, silentPaused: a.htmlAudio ? a.htmlAudio.paused : null, playingMedia: Array.from(document.querySelectorAll('audio,video')).filter((m: any) => !m.paused).length + (a.htmlAudio && !a.htmlAudio.paused ? 1 : 0) };
+    },
     state: () => ({
       state: g.state,
       level: g.level,
