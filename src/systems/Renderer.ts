@@ -1290,7 +1290,13 @@ export class Renderer {
 
       const alpha = 0.55 + Math.sin(pulse * 4) * 0.35;
       ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
-      y = Math.min(y + this.u(compact && this.titleShort ? 4 : portrait ? 32 : 24), floor - this.u(10));
+      if (compact) {
+        // The DAILY stack sits here; the big START button already says how to start, so the
+        // pulsing 'Tap or swipe' line steps aside (nothing overlaps the sun / title / wins line).
+        this.titleTextBottom = this.titleShort ? y - this.u(24) : y + this.u(10);
+        return;
+      }
+      y = Math.min(y + this.u(portrait ? 32 : 24), floor - this.u(10));
       this.titleTextBottom = y + this.u(8);
       this.fillFitted(
         ctx,

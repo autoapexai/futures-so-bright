@@ -3435,7 +3435,7 @@ body.portrait #mission-nudge {
   }
 }
 
-/* —— Title / MODES chips: mini-boss countdown toward v2.2 + the live world record —— */
+/* —— Title / MODES chips: mini-boss countdown + the live world record —— */
 .chips {
   display: flex;
   flex-direction: column;
@@ -4781,4 +4781,22 @@ body.daily-tight #daily-btn .daily-badge {
   top: -9px;
   font-size: 11px;
   padding: 1px 7px;
+}
+
+/* iPhone SE-width phones: the TRY DEV MODE card is narrow beside START, so its two headline rows
+   wrap instead of clipping, and the tagline steps aside to keep the card the same height. */
+@media (max-width: 360px) and (orientation: portrait) {
+  body.touch-device #devmode-big .dm-try,
+  body.touch-device #devmode-big .dm-mode {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.1;
+  }
+  body.touch-device #devmode-big .dm-tag {
+    display: none;
+  }
+  #ver-label {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
 }

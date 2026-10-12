@@ -11,3 +11,6 @@ interface ImportMeta {
 
 /** Build-time flag (vite.config.ts define): test hooks on/off. */
 declare const __FSB_TEST__: boolean;
+
+/** Build-time: `git rev-list --count HEAD` of the commit being built (vite.config.ts define). */
+declare const __BUILD_ITERATION__: string;

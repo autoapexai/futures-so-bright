@@ -64,7 +64,7 @@ import { boardTaunt } from './boardTaunt';
 import { firstChar, initialsSet, isRude, maskInitials, nextChar, rudePrompt } from '../utils/initials';
 import { applyDomStrings, fmtNum, lang, loadLangFonts, onLang, setLang, t as tr, tPet, modeShipsLabel, modeAriaLabel } from '../i18n';
 import { BARK_EVERY, BARK_SPEED, BOSS_BONUS, BOSS_HIT_GRACE, BOSS_MERCY_R, BossFight, bossForLevel, drawBoss, type BossDef } from './Boss';
-import { APP_VERSION } from '../version';
+import { BUILD_ITERATION } from '../version';
 import { MINI_TOTAL, miniBanner, miniBeatenText, miniBonus, miniBossForLevel, miniGateText, miniLiveCount, missionFirstMiniForLevel, ghostMiniForLevel } from './miniBoss';
 import { ghostBossForLevel } from './ghostBoss';
 import { createLevelSelect, type LevelSelect } from './levelSelect';
@@ -922,13 +922,16 @@ export class Game {
       };
       // Long translations (e.g. PRUEBA EL MODO DEV) shrink to fit the button on one line.
       const fitTry = (): void => {
-        const el = big?.querySelector<HTMLElement>('.dm-try');
-        if (!el || !el.clientWidth) return;
-        el.style.fontSize = '';
-        let fs = parseFloat(getComputedStyle(el).fontSize) || 14;
-        while (el.scrollWidth > el.clientWidth + 1 && fs > 8) {
-          fs -= 0.5;
-          el.style.fontSize = `${fs}px`;
+        // Both headline rows shrink to fit (narrow phones like iPhone SE clipped them).
+        for (const sel of ['.dm-try', '.dm-mode']) {
+          const el = big?.querySelector<HTMLElement>(sel);
+          if (!el || !el.clientWidth) continue;
+          el.style.fontSize = '';
+          let fs = parseFloat(getComputedStyle(el).fontSize) || 14;
+          while (el.scrollWidth > el.clientWidth + 1 && fs > 7) {
+            fs -= 0.5;
+            el.style.fontSize = `${fs}px`;
+          }
         }
       };
       if (big && 'ResizeObserver' in window) new ResizeObserver(() => fitTry()).observe(big);
@@ -944,7 +947,8 @@ export class Game {
       this.syncChips();
       onLang(() => this.syncChips());
       document.querySelectorAll<HTMLElement>('.ver-label').forEach((el) => {
-        el.textContent = `v${APP_VERSION}`;
+        // Mr. Dan's rule: the only version label players see is the iteration number.
+        el.textContent = `Iteration ${BUILD_ITERATION}`;
       });
       bindTap(big, () => this.tryDevMode());
       bindTap(nudge, () => this.tryDevMode());
@@ -1565,7 +1569,7 @@ export class Game {
   }
 
   /**
-   * Title / MODES chips: the mini-boss countdown toward v2.2 (counted from MINI_LIVE_MAX, so it
+   * Title / MODES chips: the mini-boss countdown (counted from MINI_LIVE_MAX, so it
    * updates with each batch) and the live #1 from the shared board (masked like the board;
    * hidden when the board is unavailable). Never hardcoded.
    */
