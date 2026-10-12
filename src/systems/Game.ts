@@ -73,6 +73,8 @@ import { PRODUCERS, CREATED_BY, producersNewestFirst } from '../data/producers';
 import { V4V_PANEL } from '../data/valueForValue';
 import { JOY_SENS_MAX, JOY_SENS_MIN, JOY_SENS_STEP, clampJoySens, fmtJoySens, saveJoySens } from '../utils/joySens';
 import { mulberry32, newSeed, pick, subSeed, type Rng } from '../utils/rng';
+import { TWISTS, STREAK_MILESTONES, addWin, countdown, daySeed, dailyNow, loadDaily, loadWins, nextResetMs, pacificDayKey, recordDailyScore, recordWin, saveDaily, saveWins, streakInfo, todaysBest, twistForDay, type RecentWin, type TwistId, type WinKind } from '../utils/daily';
+import { dailyCopy, fill as fillCopy, relTime } from '../data/dailyText';
 import {
   BLENDER_SECONDS,
   MICROWAVE_SECONDS,
@@ -386,6 +388,16 @@ export class Game {
   private pendingReached = 1;
   /** HIGH SCORES panel (this device's board); title / game-over only. */
   private hsOpen = false;
+  /** DAILY CHALLENGE: intro panel open; the twist queued for the next run; this run's twist. */
+  private dailyOpen = false;
+  private nextDaily: TwistId | null = null;
+  private dailyRun: (typeof TWISTS)[number] | null = null;
+  private dailyDay = '';
+  private dailyWon = false;
+  private dailyDoneQueued = false;
+  private dailySyncT = 0;
+  private tickerIdx = -1;
+  private tickerT = 0;
   /** VALUE FOR VALUE / PRODUCERS panels (over SETTINGS). */
   private subPanel: 'v4v' | 'producers' | null = null;
   /** LEVEL SELECT FIGHT THE BOSS: this run began at its start level's boss / mini-boss. */
@@ -658,6 +670,12 @@ export class Game {
       this.openSettings();
     });
     bindTap(document.getElementById('settings-close'), () => this.closeSettings());
+    bindTap(document.getElementById('daily-btn'), () => {
+      void this.audio.unlock();
+      this.openDaily();
+    });
+    bindTap(document.getElementById('daily-start'), () => this.startDaily());
+    bindTap(document.getElementById('daily-close'), () => this.closeDaily());
     bindTap(document.getElementById('hs-btn'), () => {
       void this.audio.unlock();
       this.openHighScores();
@@ -1176,7 +1194,7 @@ export class Game {
 
   /** HIGH SCORES: this device's board (initials, score, mode, level reached). Title / game-over only. */
   private openHighScores(): void {
-    if (this.hsOpen || this.settingsOpen || this.modesOpen || this.quitOpen) return;
+    if (this.hsOpen || this.dailyOpen || this.settingsOpen || this.modesOpen || this.quitOpen) return;
     if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.levelSelect.isOpen()) return;
     if (this.state !== 'title' && this.state !== 'gameover') return;
     this.hsOpen = true;
@@ -2348,7 +2366,7 @@ export class Game {
   private onPointer = (e: PointerEvent): void => {
     const t = e.target as HTMLElement | null;
     if (this.modesOpen) return; // the MODES menu handles its own taps
-    if (this.settingsOpen || this.hsOpen) return; // so do SETTINGS and HIGH SCORES
+    if (this.settingsOpen || this.hsOpen || this.dailyOpen) return; // so do SETTINGS, HIGH SCORES and DAILY
     if (this.quitOpen) return; // so does the QUIT RUN? confirm
     if (this.congratsOpen) {
       if (e.cancelable) e.preventDefault();
@@ -2403,6 +2421,9 @@ export class Game {
     document.body.classList.toggle('initials', this.state === 'initials');
     document.body.classList.toggle('tutorial', this.tutStep >= 0 && (this.state === 'playing' || this.state === 'paused'));
     document.body.classList.toggle('quit-open', this.quitOpen);
+    document.body.classList.toggle('is-daily-run', !!this.dailyRun && (this.state === 'playing' || this.state === 'paused'));
+    document.body.classList.toggle('is-daily-over', !!this.dailyRun && this.state === 'gameover');
+    if (this.state === 'title') this.syncDailyUi();
     document.body.classList.toggle('mission-run', this.missionRun && (this.state === 'playing' || this.state === 'paused'));
     // The game-over 'Try DEV MODE next?' nudge is for normal runs only.
     document.body.classList.toggle('mission-over', this.state === 'gameover' && this.pendingMission);
@@ -2575,7 +2596,7 @@ export class Game {
   }
 
   private togglePause(): void {
-    if (this.modesOpen || this.settingsOpen || this.hsOpen) return;
+    if (this.modesOpen || this.settingsOpen || this.hsOpen || this.dailyOpen) return;
     if (this.state === 'paused' && this.quitOpen) this.closeQuitConfirm();
     if (this.state === 'playing') {
       this.state = 'paused';
@@ -2599,6 +2620,11 @@ export class Game {
       return;
     }
     if (this.ticketPending) return;
+    if (this.state === 'gameover' && this.dailyRun) {
+      // PLAY AGAIN after a daily challenge plays today's challenge again (counts once per day).
+      this.startDaily();
+      return;
+    }
     if (this.state === 'gameover' && this.pendingStory) {
       // RIDE AGAIN after a story run plays that story mode again.
       this.pendingCampaign = this.pendingStory;
@@ -2684,6 +2710,10 @@ export class Game {
     }
     this.runLocalOnly = localOnly;
     this.runPicked = this.nextRunPicked;
+    this.dailyRun = this.nextDaily ? TWISTS.find((t) => t.id === this.nextDaily) ?? null : null;
+    this.nextDaily = null;
+    this.dailyWon = false;
+    this.dailyDoneQueued = false;
     this.nextRunPicked = false;
     this.runSpeedMax = this.speedTenths;
     this.applySpeedBoardRule();
@@ -2722,6 +2752,9 @@ export class Game {
     this.nextCatAt = catStageDelay(this.catRng);
     this.world.powerRand = mulberry32(subSeed(this.runSeed, 77));
     this.world.spawnPowers = true;
+    // DAILY twists: Bowls Only = no appliance power-ups; Treat Storm = treat bowls twice as often.
+    if (this.dailyRun?.id === 'bowls') this.world.spawnPowers = false;
+    this.world.collectMul = this.dailyRun?.id === 'storm' ? 2 : 1;
     console.info(`[fsb] run seed ${this.runSeed}`);
     this.boss = null;
     this.bossDone = false;
@@ -2778,6 +2811,11 @@ export class Game {
     // FIGHT THE BOSS: the level clock starts just short of its end, so the usual entry brings the
     // boss / mini-boss in after a breath (same fight, rules, rewards and scoring).
     if (this.runFight) this.levelTime = LEVEL_SECONDS - FIGHT_LEAD_S;
+    if (this.dailyRun) {
+      const c = dailyCopy(lang());
+      this.bannerText = fillCopy(c.banner, { t: c.twist[this.dailyRun.id][0], m: fmtNum(this.dailyRun.target) });
+      this.bannerT = this.bannerDur = BANNER_SECONDS;
+    }
     // Story modes open with their title card (PART TWO: DOGS AND CATS IN SPACE ...).
     if (story) this.showPromotion(CAMPAIGN_CARD[story][0], CAMPAIGN_CARD[story][1], () => {}, STORY_CARD_SECONDS);
     this.world.reset();
@@ -2859,6 +2897,10 @@ export class Game {
     this.pendingGhost = this.ghostRun;
     this.pendingStory = this.storyId();
     if (this.pendingStory) setRunSpecies(null); // menus after the run read the normal pet choice again
+    if (this.dailyRun) {
+      this.endDailyRun();
+      return;
+    }
     if (this.pendingGhost) {
       this.endGhostRun();
       return;
@@ -2879,6 +2921,7 @@ export class Game {
       if (this.pendingScore > this.high) {
         this.high = this.pendingScore;
         this.newBest = true;
+        if (this.pendingScore > 0) this.pushWin('high', fmtNum(this.pendingScore));
       } else {
         this.newBest = false;
       }
@@ -3306,6 +3349,11 @@ export class Game {
     }
 
     if (this.state === 'title') {
+      this.dailySyncT -= dt;
+      if (this.dailySyncT <= 0) {
+        this.dailySyncT = 0.25;
+        this.syncDailyUi();
+      }
       this.renderer.update(dt, 80);
       this.player.y = this.viewH * 0.58 + Math.sin(this.pulse * 2.2) * 16;
       this.player.x = this.viewW * 0.28;
@@ -3324,6 +3372,12 @@ export class Game {
         return;
       }
       if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
+      if (this.dailyOpen) {
+        if (this.input.consume('escape')) this.closeDaily();
+        else if (this.input.consume('enter')) this.startDaily();
         this.input.clearJustPressed();
         return;
       }
@@ -3367,6 +3421,12 @@ export class Game {
         return;
       }
       if (this.ticketPending) {
+        this.input.clearJustPressed();
+        return;
+      }
+      if (this.dailyOpen) {
+        if (this.input.consume('escape')) this.closeDaily();
+        else if (this.input.consume('enter')) this.startDaily();
         this.input.clearJustPressed();
         return;
       }
@@ -3583,9 +3643,11 @@ export class Game {
     // Every other level ends with a MINI-BOSS, the level's gate: it never leaves, so the level
     // is only passed once it is beaten (miniBoss.ts).
     this.levelTime += dt;
+    // DAILY 'Boss Rush': mini-bosses come after 15 s of flying instead of 30.
+    const levelSecs = this.dailyRun?.id === 'bossrush' ? 15 : LEVEL_SECONDS;
     if (this.boss) {
-      this.levelTime = Math.min(this.levelTime, LEVEL_SECONDS);
-    } else if (this.levelTime >= LEVEL_SECONDS) {
+      this.levelTime = Math.min(this.levelTime, levelSecs);
+    } else if (this.levelTime >= levelSecs) {
       // ON A MISSION: first mini = BRIDGE TROLLS. GHOST DUSTERS: MARSHMALLOW DUDE at L10; ghost minis otherwise.
       const firstMissionMini = this.missionRun && this.minisBeaten === 0;
       const def = this.bossDone
@@ -3598,14 +3660,21 @@ export class Game {
               ? ghostMiniForLevel(this.runDifficulty)
               : miniBossForLevel(this.runDifficulty));
       if (def) {
-        this.levelTime = LEVEL_SECONDS;
+        this.levelTime = levelSecs;
         this.startBoss(def);
       } else {
-        this.levelTime -= LEVEL_SECONDS;
+        this.levelTime -= levelSecs;
         if (this.clearStage()) return;
       }
     }
     this.bannerT = Math.max(0, this.bannerT - realDt);
+    if (this.dailyDoneQueued && this.bannerT <= 0) {
+      // After the 0.9 s praise: 'Daily challenge done!'.
+      this.dailyDoneQueued = false;
+      this.bannerText = dailyCopy(lang()).done;
+      this.bannerT = this.bannerDur = 1.8;
+      for (const col of CONFETTI) this.particles.burst(this.viewW / 2, this.viewH * 0.32, col, this.touchPrimary ? 6 : 14, 320);
+    }
     this.toastT = Math.max(0, this.toastT - dt);
     this.spinT = Math.max(0, this.spinT - dt);
     this.shieldT = Math.max(0, this.shieldT - dt);
@@ -3621,7 +3690,8 @@ export class Game {
     const d = this.runDifficulty;
     // Story modes scale speed / density within dog mode's fairness limits (utils/campaign.ts).
     const hz = campaignLevers(d, this.campaign);
-    const m = hz.speed;
+    // DAILY 'Slow-Mo Day': everything drifts by at half speed.
+    const m = hz.speed * (this.dailyRun?.id === 'slowmo' ? 0.5 : 1);
     const pts = pointMultiplier(d);
     this.scrollSpeed = 240 * m + this.stageDist * 0.035 * m + (boosting ? 90 : 0) + (this.toastT > 0 ? 320 : 0);
     const pr = this.touchReserves();
@@ -3705,6 +3775,8 @@ export class Game {
     if (!this.boss) this.stageDist += this.scrollSpeed * dt * 0.35;
     this.score += scalePoints((this.scrollSpeed * dt * 0.12 + (boosting ? 12 * dt : 0)) * pts, this.speedTenths);
     if (this.score > SCORE_CAP) this.score = SCORE_CAP;
+    if (this.dailyRun && !this.dailyWon && this.distance >= this.dailyRun.target) this.dailyGoal();
+    this.syncDailyHud();
 
     // shade drain
     const drain = ((boosting && !this.easyFire() ? 0.14 : 0.048) + this.stageDist * 0.000003) * hz.drainMul;
@@ -3744,8 +3816,10 @@ export class Game {
           this.applyPower(c.kind, pts);
           continue;
         }
-        this.charge = clamp(this.charge + 0.22, 0, 1);
-        this.score += scalePoints(c.value * pts, this.speedTenths);
+        // DAILY 'Double Treats': every bowl counts twice.
+        const treatMul = this.dailyRun?.id === 'double' ? 2 : 1;
+        this.charge = clamp(this.charge + 0.22 * treatMul, 0, 1);
+        this.score += scalePoints(c.value * pts * treatMul, this.speedTenths);
         if (this.score > SCORE_CAP) this.score = SCORE_CAP;
         this.audio.playCollect();
         this.particles.burst(c.x, c.y, '#00f0ff', this.touchPrimary ? 8 : 12, 160);
@@ -4519,6 +4593,7 @@ export class Game {
             this.spawnFloater(bf.main.x - bf.main.w, bf.main.y, `+${fmtNum(pts)}`, '#ffe66d');
             void miniBeatenText;
             this.praise(bf.main.x, bf.main.y);
+            this.pushWin('boss', bf.def.name);
             break;
           }
           // Flat bonus (no level multiplier) times the GAME SPEED, still capped.
@@ -4535,6 +4610,7 @@ export class Game {
             '#ffe66d',
           );
           this.praise(bf.main.x, bf.main.y);
+          this.pushWin('boss', bf.def.name);
           break;
         case 'bored':
           this.bannerText = tr('banner_bored', { b: bf.def.name });
@@ -5056,6 +5132,271 @@ export class Game {
   }
 
   /** Boss / mini-boss beaten: a rotating compliment (never a taunt) with a confetti burst, 0.9 s. */
+  /* ---------------- DAILY CHALLENGE / STREAK / RECENT WINS (local only) ---------------- */
+
+  private todayKey(): string {
+    return pacificDayKey(dailyNow());
+  }
+
+  /** Start today's challenge: a normal dog-mode run at the new-player difficulty, with one twist. */
+  startDaily(force?: TwistId): void {
+    if (this.dailyOpen) this.closeDaily(true);
+    const day = this.todayKey();
+    const tw = force ? TWISTS.find((t) => t.id === force) ?? twistForDay(day) : twistForDay(day);
+    this.dailyDay = day;
+    this.nextDaily = tw.id;
+    this.pendingCampaign = 'dog';
+    this.forcedSeed = daySeed(day);
+    void this.audio.unlock();
+    this.startRun(NEW_PLAYER_DIFFICULTY, null, true);
+  }
+
+  private openDaily(): void {
+    if (this.dailyOpen || this.hsOpen || this.settingsOpen || this.modesOpen || this.quitOpen) return;
+    if (this.ticketPending || this.cloneOpen || this.congratsOpen || this.levelSelect.isOpen()) return;
+    if (this.state !== 'title' && this.state !== 'gameover') return;
+    this.dailyOpen = true;
+    this.renderDailyPanel();
+    const el = document.getElementById('daily-panel');
+    el?.classList.add('open');
+    el?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    this.audio.playUi();
+  }
+
+  private closeDaily(quiet = false): void {
+    if (!this.dailyOpen) return;
+    this.dailyOpen = false;
+    const el = document.getElementById('daily-panel');
+    el?.classList.remove('open');
+    el?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('settings-open');
+    this.input.clearTouch();
+    this.input.clearJustPressed();
+    if (!quiet) this.audio.playUi();
+  }
+
+  private renderDailyPanel(): void {
+    const c = dailyCopy(lang());
+    const now = dailyNow();
+    const day = pacificDayKey(now);
+    const tw = twistForDay(day);
+    const st = loadDaily();
+    const info = streakInfo(st, day);
+    const set = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    set('daily-title', c.title);
+    set('daily-twist', c.twist[tw.id][0]);
+    set('daily-desc', c.twist[tw.id][1]);
+    set('daily-goal', fillCopy(c.goal, { m: fmtNum(tw.target) }));
+    set('daily-best', info.doneToday ? c.doneToday : fillCopy(c.todayBest, { s: fmtNum(todaysBest(st, day)) }));
+    set('daily-streak', info.reset ? c.newStreak : `★ ${fillCopy(c.streak, { n: info.streak })}  ·  ${fillCopy(c.bestStreak, { n: info.best })}`);
+    set('daily-reset', fillCopy(c.newIn, { t: countdown(nextResetMs(now) - now) }));
+    set('daily-start', info.doneToday ? c.replay : c.start);
+    set('daily-close', c.back);
+    const row = document.getElementById('daily-week');
+    if (row) {
+      row.replaceChildren(
+        ...info.week.map((on, i) => {
+          const s = document.createElement('span');
+          s.className = on ? 'on' : '';
+          if (i === 6) s.classList.add('today');
+          s.textContent = on ? '★' : '☆';
+          return s;
+        }),
+      );
+    }
+  }
+
+  /** Home button text + countdown, the recent-wins ticker, and the title layout floor. */
+  private syncDailyUi(): void {
+    const btn = document.getElementById('daily-btn');
+    if (!btn) return;
+    const c = dailyCopy(lang());
+    const now = dailyNow();
+    const day = pacificDayKey(now);
+    const tw = twistForDay(day);
+    const info = streakInfo(loadDaily(), day);
+    const set = (sel: string, text: string) => {
+      const el = btn.querySelector(sel);
+      if (el && el.textContent !== text) el.textContent = text;
+    };
+    set('.daily-name', c.btn);
+    set('.daily-twist', `${info.doneToday ? '✓ ' : ''}${c.twist[tw.id][0]} · ${fillCopy(c.newIn, { t: countdown(nextResetMs(now) - now) })}`);
+    set('.daily-badge', info.reset ? c.newStreak : `★ ${fillCopy(c.streak, { n: info.streak })}`);
+    btn.classList.toggle('done', info.doneToday);
+    btn.setAttribute('aria-label', `${c.btn}: ${c.twist[tw.id][0]}`);
+    if (this.dailyOpen) this.renderDailyPanel();
+    this.syncTicker(now);
+    this.layoutTitleExtras();
+  }
+
+  /** Recent wins line: one entry every ~4 s with a gentle fade (CSS); hidden when empty. */
+  private syncTicker(now: number): void {
+    const el = document.getElementById('wins-ticker');
+    if (!el) return;
+    const wins = loadWins(now);
+    if (!wins.length) {
+      el.hidden = true;
+      this.tickerIdx = -1;
+      return;
+    }
+    el.hidden = false;
+    const t = performance.now();
+    if (this.tickerIdx < 0 || t - this.tickerT >= 4000) {
+      this.tickerIdx = (this.tickerIdx + 1) % wins.length;
+      this.tickerT = t;
+      el.classList.remove('show');
+      const w = wins[this.tickerIdx % wins.length];
+      setTimeout(() => {
+        el.textContent = `${this.winText(w)} · ${relTime(lang(), now - w.t)}`;
+        el.classList.add('show');
+      }, 350);
+    }
+  }
+
+  private winText(w: RecentWin): string {
+    const c = dailyCopy(lang());
+    return fillCopy(c.win[w.kind], { v: w.v ?? '' });
+  }
+
+  pushWin(kind: WinKind, v?: string | number): void {
+    const now = dailyNow();
+    const list = addWin(loadWins(now), { t: now, kind, ...(v != null ? { v: String(v) } : {}) }, now);
+    saveWins(list);
+    this.tickerIdx = -1;
+  }
+
+  /**
+   * Home layout: on phones the title copy goes compact and the recent-wins line + DAILY button sit
+   * right under 'Tap or swipe to start' (above MODES); on short phones the high-score line steps
+   * aside too. Desktop: the stack sits just above MODES.
+   */
+  private titleShortH = 0;
+  private layoutTitleExtras(): void {
+    const btn = document.getElementById('daily-btn');
+    const tick = document.getElementById('wins-ticker');
+    const modes = document.getElementById('modes-big');
+    if (!btn || !modes || this.state !== 'title') return;
+    const mr = modes.getBoundingClientRect();
+    if (mr.height <= 0) return;
+    const H = window.innerHeight;
+    const tickH = tick && !tick.hidden ? Math.max(16, tick.getBoundingClientRect().height) : 0;
+    const bh = btn.getBoundingClientRect().height || 50;
+    const touchLayout = this.renderer.touchUi;
+    this.renderer.titleCompact = touchLayout;
+    if (this.titleShortH && this.titleShortH !== H) {
+      this.titleShortH = 0;
+      this.renderer.titleShort = false;
+      document.body.classList.remove('daily-tight');
+    }
+    let top: number;
+    if (touchLayout && this.renderer.titleTextBottom > 0) {
+      const cr = this.canvas.getBoundingClientRect();
+      top = cr.top + this.renderer.titleTextBottom * (cr.height / Math.max(1, this.viewH)) + 2;
+      const over = top + tickH + (tickH ? 6 : 0) + bh > mr.top - 6;
+      if (over && !this.renderer.titleShort) {
+        this.renderer.titleShort = true;
+        this.titleShortH = H;
+      } else if (over && this.renderer.titleShort && !document.body.classList.contains('daily-tight')) {
+        // Still no room (iPhone SE): a slimmer DAILY button, and the recent-wins line rests.
+        document.body.classList.add('daily-tight');
+        this.titleShortH = H;
+      }
+    } else {
+      // Desktop / no compact copy: beside the gold clone button (left of it), ticker on top.
+      const clone = document.getElementById('clone-btn')?.getBoundingClientRect();
+      if (clone && clone.width > 0 && clone.left > btn.getBoundingClientRect().width + 20) {
+        const bt = clone.bottom - bh;
+        btn.style.left = tick && tickH ? `${Math.round(clone.left - 12)}px` : `${Math.round(clone.left - 12)}px`;
+        btn.style.transform = 'translateX(-100%)';
+        btn.style.top = `${Math.round(bt)}px`;
+        btn.style.bottom = 'auto';
+        if (tick) {
+          tick.style.left = `${Math.round(clone.left - 12)}px`;
+          tick.style.transform = 'translateX(-100%)';
+          tick.style.top = `${Math.round(bt - tickH - 16)}px`;
+        }
+        return;
+      }
+      top = mr.top - 10 - bh - (tickH ? tickH + 6 : 0);
+    }
+    btn.style.left = '';
+    btn.style.transform = '';
+    if (tick) {
+      tick.style.left = '';
+      tick.style.transform = '';
+    }
+    if (tick && tickH && !document.body.classList.contains('daily-tight')) {
+      tick.style.top = `${Math.round(top)}px`;
+      top += tickH + 6;
+    }
+    btn.style.top = `${Math.round(Math.min(top, mr.top - 8 - bh))}px`;
+    btn.style.bottom = 'auto';
+    void H;
+  }
+
+  /** In-run goal line (small, under the HUD). */
+  private syncDailyHud(): void {
+    if (!this.dailyRun) return;
+    const el = document.getElementById('daily-hud');
+    if (!el) return;
+    const c = dailyCopy(lang());
+    const text = this.dailyWon
+      ? `✓ ${c.done}`
+      : `${c.twist[this.dailyRun.id][0]}: ${fmtNum(Math.min(this.dailyRun.target, Math.floor(this.distance)))} / ${fmtNum(this.dailyRun.target)} m`;
+    if (el.textContent !== text) el.textContent = text;
+  }
+
+  /** Goal reached: 0.9 s praise + confetti, then 'Daily challenge done!'. Counts once per day. */
+  private dailyGoal(): void {
+    if (!this.dailyRun || this.dailyWon) return;
+    this.dailyWon = true;
+    this.praise(this.player.x + 60, this.player.y);
+    for (const col of ['#ffe66d', '#9dff6b']) this.particles.burst(this.viewW / 2, this.viewH * 0.3, col, this.touchPrimary ? 10 : 24, 340);
+    this.audio.playPromote();
+    this.dailyDoneQueued = true;
+    const r = recordWin(loadDaily(), this.dailyDay || this.todayKey());
+    if (r.counted) {
+      saveDaily(r.state);
+      this.pushWin('daily');
+      if (STREAK_MILESTONES.includes(r.streak)) this.pushWin('streak', r.streak);
+    }
+  }
+
+  /** Daily game over: today's best only; the normal board / best / taunts are untouched. */
+  private endDailyRun(): void {
+    const day = this.dailyDay || this.todayKey();
+    const r = recordDailyScore(loadDaily(), day, this.pendingScore);
+    if (r.newBest) saveDaily(r.state);
+    // Today's best is on the daily line; the canvas 'NEW BEST' is for the normal best only.
+    this.newBest = false;
+    this.boardIsRemote = false;
+    this.leaderboard = loadLeaderboard();
+    this.highlightIndex = -1;
+    const c = dailyCopy(lang());
+    const el = document.getElementById('daily-over');
+    if (el && this.dailyRun) {
+      el.textContent = this.dailyWon
+        ? `${c.overDone}  ${fillCopy(c.todayBest, { s: fmtNum(todaysBest(r.state, day)) })}`
+        : fillCopy(c.overTry, { d: fmtNum(Math.floor(this.distance)), m: fmtNum(this.dailyRun.target) });
+    }
+    this.state = 'gameover';
+    this.setBodyFlags();
+    // Sit just above the game-over VALUE FOR VALUE card (clear of the canvas score lines).
+    requestAnimationFrame(() => {
+      const card = document.getElementById('donate')?.getBoundingClientRect();
+      if (!el) return;
+      if (card && card.height > 0) {
+        el.style.top = `${Math.max(0, Math.round(card.top - el.getBoundingClientRect().height - 6))}px`;
+      } else el.style.top = '';
+    });
+  }
+
   private praise(x: number, y: number): void {
     const lines = PRAISE[lang()] ?? PRAISE.en!;
     this.praisePick = (this.praisePick + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length;
@@ -5071,6 +5412,7 @@ export class Game {
    */
   private easyFire(): boolean {
     if (this.campaign !== 'dog' || this.mode || this.missionRun || this.ghostRun || this.tutStep >= 0) return false;
+    if (this.dailyRun?.id === 'holdfire') return true; // DAILY 'Hold-Fire Day': the whole run
     if (this.runPicked) return this.runDifficulty >= 1 && this.runDifficulty <= EASY_FIRE_MAX_LEVEL;
     return this.runStartLevel === NEW_PLAYER_DIFFICULTY && this.runTime < EASY_FIRE_SECONDS;
   }
@@ -5124,6 +5466,10 @@ export class Game {
   private hitsObstacle(o: Obstacle, hb: { x: number; y: number; w: number; h: number }): boolean {
     // Ring gates are never hazards (touching one is a GATE BOOST, see checkGates).
     if (o.kind === 'ring') return false;
+    if (this.dailyRun?.id === 'tiny') {
+      // DAILY 'Tiny Pets': a smaller hitbox (60% each way, centred).
+      hb = { x: hb.x + hb.w * 0.2, y: hb.y + hb.h * 0.2, w: hb.w * 0.6, h: hb.h * 0.6 };
+    }
     if (o.kind === 'flare') {
       return circleRect(o.x + o.w / 2, o.y + o.h / 2, o.w * 0.38, hb.x, hb.y, hb.w, hb.h);
     }

@@ -1172,6 +1172,16 @@ export class Renderer {
 
   }
 
+  /**
+   * Title screen with the DAILY CHALLENGE stack (recent wins + DAILY button under the start line):
+   * compact = only the title, high score and 'Tap or swipe' (the how-to lines live in HOW TO PLAY);
+   * short = also drop the high-score line (it is on HIGH SCORES and the HUD) on short phones.
+   * titleTextBottom = canvas y just under the start line, where the DOM stack begins.
+   */
+  titleCompact = false;
+  titleShort = false;
+  titleTextBottom = 0;
+
   drawTitle(ctx: CanvasRenderingContext2D, high: number, pulse: number): void {
     const W = this.W;
     const H = this.H;
@@ -1190,7 +1200,11 @@ export class Renderer {
     ctx.fillStyle = COL.pink;
     if (big) {
       // Leave bottom band clear for START thumb button (taller on portrait).
-      const floor = H - this.padBottom - H * (portrait ? 0.24 : 0.34);
+      const baseFloor = H - this.padBottom - H * (portrait ? 0.24 : 0.34);
+      // With the DAILY CHALLENGE stack above MODES the copy ends above it, and the two
+      // how-to lines (also on HOW TO PLAY) step aside so the home screen stays uncluttered.
+      const compact = this.titleCompact;
+      const floor = baseFloor;
       const cx = W / 2;
       // Sit fully below mute chrome / Dynamic Island (baseline, not cap-height).
       let y = this.padTop + this.u(portrait ? 96 : 44);
@@ -1212,6 +1226,7 @@ export class Renderer {
 
       ctx.fillStyle = 'rgba(255,255,255,0.94)';
       y = Math.min(y + this.u(portrait ? 44 : 32), floor - this.u(portrait ? 120 : 78));
+      if (!compact) {
       this.fillFitted(
         ctx,
         portrait ? tr('title_dodge_p') : tr('title_dodge_l'),
@@ -1256,8 +1271,11 @@ export class Renderer {
         );
       }
 
+      }
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      y = Math.min(y + this.u(portrait ? 30 : 22), floor - this.u(portrait ? 44 : 36));
+      if (compact) y = Math.min(y - this.u(portrait ? 8 : 6), floor - this.u(portrait ? 44 : 36));
+      else y = Math.min(y + this.u(portrait ? 30 : 22), floor - this.u(portrait ? 44 : 36));
+      if (!(compact && this.titleShort))
       this.fillFitted(
         ctx,
         tr('title_high', { s: fmtScore(high) }),
@@ -1272,7 +1290,8 @@ export class Renderer {
 
       const alpha = 0.55 + Math.sin(pulse * 4) * 0.35;
       ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
-      y = Math.min(y + this.u(portrait ? 32 : 24), floor - this.u(10));
+      y = Math.min(y + this.u(compact && this.titleShort ? 4 : portrait ? 32 : 24), floor - this.u(10));
+      this.titleTextBottom = y + this.u(8);
       this.fillFitted(
         ctx,
         tr('title_tap'),

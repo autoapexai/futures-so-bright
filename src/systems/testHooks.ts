@@ -16,12 +16,15 @@ import { CAR_HALF, CAR_DOWN, CAR_UP, PARTS as MISSION_PART_LIST } from './missio
 import { campaignLevers } from '../utils/campaign';
 import { loadCatSuit, loadAnimalsUnlocked, saveCatSuit, saveAnimalsUnlocked, saveCatTried } from '../utils/storage';
 import { pet } from '../utils/pets';
+import { setDailyClock, loadDaily, saveDaily, streakInfo, pacificDayKey, twistForDay, dailyNow, loadWins, saveWins, addWin, TWISTS, type WinKind } from '../utils/daily';
 import { paintShip, BREEDS, CAT_BREEDS, PLATYPUS_BREEDS, MANATEE_BREEDS } from '../render/shipSprite';
 
 const MISSION_PARTS_TOTAL = MISSION_PART_LIST.length;
 
 let pilotOn = false;
 let pilotKeep = false;
+let dodgeOn = false;
+let warp = 1;
 
 export function installTestHooks(game: unknown): void {
   const g = game as any;
@@ -46,6 +49,36 @@ export function installTestHooks(game: unknown): void {
         axis.y = act.ay;
         Object.defineProperty(g.input, 'axis', { configurable: true, get: () => axis });
         Object.defineProperty(g.input, 'boosting', { configurable: true, get: () => act.boost });
+      } else if (dodgeOn) {
+        // Simple 'decent player' bot: steer to the lane with the most room ahead, grab bowls,
+        // hold FIRE when something is in the lane (always on Hold-Fire tuning).
+        const pr = g.touchReserves();
+        const top = pr.top + 30, bot = g.viewH - pr.bottom - 30;
+        const px = g.player.x, py = g.player.y;
+        let best = py, bestScore = -1e9;
+        for (let y = top; y <= bot; y += 12) {
+          let sc = -Math.abs(y - py) * 0.04 - Math.abs(y - (top + bot) / 2) * 0.01;
+          for (const o of g.world.obstacles) {
+            if (!o.alive || o.kind === 'ring') continue;
+            const ahead = o.x - px;
+            if (o.x + o.w < px - 30 || ahead > 380) continue;
+            const pad = 34;
+            if (y > o.y - pad && y < o.y + o.h + pad) sc -= 400 / (1 + Math.max(0, ahead) / 90);
+          }
+          for (const c of g.world.collectibles) {
+            if (!c.alive) continue;
+            const ahead = c.x - px;
+            if (ahead < -10 || ahead > 300) continue;
+            if (Math.abs(c.y - y) < 26) sc += (c.kind === 'shade' ? 30 : 8) * (g.charge < 0.6 ? 2 : 1);
+          }
+          if (sc > bestScore) { bestScore = sc; best = y; }
+        }
+        axis.y = Math.max(-1, Math.min(1, (best - py) / 50));
+        axis.x = stickTo(g.viewW * 0.22 - px, g.player.vx) * 0.6;
+        const inLane = g.world.obstacles.some((o: any) => o.alive && o.kind !== 'ring' && o.x > px && o.x - px < 320 && py > o.y - 30 && py < o.y + o.h + 30);
+        const fire = g.easyFire() || (inLane && g.charge > 0.35);
+        Object.defineProperty(g.input, 'axis', { configurable: true, get: () => axis });
+        Object.defineProperty(g.input, 'boosting', { configurable: true, get: () => fire });
       } else {
         axis.x = 0;
         axis.y = 0;
@@ -54,7 +87,7 @@ export function installTestHooks(game: unknown): void {
       }
       if (pilotKeep && g.charge < 0.35) g.charge = 0.35;
     }
-    origTick(dt);
+    for (let i = 0; i < warp; i++) origTick(dt);
   };
   (window as any).__fsbTest = {
     state: () => ({
@@ -235,6 +268,54 @@ export function installTestHooks(game: unknown): void {
         delete g.input.axis;
         delete g.input.boosting;
       }
+    },
+    /** Bot for the DAILY completability check: pilot + lane dodger (keepAlive off = honest run). */
+    bot: (on: boolean, speedUp = 1) => {
+      pilotOn = on;
+      pilotKeep = false;
+      dodgeOn = on;
+      warp = Math.max(1, Math.min(6, Math.floor(speedUp)));
+      if (!on) {
+        delete g.input.axis;
+        delete g.input.boosting;
+      }
+    },
+    /** DAILY CHALLENGE / STREAK hooks (dev builds only). */
+    daily: {
+      /** Move the daily clock to ms (keeps ticking from there); null = real time. */
+      setNow: (ms: number | null) => {
+        if (ms == null) return setDailyClock(null);
+        const off = ms - Date.now();
+        setDailyClock(() => Date.now() + off);
+        g.syncDailyUi?.();
+      },
+      /** Set beaten days (YYYY-MM-DD) and best streak. */
+      setWon: (won: string[], best?: number) => {
+        const s = loadDaily();
+        saveDaily({ ...s, won: [...won].sort(), best: best ?? Math.max(s.best, 0) });
+        g.syncDailyUi?.();
+      },
+      info: () => {
+        const day = pacificDayKey(dailyNow());
+        return { day, twist: twistForDay(day), ...streakInfo(loadDaily(), day), stored: loadDaily() };
+      },
+      twists: () => TWISTS.map((t) => ({ ...t })),
+      start: (id?: string) => g.startDaily(id),
+      open: () => g.openDaily(),
+      /** Fast-forward the current daily run to just short of its goal. */
+      nearGoal: (m = 30) => {
+        if (g.dailyRun) g.distance = g.dailyRun.target - m;
+      },
+      run: () => ({ twist: g.dailyRun?.id ?? null, won: g.dailyWon, distance: g.distance, target: g.dailyRun?.target ?? 0, state: g.state, runTime: g.runTime, charge: g.charge, ships: g.ships }),
+      addWin: (kind: WinKind, v?: string, agoMs = 0) => {
+        const now = dailyNow();
+        saveWins(addWin(loadWins(now), { t: now - agoMs, kind, ...(v != null ? { v } : {}) }, now));
+        g.tickerIdx = -1;
+        g.syncDailyUi?.();
+      },
+      clearWins: () => saveWins([]),
+      /** End the current run now (game over). */
+      finish: () => g.endRun(),
     },
     BOSSES: BOSSES.map((b) => ({ level: b.level, id: b.modeId, name: b.name, signature: b.signature, ...bossTuning(b.rank) })),
     /** Jump the current run to level n (as if every earlier level was passed); gold levels get their swarm. */

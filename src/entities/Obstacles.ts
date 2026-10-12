@@ -59,6 +59,8 @@ export class WorldSpawner {
   powerRand: () => number = Math.random;
   /** Off in the How to Play walkthrough and the title demo. */
   spawnPowers = false;
+  /** DAILY CHALLENGE 'Treat Storm': > 1 spawns treat bowls more often (1 = normal). */
+  collectMul = 1;
   private difficulty = 0;
   private laneTop = 80;
   private laneBot = 460;
@@ -172,7 +174,7 @@ export class WorldSpawner {
     }
     if (this.collectTimer <= 0 && this.spawnCollectibles) {
       this.spawnCollectible(W);
-      this.collectTimer = rand(0.55, 1.2);
+      this.collectTimer = rand(0.55, 1.2) / this.collectMul;
     }
 
     for (const o of this.obstacles) {

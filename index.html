@@ -73,6 +73,10 @@
           <source src="/demo/fsb-demo.mp4?v=fire1" type="video/mp4" />
         </video>
       </div>
+      <button type="button" id="daily-btn" class="hand-btn daily-btn" aria-label="Daily challenge" draggable="false" style="touch-action:none"><span class="daily-badge">★ Streak 0</span><span class="daily-name">DAILY CHALLENGE</span><span class="daily-twist"></span></button>
+      <div id="wins-ticker" class="wins-ticker" role="status" aria-live="off" hidden></div>
+      <div id="daily-hud" class="daily-hud" aria-hidden="true"></div>
+      <p id="daily-over" class="daily-over" role="status"></p>
       <button type="button" id="modes-big" class="hand-btn" aria-label="Modes: fan modes" draggable="false" style="touch-action:none">MODES</button>
       <button type="button" id="clone-btn" class="hand-btn" aria-label="I think I'm a clone now: play level 11" draggable="false" style="touch-action:none">I THINK I'M A CLONE NOW</button>
       <div id="ver-label" class="ver-label"></div>
@@ -208,6 +212,20 @@
           <p id="hs-sub">TOP 11 ON THIS DEVICE</p>
           <table id="hs-rows"></table>
           <button type="button" id="hs-close" class="set-close" draggable="false" style="touch-action:none">CLOSE</button>
+        </div>
+      </div>
+      <div id="daily-panel" class="set-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="daily-title">
+        <div class="set-card">
+          <p id="daily-title" class="panel-title">DAILY CHALLENGE</p>
+          <p id="daily-twist" class="daily-twist-big"></p>
+          <p id="daily-desc" class="panel-lead"></p>
+          <p id="daily-goal" class="daily-goal"></p>
+          <p id="daily-best" class="daily-line"></p>
+          <div id="daily-week" class="daily-week" aria-hidden="true"></div>
+          <p id="daily-streak" class="daily-line daily-streak"></p>
+          <p id="daily-reset" class="daily-line daily-reset"></p>
+          <button type="button" id="daily-start" class="set-link prod-wide daily-start" draggable="false" style="touch-action:none">PLAY TODAY'S CHALLENGE</button>
+          <button type="button" id="daily-close" class="set-close" draggable="false" style="touch-action:none">BACK</button>
         </div>
       </div>
       <div id="v4v-panel" class="set-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="v4vp-title">

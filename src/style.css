@@ -4187,6 +4187,7 @@ body.fsb-homing #touch-hint {
 }
 #settings-menu,
 #hs-menu,
+#daily-panel,
 #v4v-panel,
 #producers-panel {
   display: none;
@@ -4203,6 +4204,7 @@ body.fsb-homing #touch-hint {
 }
 #settings-menu.open,
 #hs-menu.open,
+#daily-panel.open,
 #v4v-panel.open,
 #producers-panel.open {
   display: flex;
@@ -4214,6 +4216,7 @@ body.settings-open #touch-hint {
 }
 #settings-menu .set-card,
 #hs-menu .set-card,
+#daily-panel .set-card,
 #v4v-panel .set-card,
 #producers-panel .set-card {
   width: min(460px, 100%);
@@ -4318,7 +4321,8 @@ body.settings-open #touch-hint {
 #settings-close,
 #hs-close,
 #v4vp-back,
-#prod-back {
+#prod-back,
+#daily-close {
   min-width: 140px;
   min-height: 44px;
   padding: 8px 20px;
@@ -4396,6 +4400,7 @@ body.settings-open #touch-hint {
 #modes-menu .cg-card [role='button'],
 #settings-menu .set-card button,
 #hs-menu .set-card button,
+#daily-panel .set-card button,
 #v4v-panel .set-card button,
 #producers-panel .set-card button,
 #dev-board .cg-card button,
@@ -4553,6 +4558,7 @@ body.settings-open #touch-hint {
    and a panel opened from SETTINGS hides SETTINGS underneath, so nothing shows through. */
 #settings-menu .set-card,
 #hs-menu .set-card,
+#daily-panel .set-card,
 #v4v-panel .set-card,
 #producers-panel .set-card {
   background: radial-gradient(ellipse at 50% 0%, rgba(0, 220, 255, 0.16), rgba(20, 5, 35, 0) 70%), #14052a;
@@ -4563,4 +4569,216 @@ body.settings-open #touch-hint {
 }
 body.subpanel-open #settings-menu .set-card {
   visibility: hidden;
+}
+
+/* —— DAILY CHALLENGE (home button, intro panel, in-run goal line, game-over line) + RECENT WINS —— */
+#daily-btn {
+  display: none;
+  box-sizing: border-box;
+  min-height: 44px;
+  position: fixed;
+  z-index: 16;
+  left: 50%;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
+  top: 200px;
+  bottom: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 228px;
+  max-width: calc(100vw - 32px);
+  padding: 7px 18px 6px;
+  border-color: rgba(255, 230, 109, 0.95);
+  color: #fff3b0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 210, 60, 0.26), rgba(20, 5, 35, 0.94) 75%);
+  box-shadow: 0 0 16px rgba(255, 210, 60, 0.4);
+  white-space: nowrap;
+}
+body.title-screen #daily-btn,
+body.touch-device.title-screen #daily-btn {
+  display: flex;
+}
+body.gameover #daily-btn,
+body.playing #daily-btn,
+body.paused #daily-btn,
+body.congrats-open #daily-btn,
+body.clone-open #daily-btn,
+body.modes-open #daily-btn,
+body.settings-open #daily-btn {
+  display: none !important;
+}
+#daily-btn .daily-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 8px rgba(255, 210, 60, 0.8);
+}
+#daily-btn .daily-twist {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.88);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+#daily-btn.done .daily-twist {
+  color: #b9ff9a;
+}
+#daily-btn .daily-badge {
+  position: absolute;
+  top: -11px;
+  right: -10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ffe66d;
+  color: #2a0a3a;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 8px rgba(255, 230, 109, 0.7);
+}
+.wins-ticker {
+  position: fixed;
+  z-index: 16;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 180px;
+  max-width: calc(100vw - 40px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(185, 255, 154, 0.95);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  display: none;
+}
+body.title-screen:not(.modes-open):not(.settings-open) .wins-ticker:not([hidden]) {
+  display: block;
+}
+.wins-ticker.show {
+  opacity: 1;
+}
+.daily-hud {
+  display: none;
+  position: fixed;
+  z-index: 15;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(20, 5, 35, 0.6);
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffe66d;
+  white-space: nowrap;
+  pointer-events: none;
+}
+body.is-daily-run .daily-hud {
+  display: block;
+}
+#daily-over {
+  display: none;
+  position: fixed;
+  z-index: 16;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 64px);
+  margin: 0;
+  max-width: calc(100vw - 32px);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(20, 5, 35, 0.75);
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffe66d;
+  text-align: center;
+  pointer-events: none;
+}
+body.is-daily-over:not(.settings-open):not(.modes-open) #daily-over {
+  display: block;
+}
+.daily-twist-big {
+  margin: 0 0 6px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(18px, 4.4vmin, 24px);
+  font-weight: 900;
+  color: #ffe66d;
+  text-shadow: 0 0 10px rgba(255, 210, 60, 0.7);
+}
+.daily-goal {
+  margin: 0 0 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #7fffff;
+}
+.daily-line {
+  margin: 0 0 8px;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+.daily-streak {
+  color: #fff3b0;
+}
+.daily-reset {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.daily-week {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.3);
+}
+.daily-week .on {
+  color: #ffe66d;
+  text-shadow: 0 0 8px rgba(255, 230, 109, 0.8);
+}
+.daily-week .today {
+  border-bottom: 2px solid rgba(127, 255, 255, 0.7);
+  padding-bottom: 2px;
+}
+.daily-start {
+  margin-bottom: 10px;
+}
+#daily-btn:active {
+  transform: translateX(-50%) scale(0.96);
+}
+body.daily-tight .wins-ticker {
+  display: none !important;
+}
+body.daily-tight #daily-btn {
+  min-height: 0;
+  padding: 4px 14px 3px;
+  gap: 0;
+}
+body.daily-tight #daily-btn .daily-name {
+  font-size: 12px;
+}
+body.daily-tight #daily-btn .daily-twist {
+  font-size: 12px;
+}
+body.daily-tight #daily-btn .daily-badge {
+  top: -9px;
+  font-size: 11px;
+  padding: 1px 7px;
 }
